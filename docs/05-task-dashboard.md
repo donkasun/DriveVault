@@ -52,9 +52,9 @@
 | Order | ID | Task | Status | Executor | Notes |
 |---|---|---|---|---|---|
 | 1 | C1 | Flutter scaffold (feature folders, deps, shell, router) | ✅ | Opus | analyze clean, widget test passing |
-| 2 | C2a | Firebase init + email/password auth | ⬜ | SmallLLM | sign up/in/out |
-| 2 | C2b | Google sign-in | ⬜ | SmallLLM | Apple deferred |
-| 2 | C2c | Auth gate + persistence | ⬜ | SmallLLM | go_router redirect |
+| 2 | C2a | Firebase init + email/password auth | ✅ | Antigravity | tests passing, main initialized |
+| 2 | C2b | Google sign-in | ✅ | Antigravity | google_sign_in integrated |
+| 2 | C2c | Auth gate + persistence | ✅ | Antigravity | GoRouter redirect listener |
 | 3 | C3 | API client + token injection | ⬜ | SmallLLM | base URL via `--dart-define` |
 | 4 | D1a | Vehicles list (Garage) | ⬜ | SmallLLM | VehicleCard + 4 states |
 | 4 | D1b | Add/Edit Vehicle form (modal) | ⬜ | SmallLLM | POST/PATCH + delete |
@@ -83,9 +83,9 @@
 |---|---|---|
 | Setup | 7 | 8 |
 | Backend | 2 | 15 |
-| Mobile | 1 | 15 |
+| Mobile | 4 | 15 |
 | Wrap-up | 0 | 1 |
-| **Total** | **10** | **39** |
+| **Total** | **13** | **39** |
 
 > Some tasks were split into sub-tasks (A3a–c, C2a–c, D1a–c, D5a–c) so each fits a single
 > focused session / a smaller LLM. See `04-phase1-tasks.md` for the definitions.
