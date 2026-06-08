@@ -20,6 +20,8 @@
 | 4 | S4 | This task dashboard | ✅ | Opus | `docs/05-task-dashboard.md` |
 | 5 | S5 | Install Flutter SDK | ✅ | Opus | Flutter 3.44.1 / Dart 3.12.1 |
 | 6 | S6 | Toolchains for device builds | 🟡 | User | Xcode 26.5 ✅; Android needs `cmdline-tools` + licenses |
+| 7 | S7 | Firebase project + wiring | 🟡 | Opus + User | `drivevault-app` created, `flutterfire configure` done; **User must enable Auth providers in console** (Email/Google) |
+| 8 | S8 | Cloudinary account (free, no card) | ⬜ | User | sign up → put cloud name / API key / secret in backend `.env` |
 
 ---
 
@@ -36,9 +38,10 @@
 | 7 | B2 | Fuel logs CRUD | ⬜ | SmallLLM | validate liters > 0 |
 | 8 | B3 | Fuel stats (computed) | ⬜ | SmallLLM | full-tank math in a service |
 | 9 | B4 | Maintenance CRUD | ⬜ | SmallLLM | `source='manual'` |
-| 10 | B5 | Documents CRUD (metadata) | ⬜ | SmallLLM | store `storageUrl` only |
-| 11 | B6 | Dashboard aggregate | ⬜ | SmallLLM | `/api/v1/dashboard` |
-| 12 | B7 | Deploy to Render + Neon | ⏳ | User + SmallLLM | needs Neon & Render accounts |
+| 10 | B4b | Cloudinary upload signature endpoint | ⬜ | SmallLLM | signs uploads; secret stays server-side |
+| 11 | B5 | Documents CRUD (metadata) | ⬜ | SmallLLM | store `storageUrl` + `publicId`; delete Cloudinary asset |
+| 12 | B6 | Dashboard aggregate | ⬜ | SmallLLM | `/api/v1/dashboard` |
+| 13 | B7 | Deploy to Render + Neon | ⏳ | User + SmallLLM | needs Neon & Render accounts |
 
 ---
 
@@ -70,11 +73,11 @@
 
 | Group | Done | Total |
 |---|---|---|
-| Setup | 5 | 6 |
-| Backend | 2 | 12 |
+| Setup | 5 | 8 |
+| Backend | 2 | 13 |
 | Mobile | 1 | 9 |
 | Wrap-up | 0 | 1 |
-| **Total** | **8** | **28** |
+| **Total** | **8** | **31** |
 
 **Critical path right now:** both scaffolds (backend A1/A2, mobile C1) are done. Hand the
 feature tasks to the small LLM — start with **A3** (backend models) and **C2** (Firebase auth).

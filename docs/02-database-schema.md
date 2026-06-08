@@ -61,7 +61,8 @@ Indexes: unique on `firebase_uid`, index on `email`.
 | purchase_price_cents | bigint | NULL |
 | currency | char(3) | NOT NULL DEFAULT 'USD' |
 | current_mileage | int | NULL (km) |
-| photo_url | text | NULL (Firebase Storage URL) |
+| photo_url | text | NULL (Cloudinary secure_url) |
+| photo_public_id | text | NULL (Cloudinary public_id, for replace/delete) |
 | vehicle_type | text | NULL ('car'\|'motorcycle'\|'pickup'\|'other') |
 
 Indexes: `user_id`.
@@ -102,7 +103,7 @@ Indexes: `vehicle_id`, `(vehicle_id, date)`.
 Indexes: `vehicle_id`, `(vehicle_id, date)`, `category`.
 
 ## `documents`
-Metadata only — bytes live in Firebase Storage.
+Metadata only — bytes live in Cloudinary.
 
 | Column | Type | Constraints |
 |---|---|---|
@@ -110,7 +111,8 @@ Metadata only — bytes live in Firebase Storage.
 | vehicle_id | uuid | FK → vehicles.id, CASCADE, NOT NULL |
 | doc_type | text | NOT NULL ('registration'\|'insurance'\|'warranty'\|'service'\|'manual'\|'other') |
 | title | text | NOT NULL |
-| storage_url | text | NOT NULL (Firebase Storage path/URL) |
+| storage_url | text | NOT NULL (Cloudinary secure_url) |
+| storage_public_id | text | NULL (Cloudinary public_id, for delete) |
 | mime_type | text | NULL |
 | file_size_bytes | bigint | NULL |
 | issue_date | date | NULL |

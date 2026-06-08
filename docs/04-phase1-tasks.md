@@ -63,9 +63,16 @@ Pydantic schemas + router + service for all `/vehicles` endpoints (Doc 3). Enfor
 `/vehicles/{id}/maintenance` + `/maintenance/{id}` per Doc 3 (set `source='manual'`).
 **Done when:** CRUD + category-filter tests pass.
 
+### 🟦 Task B4b — Cloudinary upload signature endpoint
+`POST /api/v1/uploads/cloudinary-signature` per Doc 3 — sign upload params with the Cloudinary
+API secret (server-side only) and return `{signature, timestamp, apiKey, cloudName, folder}`.
+Put the signing in a small service. **Done when:** a test asserts the signature matches a
+known SHA-1 of the sorted params + secret, and the secret is never returned.
+
 ### 🟦 Task B5 — Documents CRUD (metadata)
-`/vehicles/{id}/documents` + `/documents/{id}` per Doc 3 — metadata only, store `storageUrl`.
-**Done when:** CRUD + docType-filter tests pass.
+`/vehicles/{id}/documents` + `/documents/{id}` per Doc 3 — metadata only, store `storageUrl`
++ `storagePublicId`. On delete, also delete the Cloudinary asset by `public_id`.
+**Done when:** CRUD + docType-filter tests pass (mock the Cloudinary delete call).
 
 ### 🟦 Task B6 — Dashboard aggregate
 `GET /api/v1/dashboard` — aggregate vehicle count, monthly fuel spend, total ownership cost,
@@ -101,8 +108,8 @@ An `ApiClient` (base URL via `--dart-define`) that attaches the current Firebase
 ## D. Mobile Screens (each: model → repository → provider → screen)
 
 ### 🟩 Task D1 — Vehicles list + create/edit
-List the user's vehicles (calls `/vehicles`); form to create/edit; photo upload to Firebase
-Storage then save returned URL. Delete with confirm.
+List the user's vehicles (calls `/vehicles`); form to create/edit; photo upload to Cloudinary
+(via the signature endpoint) then save the returned `secure_url`. Delete with confirm.
 **Done when:** user can add, view, edit, photograph, and delete a vehicle end-to-end against the live API.
 
 ### 🟩 Task D2 — Vehicle detail shell
@@ -118,8 +125,8 @@ List maintenance records, add/edit/delete form with service type + category + co
 **Done when:** records appear newest-first and persist via the API.
 
 ### 🟩 Task D5 — Document vault UI
-Pick a file/photo, upload to Firebase Storage, save metadata via API, list documents by type,
-show expiry, open/delete.
+Pick a file/photo, upload to Cloudinary (via the signature endpoint), save metadata via API,
+list documents by type, show expiry, open/delete.
 **Done when:** a document can be uploaded, listed, opened, and deleted.
 
 ### 🟩 Task D6 — Dashboard screen
@@ -139,6 +146,6 @@ upload document → view dashboard, against the deployed backend.
 ---
 
 ## Suggested order
-`A1→A2→A3→A4→A5 → B1→B2→B3→B4→B5→B6→B7 → C1→C2→C3 → D1→D2→D3→D4→D5→D6 → E1`
+`A1→A2→A3→A4→A5 → B1→B2→B3→B4→B4b→B5→B6→B7 → C1→C2→C3 → D1→D2→D3→D4→D5→D6 → E1`
 
 Backend can be built and tested fully before mobile starts, since Doc 3 is the fixed contract.

@@ -31,7 +31,10 @@ When the PRD and these docs disagree on a technical detail, **the docs win**.
 - **Mobile:** Flutter 3.44 + Riverpod 3.x + go_router. (Drift/offline is a LATER phase — not now.)
 - **Backend:** FastAPI 0.115 + Python 3.12 + SQLAlchemy 2 + Alembic.
 - **DB:** PostgreSQL 16 (Neon in prod, Docker locally). pgvector only from Phase 6.
-- **Firebase:** Auth + Storage + FCM only. **Never** use Firestore as the database.
+- **Firebase:** Auth + FCM only. **Never** use Firestore as the database.
+- **File storage:** Cloudinary (free tier). Clients upload directly via a backend-signed
+  request; the backend stores only the returned `secure_url`. (Firebase Storage is NOT used —
+  it requires the paid Blaze plan.)
 - **Hosting:** Render (backend) + Neon (DB).
 - **AI (Phases 3/4/6 only):** Gemini free tier behind an `AIProvider` interface; ML Kit for
   on-device OCR. **No on-device LLM / no bundled model** (keeps app size small).
@@ -57,7 +60,8 @@ When the PRD and these docs disagree on a technical detail, **the docs win**.
 - `routers/` parse requests + call services. **No SQL or business logic in routers.**
 - `services/` hold business logic + DB access (SQLAlchemy). Independently testable.
 - `schemas/` (Pydantic) define the only shapes that cross the wire.
-- File bytes **never** pass through FastAPI — clients upload to Firebase Storage and send the URL.
+- File bytes **never** pass through FastAPI — clients upload to Cloudinary (using a
+  backend-signed request) and send back the resulting `secure_url`.
 
 **Mobile**
 - Per feature: `data/` (repository + api) → `domain/` (models) → `presentation/` (screens, providers, widgets).

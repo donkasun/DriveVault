@@ -21,6 +21,11 @@ class Settings(BaseSettings):
     # Path to a service-account JSON file, or inline JSON. Empty in tests (auth is mocked).
     firebase_credentials_json: str = ""
 
+    # Cloudinary (file/photo storage). API secret stays server-side only.
+    cloudinary_cloud_name: str = ""
+    cloudinary_api_key: str = ""
+    cloudinary_api_secret: str = ""
+
     # CORS (comma-separated origins)
     cors_origins: str = "*"
 

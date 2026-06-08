@@ -20,19 +20,25 @@
 | Vector search (Phase 6) | pgvector extension | 0.7+ |
 | ORM / migrations | SQLAlchemy 2.x + Alembic | latest |
 | Auth | Firebase Auth | latest SDK |
-| File/blob storage | Firebase Storage | latest SDK |
+| File/blob storage | **Cloudinary** (free tier) | latest SDK |
 | Push notifications | Firebase Cloud Messaging (FCM) | latest SDK |
 | Backend hosting | Render (free web service) | — |
 | DB hosting | Neon (free serverless Postgres) | — |
 
 ### What Firebase is used for (and only this)
 - **Auth** — email/password, Google, Apple sign-in.
-- **Storage** — Document Vault files and vehicle/invoice photos.
 - **FCM** — push notifications (Phase 2 reminders onward).
 
-Firebase is **NOT** the database. **Neon Postgres is the single source of truth** for all
-structured/relational data. This is required for Phase 4 (SQL tool-calling) and Phase 6
-(pgvector RAG).
+Firebase is **NOT** the database, and **NOT** file storage. **Neon Postgres is the single
+source of truth** for all structured/relational data (required for Phase 4 SQL tool-calling
+and Phase 6 pgvector RAG). **Cloudinary** holds all files/photos — Firebase Storage is
+deliberately avoided because it now requires the paid Blaze plan.
+
+### Cloudinary (file/photo storage)
+Holds Document Vault files, vehicle photos, and invoice images. The free tier needs **no
+billing card**. Most DriveVault files are images, which Cloudinary is optimized for (and which
+helps the Phase 3 OCR pipeline). Credentials: `cloud name`, `API key`, `API secret` (secret
+stays server-side only).
 
 ---
 
@@ -48,16 +54,22 @@ structured/relational data. This is required for Phase 4 (SQL tool-calling) and 
                 ▼             ▼
         ┌──────────────┐   ┌──────────────────────────┐
         │ Firebase Auth│   │   FastAPI backend (Render)│
-        │ Storage / FCM│   │   - verifies ID token     │
+        │ + FCM        │   │   - verifies ID token     │
         └──────┬───────┘   │   - business logic        │
-               │           │   - SQLAlchemy            │
-   (2) ID token│           └────────────┬─────────────┘
-   + file URLs │                        │ (4) SQL
+               │           │   - signs Cloudinary uploads│
+   (2) ID token│           │   - SQLAlchemy            │
+               │           └────────────┬─────────────┘
+               │                        │ (4) SQL
                │                        ▼
                │              ┌────────────────────────┐
-               └─────────────▶│  Neon PostgreSQL 16     │
-            (files/photos)    │  + pgvector (Phase 6)   │
-                              └────────────────────────┘
+               │              │  Neon PostgreSQL 16     │
+               │              │  + pgvector (Phase 6)   │
+               │              └────────────────────────┘
+               │
+               ▼            ┌────────────────────────┐
+        (files/photos) ────▶│  Cloudinary (media)     │
+        client uploads      │  returns secure_url     │
+        direct w/ signature └────────────────────────┘
 ```
 
 ### Auth flow (every authenticated request)
@@ -70,10 +82,14 @@ structured/relational data. This is required for Phase 4 (SQL tool-calling) and 
 **The backend never stores passwords.** Identity is owned entirely by Firebase; Postgres
 stores a `users` row that mirrors the Firebase account.
 
-### File upload flow
-1. Flutter uploads the file directly to **Firebase Storage**, gets back a storage path/URL.
-2. Flutter sends the resulting URL/path to FastAPI, which stores it as a string in the
-   `documents` table (the **file bytes never pass through FastAPI or Postgres**).
+### File upload flow (Cloudinary signed upload)
+1. Flutter asks FastAPI for an upload signature: `POST /api/v1/uploads/cloudinary-signature`.
+   The backend signs the upload params with the Cloudinary **API secret** (which never leaves
+   the server) and returns `{ signature, timestamp, apiKey, cloudName, folder }`.
+2. Flutter uploads the file **directly to Cloudinary** with those signed params and receives a
+   `secure_url` (+ `public_id`).
+3. Flutter sends the `secure_url` (and `public_id`) to FastAPI, which stores them on the
+   `documents` / `vehicles` row. The **file bytes never pass through FastAPI or Postgres.**
 
 ---
 
@@ -134,8 +150,11 @@ If a file grows past a few hundred lines, split it — it's doing too much.
 ### Backend (`backend/.env`)
 ```
 DATABASE_URL=postgresql+psycopg://<user>:<pass>@<neon-host>/<db>?sslmode=require
-FIREBASE_PROJECT_ID=drivevault-xxxx
+FIREBASE_PROJECT_ID=drivevault-app
 FIREBASE_CREDENTIALS_JSON=<path-or-inline service account JSON>
+CLOUDINARY_CLOUD_NAME=<your-cloud-name>
+CLOUDINARY_API_KEY=<your-api-key>
+CLOUDINARY_API_SECRET=<your-api-secret>   # server-side only — never ship to the client
 ENVIRONMENT=local|production
 CORS_ORIGINS=http://localhost:*,https://<your-app-domain>
 ```

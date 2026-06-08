@@ -70,7 +70,8 @@ Create a vehicle.
   "currency": "USD",
   "currentMileage": 48000,
   "vehicleType": "pickup",
-  "photoUrl": null
+  "photoUrl": null,
+  "photoPublicId": null
 }
 ```
 Only `make` and `model` are required. **201** → `Vehicle`.
@@ -91,7 +92,8 @@ Deletes the vehicle **and all nested data** (cascade). **204** no content.
   "make": "Toyota", "model": "Hilux", "year": 2020,
   "registrationNumber": "ABC-1234", "vin": "JTEBU5JR...",
   "purchaseDate": "2020-03-15", "purchasePriceCents": 3500000, "currency": "USD",
-  "currentMileage": 48000, "vehicleType": "pickup", "photoUrl": null,
+  "currentMileage": 48000, "vehicleType": "pickup",
+  "photoUrl": null, "photoPublicId": null,
   "createdAt": "2026-06-08T10:00:00Z", "updatedAt": "2026-06-08T10:00:00Z"
 }
 ```
@@ -170,21 +172,47 @@ Required: `date`, `serviceType`. **201** → `MaintenanceRecord`.
 
 ---
 
+## Uploads (Cloudinary signing)
+
+### `POST /api/v1/uploads/cloudinary-signature`
+Returns a short-lived signature so the client can upload a file **directly to Cloudinary**
+(file bytes never touch the backend). The Cloudinary API secret stays server-side.
+**Request**
+```json
+{ "folder": "vehicles/{vehicleId}/documents" }
+```
+**Response 200**
+```json
+{
+  "signature": "a1b2c3...",
+  "timestamp": 1733692800,
+  "apiKey": "1234567890",
+  "cloudName": "drivevault",
+  "folder": "vehicles/{vehicleId}/documents"
+}
+```
+The client then POSTs the file + these params to
+`https://api.cloudinary.com/v1_1/{cloudName}/auto/upload` and gets back `secure_url` and
+`public_id`, which it passes to the documents/vehicles endpoints below.
+
+---
+
 ## Documents
-File bytes are uploaded by the client **directly to Firebase Storage**; the API only stores
-metadata + the resulting URL.
+File bytes are uploaded by the client **directly to Cloudinary** (using the signature above);
+the API only stores metadata + the resulting `secure_url` / `public_id`.
 
 ### `GET /api/v1/vehicles/{vehicleId}/documents`
 Optional `docType` query param. **200** → `[ Document, ... ]`.
 
 ### `POST /api/v1/vehicles/{vehicleId}/documents`
-Called **after** the client has uploaded the file to Firebase Storage.
+Called **after** the client has uploaded the file to Cloudinary.
 **Request**
 ```json
 {
   "docType": "insurance",
   "title": "2026 Insurance Policy",
-  "storageUrl": "gs://drivevault.appspot.com/users/uid/doc123.pdf",
+  "storageUrl": "https://res.cloudinary.com/drivevault/image/upload/v1/.../doc123.pdf",
+  "storagePublicId": "vehicles/{vehicleId}/documents/doc123",
   "mimeType": "application/pdf",
   "fileSizeBytes": 482000,
   "issueDate": "2026-01-01",
@@ -194,8 +222,8 @@ Called **after** the client has uploaded the file to Firebase Storage.
 Required: `docType`, `title`, `storageUrl`. **201** → `Document`.
 
 ### `GET /api/v1/documents/{id}` · `PATCH /api/v1/documents/{id}` · `DELETE /api/v1/documents/{id}`
-**200** / **200** / **204**. (Delete removes the DB row; the client/cleanup job removes the
-Storage object.)
+**200** / **200** / **204**. (Delete removes the DB row; the backend also deletes the
+Cloudinary asset via its `public_id`.)
 
 **Document object:** create fields + `id`, `vehicleId`, `createdAt`, `updatedAt`.
 
