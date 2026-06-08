@@ -18,8 +18,8 @@
 | 2 | S2 | `CLAUDE.md` working agreement | ✅ | Opus | repo root |
 | 3 | S3 | `git init` + `.gitignore` (committed) | ✅ | Opus | branch `main` |
 | 4 | S4 | This task dashboard | ✅ | Opus | `docs/05-task-dashboard.md` |
-| 5 | S5 | Install Flutter SDK | 🟡 | Opus | brew cask, installing |
-| 6 | S6 | Install Xcode / Android Studio (device builds) | ⬜ | User | needed to run app on a device/sim |
+| 5 | S5 | Install Flutter SDK | ✅ | Opus | Flutter 3.44.1 / Dart 3.12.1 |
+| 6 | S6 | Toolchains for device builds | 🟡 | User | Xcode 26.5 ✅; Android needs `cmdline-tools` + licenses |
 
 ---
 
@@ -46,7 +46,7 @@
 
 | Order | ID | Task | Status | Executor | Notes |
 |---|---|---|---|---|---|
-| 1 | C1 | Flutter scaffold (feature folders, deps, shell, router) | ⏳ | Opus | blocked on S5 (Flutter install) |
+| 1 | C1 | Flutter scaffold (feature folders, deps, shell, router) | ✅ | Opus | analyze clean, widget test passing |
 | 2 | C2 | Firebase init + Auth (email/Google/Apple) | ⬜ | SmallLLM | persists across restart |
 | 3 | C3 | API client + token injection | ⬜ | SmallLLM | base URL via `--dart-define` |
 | 4 | D1 | Vehicles list + create/edit (+ photo upload) | ⬜ | SmallLLM | end-to-end vs live API |
@@ -70,13 +70,15 @@
 
 | Group | Done | Total |
 |---|---|---|
-| Setup | 4 | 6 |
+| Setup | 5 | 6 |
 | Backend | 2 | 12 |
-| Mobile | 0 | 9 |
+| Mobile | 1 | 9 |
 | Wrap-up | 0 | 1 |
-| **Total** | **6** | **28** |
+| **Total** | **8** | **28** |
 
-**Critical path right now:** S5 (Flutter install) → C1 (mobile scaffold) → hand C2+ and A3+ to the small LLM.
+**Critical path right now:** both scaffolds (backend A1/A2, mobile C1) are done. Hand the
+feature tasks to the small LLM — start with **A3** (backend models) and **C2** (Firebase auth).
+The only remaining `Opus`/`User` setup item is S6 (Android `cmdline-tools`, optional if building iOS).
 
 > **How to update:** when an executor finishes a task, flip its Status to ✅, add a one-line
 > note (e.g. "tests passing"), and bump the Progress summary counts. Keep one task 🟡 per

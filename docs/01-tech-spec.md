@@ -10,8 +10,8 @@
 
 | Layer | Choice | Version (pin) |
 |---|---|---|
-| Mobile | Flutter | 3.24.x (Dart 3.5.x) |
-| State management | Riverpod | 2.5.x |
+| Mobile | Flutter | 3.44.x (Dart 3.12.x) |
+| State management | Riverpod | 3.x (`flutter_riverpod`) |
 | Local DB (offline — **later phase**) | Drift (SQLite) | 2.x |
 | Backend API | FastAPI | 0.115.x |
 | Language (backend) | Python | 3.12 |

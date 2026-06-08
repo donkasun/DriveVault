@@ -28,7 +28,7 @@ When the PRD and these docs disagree on a technical detail, **the docs win**.
 ---
 
 ## The stack (do not deviate)
-- **Mobile:** Flutter 3.24 + Riverpod 2.5 + go_router. (Drift/offline is a LATER phase — not now.)
+- **Mobile:** Flutter 3.44 + Riverpod 3.x + go_router. (Drift/offline is a LATER phase — not now.)
 - **Backend:** FastAPI 0.115 + Python 3.12 + SQLAlchemy 2 + Alembic.
 - **DB:** PostgreSQL 16 (Neon in prod, Docker locally). pgvector only from Phase 6.
 - **Firebase:** Auth + Storage + FCM only. **Never** use Firestore as the database.
