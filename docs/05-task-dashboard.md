@@ -20,8 +20,8 @@
 | 4 | S4 | This task dashboard | ✅ | Opus | `docs/05-task-dashboard.md` |
 | 5 | S5 | Install Flutter SDK | ✅ | Opus | Flutter 3.44.1 / Dart 3.12.1 |
 | 6 | S6 | Toolchains for device builds | 🟡 | User | Xcode 26.5 ✅; Android needs `cmdline-tools` + licenses |
-| 7 | S7 | Firebase project + wiring | 🟡 | Opus + User | `drivevault-app` created, `flutterfire configure` done; **User must enable Auth providers in console** (Email/Google) |
-| 8 | S8 | Cloudinary account (free, no card) | ⬜ | User | sign up → put cloud name / API key / secret in backend `.env` |
+| 7 | S7 | Firebase project + wiring + Auth providers | ✅ | Opus + User | `drivevault-app`, `flutterfire configure` done; Admin key generated; Email/Password + Google enabled |
+| 8 | S8 | Cloudinary account (free, no card) | ✅ | User | creds in backend `.env` (cloud `dqx43joma`) |
 
 ---
 
@@ -56,7 +56,7 @@
 | 5 | D2 | Vehicle detail shell (tabs) | ⬜ | SmallLLM | containers for D3–D5 |
 | 6 | D3 | Fuel tracking UI (+ stats card) | ⬜ | SmallLLM | |
 | 7 | D4 | Maintenance UI | ⬜ | SmallLLM | |
-| 8 | D5 | Document vault UI (upload/list/open) | ⬜ | SmallLLM | Firebase Storage |
+| 8 | D5 | Document vault UI (upload/list/open) | ⬜ | SmallLLM | Cloudinary upload |
 | 9 | D6 | Dashboard screen | ⬜ | SmallLLM | calls `/dashboard` |
 
 ---
@@ -73,15 +73,16 @@
 
 | Group | Done | Total |
 |---|---|---|
-| Setup | 5 | 8 |
+| Setup | 7 | 8 |
 | Backend | 2 | 13 |
 | Mobile | 1 | 9 |
 | Wrap-up | 0 | 1 |
-| **Total** | **8** | **31** |
+| **Total** | **10** | **31** |
 
-**Critical path right now:** both scaffolds (backend A1/A2, mobile C1) are done. Hand the
-feature tasks to the small LLM — start with **A3** (backend models) and **C2** (Firebase auth).
-The only remaining `Opus`/`User` setup item is S6 (Android `cmdline-tools`, optional if building iOS).
+**Critical path right now:** all setup is done except S6 (Android `cmdline-tools`, optional if
+building iOS). Firebase project + Admin key + Auth providers (Email/Google) and Cloudinary
+creds are all in place. Hand the feature tasks to the small LLM — start with **A3** (backend
+models) and **C2** (Firebase auth); both are fully unblocked.
 
 > **How to update:** when an executor finishes a task, flip its Status to ✅, add a one-line
 > note (e.g. "tests passing"), and bump the Progress summary counts. Keep one task 🟡 per
