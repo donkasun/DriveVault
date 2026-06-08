@@ -1,0 +1,157 @@
+<h2>Restyled mockups — green accent, soft cards, dark vehicle cards, floating tab bar</h2>
+<p class="subtitle">Applying your three references. Tell me what to tweak.</p>
+
+<style>
+  .frames { display:flex; gap:24px; justify-content:center; flex-wrap:wrap; align-items:flex-start; }
+  .fw { text-align:center; }
+  .phone { width:256px; border:3px solid #2a2a32; border-radius:30px; padding:9px; background:#111; box-shadow:0 16px 40px rgba(0,0,0,.4); }
+  .screen { position:relative; background:#f3f4f7; border-radius:22px; overflow:hidden; height:452px; display:flex; flex-direction:column; }
+  .body { padding:14px 13px 70px; overflow:hidden; flex:1; display:flex; flex-direction:column; gap:11px; }
+  .top { display:flex; justify-content:space-between; align-items:center; }
+  .greet { font-size:11px; color:#8a8a9e; }
+  .gtitle { font-size:20px; font-weight:800; color:#15151f; margin-top:-2px; }
+  .av { width:32px; height:32px; border-radius:50%; background:linear-gradient(135deg,#22c55e,#16a34a); }
+  .wcard { background:#fff; border-radius:16px; padding:13px; box-shadow:0 4px 14px rgba(20,20,40,.06); }
+  .lab { font-size:10px; color:#9a9aae; font-weight:600; letter-spacing:.3px; }
+  .big { font-size:22px; font-weight:800; color:#15151f; }
+  .green { color:#16a34a; }
+  .row { display:flex; gap:10px; } .row>.wcard{ flex:1; }
+  .spark { height:22px; display:flex; align-items:flex-end; gap:3px; margin-top:6px; }
+  .spark i { flex:1; background:#22c55e; border-radius:2px; opacity:.85; display:block; }
+  .ring { width:54px;height:54px;border-radius:50%;background:conic-gradient(#22c55e 0 62%,#e7e8ee 62% 100%);display:flex;align-items:center;justify-content:center; }
+  .ring b { width:40px;height:40px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#15151f; }
+  .sec { font-size:13px; font-weight:800; color:#15151f; display:flex; justify-content:space-between; align-items:center; }
+  .addlink { font-size:11px; color:#16a34a; font-weight:700; }
+  .pill { display:inline-block; border-radius:20px; padding:3px 9px; font-size:9px; font-weight:700; }
+  .pill.warn { background:#fde7e7; color:#d23b3b; } .pill.ok{ background:#e3f6ea; color:#16a34a; } .pill.info{ background:#e6efff; color:#2f6bff; }
+  .listrow { display:flex; justify-content:space-between; align-items:center; font-size:11px; color:#43435a; padding:7px 0; border-bottom:1px solid #ececf2; }
+
+  /* dark vehicle card (img 5) */
+  .vcard { position:relative; background:linear-gradient(160deg,#23232e,#15151c); border-radius:18px; padding:14px; margin-top:26px; box-shadow:0 10px 24px rgba(10,10,20,.28); }
+  .vimg { position:absolute; top:-26px; right:8px; width:118px; height:62px; border-radius:10px; background:radial-gradient(circle at 40% 40%,#3a3a4a,#1c1c24); display:flex; align-items:center; justify-content:center; font-size:34px; }
+  .vname { font-size:14px; font-weight:800; color:#fff; }
+  .vsub { font-size:9.5px; color:#9a9ab0; margin-top:1px; }
+  .vdetails { font-size:9.5px; color:#f5b301; font-weight:700; margin-top:6px; }
+  .vstats { display:flex; gap:6px; margin-top:11px; border-top:1px solid #2e2e3a; padding-top:9px; }
+  .vstat { flex:1; text-align:center; } .vstat .vl{ font-size:8px;color:#7a7a8e;display:block } .vstat .vv{ font-size:11px;color:#e6e6f0;font-weight:700; }
+
+  .addcard { border:1.5px dashed #c2c4cf; border-radius:18px; padding:16px; text-align:center; color:#16a34a; font-size:12px; font-weight:700; background:#fafafb; }
+
+  /* floating dark tab bar (img 3) */
+  .tabbar { position:absolute; bottom:12px; left:50%; transform:translateX(-50%); width:88%; background:#15151c; border-radius:26px; display:flex; justify-content:space-around; align-items:center; padding:8px 6px; box-shadow:0 10px 24px rgba(0,0,0,.3); }
+  .tab { display:flex; flex-direction:column; align-items:center; gap:2px; font-size:8px; color:#7a7a8e; }
+  .tab .ic { width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px; }
+  .tab.active .ic { background:#fff; }
+  .tab.active { color:#fff; }
+  .photo-hero { position:relative; background:linear-gradient(160deg,#23232e,#15151c); border-radius:18px; padding:14px; color:#fff; }
+  .ph-img { height:88px; border-radius:12px; background:radial-gradient(circle at 45% 40%,#3a3a4a,#1a1a22); display:flex;align-items:center;justify-content:center;font-size:38px; margin-bottom:8px; }
+  .tiles { display:grid; grid-template-columns:1fr 1fr; gap:9px; }
+  .tile { background:#fff; border-radius:14px; padding:10px; box-shadow:0 4px 14px rgba(20,20,40,.06); }
+  .cap { margin-top:9px; font-size:12px; color:#9a9ab0; font-weight:700; }
+</style>
+
+<div class="frames">
+
+  <!-- HOME -->
+  <div class="fw">
+    <div class="phone"><div class="screen">
+      <div class="body">
+        <div class="top"><div><div class="greet">Welcome back</div><div class="gtitle">Home</div></div><div class="av"></div></div>
+        <div class="wcard">
+          <div class="top"><div><div class="lab">TOTAL OWNERSHIP COST</div><div class="big">$4,120</div></div>
+          <div class="ring"><b>62%</b></div></div>
+          <div class="lab" style="margin-top:8px">Fuel trend</div>
+          <div class="spark"><i style="height:40%"></i><i style="height:65%"></i><i style="height:50%"></i><i style="height:80%"></i><i style="height:60%"></i><i style="height:90%"></i></div>
+        </div>
+        <div class="row">
+          <div class="wcard"><div class="lab">FUEL · THIS MONTH</div><div class="big green" style="font-size:17px">$234</div></div>
+          <div class="wcard"><div class="lab">MAINTENANCE</div><div class="big" style="font-size:17px">$3,200</div></div>
+        </div>
+        <div class="sec">Upcoming renewals</div>
+        <div class="wcard" style="display:flex;justify-content:space-between;align-items:center;font-size:11px;color:#43435a">🛡️ Insurance · Hilux <span class="pill warn">Dec 31</span></div>
+      </div>
+      <div class="tabbar">
+        <div class="tab"><div class="ic">🚗</div>Garage</div>
+        <div class="tab active"><div class="ic">🏠</div>Home</div>
+        <div class="tab"><div class="ic">👤</div>Profile</div>
+      </div>
+    </div></div>
+    <div class="cap">🏠 Home</div>
+  </div>
+
+  <!-- GARAGE -->
+  <div class="fw">
+    <div class="phone"><div class="screen">
+      <div class="body">
+        <div class="top"><div><div class="greet">Your</div><div class="gtitle">Garage</div></div><div class="av"></div></div>
+        <div class="vcard">
+          <div class="vimg">🚗</div>
+          <div class="vname">Honda Civic</div>
+          <div class="vsub">2019 · ABC-1234</div>
+          <div class="vdetails">DETAILS →</div>
+          <div class="vstats">
+            <div class="vstat"><span class="vl">MILEAGE</span><span class="vv">48k km</span></div>
+            <div class="vstat"><span class="vl">ECONOMY</span><span class="vv">6.8</span></div>
+            <div class="vstat"><span class="vl">SPENT</span><span class="vv">$1.2k</span></div>
+            <div class="vstat"><span class="vl">DOCS</span><span class="vv">4</span></div>
+          </div>
+        </div>
+        <div class="vcard">
+          <div class="vimg">🛻</div>
+          <div class="vname">Toyota Hilux</div>
+          <div class="vsub">2020 · XYZ-9876</div>
+          <div class="vdetails">DETAILS →</div>
+          <div class="vstats">
+            <div class="vstat"><span class="vl">MILEAGE</span><span class="vv">62k km</span></div>
+            <div class="vstat"><span class="vl">ECONOMY</span><span class="vv">8.6</span></div>
+            <div class="vstat"><span class="vl">SPENT</span><span class="vv">$3.4k</span></div>
+            <div class="vstat"><span class="vl">DOCS</span><span class="vv">3</span></div>
+          </div>
+        </div>
+        <div class="addcard">＋ Add Vehicle</div>
+      </div>
+      <div class="tabbar">
+        <div class="tab active"><div class="ic">🚗</div>Garage</div>
+        <div class="tab"><div class="ic">🏠</div>Home</div>
+        <div class="tab"><div class="ic">👤</div>Profile</div>
+      </div>
+    </div></div>
+    <div class="cap">🚗 Garage (dark vehicle cards)</div>
+  </div>
+
+  <!-- VEHICLE DETAIL -->
+  <div class="fw">
+    <div class="phone"><div class="screen">
+      <div class="body" style="gap:10px">
+        <div class="top"><div class="greet">‹ Garage</div><div class="gtitle" style="font-size:15px">Toyota Hilux</div><div style="width:18px"></div></div>
+        <div class="photo-hero">
+          <div class="ph-img">🛻</div>
+          <div class="vstats" style="border-top:none;padding-top:0">
+            <div class="vstat"><span class="vl">MILEAGE</span><span class="vv">62k km</span></div>
+            <div class="vstat"><span class="vl">ECONOMY</span><span class="vv">8.6</span></div>
+            <div class="vstat"><span class="vl">SPENT</span><span class="vv">$3.4k</span></div>
+            <div class="vstat"><span class="vl">DOCS</span><span class="vv">3</span></div>
+          </div>
+        </div>
+        <div class="sec">Fuel <span class="addlink">＋ Add</span></div>
+        <div class="wcard" style="display:flex;justify-content:space-between;align-items:center">
+          <div><div class="lab">L/100KM</div><div class="big green" style="font-size:16px">8.6</div></div>
+          <div class="spark" style="width:90px"><i style="height:50%"></i><i style="height:70%"></i><i style="height:45%"></i><i style="height:85%"></i><i style="height:60%"></i></div>
+        </div>
+        <div class="sec">Service <span class="addlink">＋ Add</span></div>
+        <div class="listrow">Oil Change · City Auto <span>$65</span></div>
+        <div class="sec">Documents <span class="addlink">＋ Upload</span></div>
+        <div class="listrow">🛡️ Insurance <span class="pill warn">Dec 31</span></div>
+      </div>
+      <div class="tabbar">
+        <div class="tab active"><div class="ic">🚗</div>Garage</div>
+        <div class="tab"><div class="ic">🏠</div>Home</div>
+        <div class="tab"><div class="ic">👤</div>Profile</div>
+      </div>
+    </div></div>
+    <div class="cap">🚙 Vehicle detail (one scroll)</div>
+  </div>
+
+</div>
+
+<p class="subtitle" style="margin-top:16px">Light UI · green accent · soft rounded cards · dark vehicle cards with the photo overlapping the top + stat row · floating dark tab bar (3 tabs, active highlighted). <strong>What should change?</strong></p>

@@ -16,6 +16,13 @@
   **Cancel / Save** in the top bar.
 - Every list/detail screen handles four **states**: loading · empty · error · loaded.
 
+### Design language
+See [`design-references/`](./design-references/) — `mockup-screens.html` is the agreed
+baseline and `DESIGN-LANGUAGE.md`/`README.md` define the palette and components. In short:
+light background, white soft-rounded cards, **green primary accent** (`#16a34a`), amber link
+accent, **dark vehicle cards** (photo overlapping the top + stat row), **floating dark pill
+tab bar** (active tab = white circle + colored icon), green progress rings + mini sparklines.
+
 ---
 
 ## 2. Navigation architecture
@@ -102,6 +109,10 @@ Auth success → enter the shell (tabs appear). Sign-out → back to `/login`.
 - **Data per vehicle:** photo, make + model + year, current mileage, (optional quick stat).
 - **Actions:** tap → vehicle detail · "+ Add vehicle" (modal).
 - **States:** loading · **empty** ("Add your first vehicle") · error · loaded list.
+- 🎨 **Layout (locked):** header "Your **Garage**" + avatar. A vertical list of **dark
+  vehicle cards** — each with the vehicle **photo overlapping the top-right**, name + year ·
+  registration, amber **"DETAILS →"**, and a bottom **stat row: Mileage · Economy · Spent ·
+  Docs**. A **dashed "＋ Add Vehicle" card** closes the list. Floating tab bar (Garage active).
 
 ### Garage — Vehicle detail  (one scrolling page, `GET /vehicles/:id`)
 Sections top-to-bottom:
@@ -113,6 +124,10 @@ Sections top-to-bottom:
   "+ Add service".
 - **Documents** (`/documents`): documents grouped by type with expiry badges · "+ Upload".
 - **States:** loading · loaded; each section has its own empty state.
+- 🎨 **Layout (locked):** back-to-Garage + vehicle name. A **dark photo hero** (vehicle photo
+  + the Mileage/Economy/Spent/Docs stat row). Then scrolling sections — **Fuel** (economy value
+  + sparkline card), **Service** (recent rows), **Documents** (rows with expiry pills) — each
+  with a green **"＋ Add / Upload"** on its section header. Floating tab bar stays visible.
 
 ### Garage — Add/Edit Vehicle (modal)
 - **Fields:** make*, model*, year, registrationNumber, vin, purchaseDate, purchasePriceCents,
@@ -137,6 +152,10 @@ Sections top-to-bottom:
   maintenance / purchase) · upcoming renewals (document expiries).
 - **Actions:** tap a renewal/item → switch to Garage branch, deep-link to that vehicle.
 - **States:** loading · empty (no vehicles yet → prompt to add) · error · loaded.
+- 🎨 **Layout (locked):** greeting + avatar. A **Total Ownership Cost** card with a **green
+  progress ring** (becomes Health Score in Phase 5) and a **fuel-trend sparkline**. A row of
+  two stat cards (**Fuel · this month**, **Maintenance**). Then **Upcoming renewals** rows with
+  colored expiry pills. Floating tab bar (Home active, default landing tab).
 
 ### Profile / Settings  (`GET /me`)
 - **Data:** display name, email, avatar.
@@ -165,4 +184,6 @@ Sections top-to-bottom:
 ## Open / deferred
 - Default **currency** handling (app-wide vs per-record) — schema stores per record; UI default TBD.
 - Apple sign-in — enabled later (needs Apple Developer setup).
-- 🎨 Per-screen **visual layouts** — to be filled from hand-drawn sketches.
+- 🎨 **Layouts locked** for the three core screens (Home, Garage, Vehicle detail). Auth,
+  modal forms, and Profile follow the same design language (`design-references/`) — detailed
+  layouts can be refined when those screens are built.
