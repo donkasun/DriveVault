@@ -1,0 +1,16 @@
+# Local Postgres for development. Production uses Neon (see docs/01-tech-spec.md §6).
+services:
+  db:
+    image: postgres:16
+    container_name: drivevault-db
+    environment:
+      POSTGRES_USER: drivevault
+      POSTGRES_PASSWORD: drivevault
+      POSTGRES_DB: drivevault
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+volumes:
+  postgres-data:
