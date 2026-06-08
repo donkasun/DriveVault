@@ -6,17 +6,15 @@ Visual direction for the mobile app, agreed during UI brainstorming. Pair this w
 ## Files here
 - **`mockup-screens.html`** — the agreed v2 mockup (Home · Garage · Vehicle detail). Open in
   a browser to see the target look. This is our "good enough to start" baseline.
-- **`DESIGN-LANGUAGE.md`** — the palette, components, and patterns below in detail.
-- **(add your screenshots here)** — see "Source references" below; drop the original images
-  into this folder to keep them for reference.
+- **`ref-02-tab-bar.png`** — floating dark pill tab bar (active tab in white circle).
+- **`ref-03-design-language.png`** — "Drive Safe" app screens (overall visual language).
+- **`ref-04-vehicle-card.png`** — dark vehicle card reference ("Ferrari Sergio").
 
-## Source references (please add the image files)
-The originals were shared in chat but cleared from the image cache. To preserve them, save
-each into this folder with these names:
+## Source references
 
-| Save as | What it showed | What we took from it |
+| File | What it showed | What we took from it |
 |---|---|---|
-| `ref-01-paper-sketch.png` | Your hand sketch | Screen structure: Garage list, Home cards, Vehicle detail, tab bar |
+| `ref-01-paper-sketch.png` *(not yet added)* | Your hand sketch | Screen structure: Garage list, Home cards, Vehicle detail, tab bar |
 | `ref-02-tab-bar.png` | Dark floating pill tab bar | **Tab bar style** — floating dark pill, active tab in a white circle highlight |
 | `ref-03-design-language.png` | "Drive Safe" app screens | **Overall language** — light bg, soft rounded cards, green accent, rings, sparklines |
 | `ref-04-vehicle-card.png` | Dark car card ("Ferrari Sergio") | **Vehicle card** — photo overlapping top, name/meta, "DETAILS →", stat row |
