@@ -49,6 +49,7 @@ mobile/android/key.properties
 # ---- Editors / OS ----
 .idea/
 .vscode/
+.cursor/
 *.swp
 .DS_Store
 Thumbs.db
