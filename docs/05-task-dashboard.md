@@ -31,9 +31,9 @@
 
 | Order | ID | Task | Status | Executor | Notes |
 |---|---|---|---|---|---|
-| 1 | A3a | Alembic setup + users/vehicles models | ⬜ | SmallLLM | match Doc 2 exactly |
-| 2 | A3b | fuel/maintenance/documents models | ⬜ | SmallLLM | + migration |
-| 3 | A3c | schedules/reminders models | ⬜ | SmallLLM | + migration |
+| 1 | A3a | Alembic setup + users/vehicles models | ✅ | SmallLLM | migration passing |
+| 2 | A3b | fuel/maintenance/documents models | ✅ | SmallLLM | migration passing |
+| 3 | A3c | schedules/reminders models | ✅ | SmallLLM | migration passing |
 | 4 | A4 | Firebase token auth dependency (`get_current_user`) | ⬜ | SmallLLM | mock `verify_id_token` in tests |
 | 5 | A5 | `/me` endpoints (GET, PATCH) | ⬜ | SmallLLM | lazy user upsert |
 
@@ -41,9 +41,9 @@
 
 | Order | ID | Task | Status | Executor | Notes |
 |---|---|---|---|---|---|
-| 1 | C2a | Firebase init + email/password auth | ⬜ | SmallLLM | sign up/in/out |
-| 2 | C2b | Google sign-in | ⬜ | SmallLLM | Apple deferred |
-| 3 | C2c | Auth gate + persistence | ⬜ | SmallLLM | go_router redirect |
+| 1 | C2a | Firebase init + email/password auth | ✅ | SmallLLM | tests passing, main initialized |
+| 2 | C2b | Google sign-in | ✅ | SmallLLM | google_sign_in integrated |
+| 3 | C2c | Auth gate + persistence | ✅ | SmallLLM | GoRouter redirect listener |
 | 4 | C3 | API client + token injection | ⬜ | SmallLLM | base URL via `--dart-define` |
 
 ---
@@ -136,10 +136,10 @@
 | Group | Done | Total |
 |---|---|---|
 | Setup | 7 | 8 |
-| Backend | 2 | 15 |
-| Mobile | 1 | 15 |
+| Backend | 5 | 15 |
+| Mobile | 4 | 15 |
 | Wrap-up | 0 | 1 |
-| **Total** | **10** | **39** |
+| **Total** | **16** | **39** |
 
 ---
 

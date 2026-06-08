@@ -96,7 +96,7 @@ Add a go_router **redirect** (auth gate): signed-out → `/login`, signed-in →
 auth state **persists across app restarts**.
 **Done when:** restarting the app keeps the user signed in; signing out returns to `/login`.
 
-### 🟩 Task C3 — API client with token injection
+### 🟩 Task C3 — API client with token injection (in progress)
 An `ApiClient` (base URL via `--dart-define`) that attaches the current Firebase ID token as
 `Authorization: Bearer` on every request and maps error JSON to typed failures.
 **Done when:** calling `GET /me` returns the user; a 401 is surfaced as a typed auth error.
