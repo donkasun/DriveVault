@@ -2,8 +2,11 @@
 .env
 .env.*
 !.env.example
+secrets/
+**/secrets/
 **/serviceAccount*.json
 **/firebase-credentials*.json
+**/*firebase-adminsdk*.json
 backend/app/google-services.json
 mobile/android/app/google-services.json
 mobile/ios/Runner/GoogleService-Info.plist
