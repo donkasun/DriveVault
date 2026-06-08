@@ -1,8 +1,8 @@
 # DriveVault — Phase 1 Task Breakdown
 
-> Phase 1 (Foundation MVP) decomposed into **small, ordered, independently-testable tasks**,
-> sized for a focused coding session (or a smaller LLM taking one at a time). Build in order:
-> backend foundation → backend resources → mobile foundation → mobile screens.
+> Phase 1 (Foundation MVP) decomposed into **small, ordered, independently-testable tasks**.
+> Tasks are grouped into **parallel execution batches** — each batch can be split across
+> multiple git worktrees running simultaneously.
 >
 > **Rules for every task:** follow Doc 1 (`01-tech-spec.md`), match Doc 2 (`02-database-schema.md`)
 > and Doc 3 (`03-api-contract.md`) exactly, and finish with the stated "Done when" including tests.
@@ -11,19 +11,44 @@ Legend: 🟦 backend · 🟩 mobile · 🟨 infra/setup
 
 ---
 
-## A. Backend Foundation
+## Parallel Execution Plan
 
-### 🟨 Task A1 — Backend project scaffold
-Create `backend/` with FastAPI, the folder layout from Doc 1 §3, `pyproject.toml`
-(FastAPI, Uvicorn, SQLAlchemy 2, Alembic, psycopg, pydantic-settings, firebase-admin, pytest),
-and a `GET /health` endpoint returning `{"status":"ok"}`.
-**Done when:** `uvicorn app.main:app` runs and `/health` returns 200; one passing test hits `/health`.
+```
+BATCH 1 — run now, both in parallel
+┌─────────────────────────────────────┐  ┌─────────────────────────────────────┐
+│ task/backend-models                 │  │ task/mobile-auth                    │
+│ A3a → A3b → A3c → A4 → A5          │  │ C2a → C2b → C2c → C3               │
+└──────────────┬──────────────────────┘  └──────────────────────┬──────────────┘
+               │ merge                                           │ merge
+               ▼                                                 │
+BATCH 2 — 3 parallel worktrees (start after task/backend-models merges)
+┌─────────────────────┐ ┌────────────────────┐ ┌────────────────────────┐
+│ task/backend-fuel   │ │task/backend-maint  │ │task/backend-documents  │
+│ B1 → B2 → B3        │ │ B4 → B4b           │ │ B5                     │
+└──────────┬──────────┘ └────────┬───────────┘ └───────────┬────────────┘
+           │                     │                          │
+           └──────────┬──────────┘                          │
+                      │ all 3 merge                         │
+                      └──────────────┬──────────────────────┘
+                                     ▼
+BATCH 3 — sequential (start after all of Batch 2 merges)
+┌───────────────────────────────────────┐
+│ task/backend-deploy                   │
+│ B6 → B7                               │
+└───────────────────────┬───────────────┘
+                        │ merge + deploy live
+                        ▼
+BATCH 4 — 3 parallel worktrees (start after B7 live AND task/mobile-auth merged)
+┌─────────────────────────┐ ┌────────────────────────────────────────┐ ┌────────────────────────┐
+│ task/mobile-garage      │ │ task/mobile-vehicle-detail             │ │ task/mobile-dashboard  │
+│ D1a → D1b → D1c        │ │ D2 → D3 → D4 → D5a → D5b → D5c       │ │ D6                     │
+└─────────────────────────┘ └────────────────────────────────────────┘ └────────────────────────┘
+           All 3 merge → E1 (end-to-end smoke pass)
+```
 
-### 🟨 Task A2 — Config & DB session
-Add `app/core/config.py` (pydantic-settings reading `.env`), `app/core/db.py`
-(SQLAlchemy engine + `SessionLocal` + `get_db` dependency). Add `docker-compose.yml` with
-`postgres:16`. Document env vars from Doc 1 §5.
-**Done when:** app connects to local Docker Postgres on startup; a test using a test DB session passes.
+---
+
+## A. Backend Foundation  (`task/backend-models`)
 
 ### 🟦 Task A3a — Alembic setup + `users` & `vehicles` models
 Configure **Alembic** (env wired to `DATABASE_URL` + the `Base` metadata). Implement `users`
@@ -52,55 +77,8 @@ Implement `GET /api/v1/me` and `PATCH /api/v1/me` per Doc 3.
 
 ---
 
-## B. Backend Resources (one task per resource)
-
-### 🟦 Task B1 — Vehicles CRUD
-Pydantic schemas + router + service for all `/vehicles` endpoints (Doc 3). Enforce ownership
-(caller sees only their vehicles; others → 404).
-**Done when:** tests cover create, list, get, patch, delete, and a cross-user 404.
-
-### 🟦 Task B2 — Fuel logs CRUD
-`/vehicles/{id}/fuel-logs` + `/fuel-logs/{id}` endpoints per Doc 3. Validate `liters > 0`.
-**Done when:** CRUD tests pass, including date-range filtering and ownership checks.
-
-### 🟦 Task B3 — Fuel stats
-`GET /vehicles/{id}/fuel-stats` — compute avg L/100km and cost-per-km from consecutive
-**full-tank** entries, plus monthly spend. Put math in a service function.
-**Done when:** a unit test with fixed fuel logs asserts the exact computed numbers.
-
-### 🟦 Task B4 — Maintenance CRUD
-`/vehicles/{id}/maintenance` + `/maintenance/{id}` per Doc 3 (set `source='manual'`).
-**Done when:** CRUD + category-filter tests pass.
-
-### 🟦 Task B4b — Cloudinary upload signature endpoint
-`POST /api/v1/uploads/cloudinary-signature` per Doc 3 — sign upload params with the Cloudinary
-API secret (server-side only) and return `{signature, timestamp, apiKey, cloudName, folder}`.
-Put the signing in a small service. **Done when:** a test asserts the signature matches a
-known SHA-1 of the sorted params + secret, and the secret is never returned.
-
-### 🟦 Task B5 — Documents CRUD (metadata)
-`/vehicles/{id}/documents` + `/documents/{id}` per Doc 3 — metadata only, store `storageUrl`
-+ `storagePublicId`. On delete, also delete the Cloudinary asset by `public_id`.
-**Done when:** CRUD + docType-filter tests pass (mock the Cloudinary delete call).
-
-### 🟦 Task B6 — Dashboard aggregate
-`GET /api/v1/dashboard` — aggregate vehicle count, monthly fuel spend, total ownership cost,
-cost breakdown, and upcoming document-expiry renewals (Doc 3).
-**Done when:** a test seeds 1 vehicle with fuel+maintenance and asserts the aggregated response.
-
-### 🟨 Task B7 — Deploy backend to Render + Neon
-Add `Dockerfile` (Gunicorn+Uvicorn), create a Neon project, run migrations against Neon,
-deploy to Render, set env vars, confirm `/health` is reachable publicly.
-**Done when:** the public Render URL serves `/health` and a manual authed `/me` call works.
-
----
-
-## C. Mobile Foundation
-
-### 🟩 Task C1 — Flutter project scaffold
-Create `mobile/` with the Doc 1 §3 layout, add deps (Riverpod, go_router, dio/http,
-firebase_core, firebase_auth, firebase_storage, firebase_messaging). Set up theme + router shell.
-**Done when:** app builds and runs on a simulator showing an empty home shell.
+## C. Mobile Foundation  (`task/mobile-auth`)
+*Runs in parallel with `task/backend-models`.*
 
 ### 🟩 Task C2a — Firebase init + email/password auth
 Initialize Firebase in `main` using the generated `firebase_options.dart`. Implement
@@ -125,49 +103,123 @@ An `ApiClient` (base URL via `--dart-define`) that attaches the current Firebase
 
 ---
 
-## D. Mobile Screens (each: model → repository → provider → screen)
+## B. Backend Resources
 
-### 🟩 Task D1a — Vehicles list (Garage)
+### `task/backend-fuel` — Vehicles · Fuel · Stats
+*Starts after `task/backend-models` merges.*
+
+#### 🟦 Task B1 — Vehicles CRUD
+Pydantic schemas + router + service for all `/vehicles` endpoints (Doc 3). Enforce ownership
+(caller sees only their vehicles; others → 404).
+**Done when:** tests cover create, list, get, patch, delete, and a cross-user 404.
+
+#### 🟦 Task B2 — Fuel logs CRUD
+`/vehicles/{id}/fuel-logs` + `/fuel-logs/{id}` endpoints per Doc 3. Validate `liters > 0`.
+**Done when:** CRUD tests pass, including date-range filtering and ownership checks.
+
+#### 🟦 Task B3 — Fuel stats
+`GET /vehicles/{id}/fuel-stats` — compute avg L/100km and cost-per-km from consecutive
+**full-tank** entries, plus monthly spend. Put math in a service function.
+**Done when:** a unit test with fixed fuel logs asserts the exact computed numbers.
+
+---
+
+### `task/backend-maint` — Maintenance · Cloudinary Signature
+*Starts after `task/backend-models` merges, parallel with `task/backend-fuel`.*
+
+#### 🟦 Task B4 — Maintenance CRUD
+`/vehicles/{id}/maintenance` + `/maintenance/{id}` per Doc 3 (set `source='manual'`).
+**Done when:** CRUD + category-filter tests pass.
+
+#### 🟦 Task B4b — Cloudinary upload signature endpoint
+`POST /api/v1/uploads/cloudinary-signature` per Doc 3 — sign upload params with the Cloudinary
+API secret (server-side only) and return `{signature, timestamp, apiKey, cloudName, folder}`.
+Put the signing in a small service. **Done when:** a test asserts the signature matches a
+known SHA-1 of the sorted params + secret, and the secret is never returned.
+
+---
+
+### `task/backend-documents` — Documents CRUD
+*Starts after `task/backend-models` merges, parallel with the above two.*
+
+#### 🟦 Task B5 — Documents CRUD (metadata)
+`/vehicles/{id}/documents` + `/documents/{id}` per Doc 3 — metadata only, store `storageUrl`
++ `storagePublicId`. On delete, also delete the Cloudinary asset by `public_id`.
+**Done when:** CRUD + docType-filter tests pass (mock the Cloudinary delete call).
+
+---
+
+## Backend Wrap-up  (`task/backend-deploy`)
+*Starts after all three Batch 2 worktrees merge.*
+
+### 🟦 Task B6 — Dashboard aggregate
+`GET /api/v1/dashboard` — aggregate vehicle count, monthly fuel spend, total ownership cost,
+cost breakdown, and upcoming document-expiry renewals (Doc 3).
+**Done when:** a test seeds 1 vehicle with fuel+maintenance and asserts the aggregated response.
+
+### 🟨 Task B7 — Deploy backend to Render + Neon
+Add `Dockerfile` (Gunicorn+Uvicorn), create a Neon project, run migrations against Neon,
+deploy to Render, set env vars, confirm `/health` is reachable publicly.
+**Done when:** the public Render URL serves `/health` and a manual authed `/me` call works.
+
+---
+
+## D. Mobile Screens
+
+### `task/mobile-garage` — Garage tab
+*Starts after `task/mobile-auth` merged AND B7 live.*
+
+#### 🟩 Task D1a — Vehicles list (Garage)
 Repository + provider + `VehicleCard`; the Garage list screen calling `GET /vehicles` with the
 4 states (loading/empty/error/loaded) and the dashed "＋ Add Vehicle" card. Matches Doc 6 layout.
 **Done when:** the list renders vehicles from the live API with all four states handled.
 
-### 🟩 Task D1b — Add/Edit Vehicle form (modal)
+#### 🟩 Task D1b — Add/Edit Vehicle form (modal)
 Full-screen modal form (Cancel/Save) for `POST`/`PATCH /vehicles`; delete with confirm.
 **Done when:** user can create, edit, and delete a vehicle; the list updates.
 
-### 🟩 Task D1c — Vehicle photo upload (Cloudinary)
+#### 🟩 Task D1c — Vehicle photo upload (Cloudinary)
 From the form, pick a photo → request the signature (`/uploads/cloudinary-signature`) → upload
 to Cloudinary → save the returned `secure_url` + `public_id`.
 **Done when:** a vehicle photo can be attached/replaced end-to-end and shows on the card.
 
-### 🟩 Task D2 — Vehicle detail shell
+---
+
+### `task/mobile-vehicle-detail` — Vehicle detail tab content
+*Starts after `task/mobile-auth` merged AND B7 live. Parallel with `task/mobile-garage`.*
+
+#### 🟩 Task D2 — Vehicle detail shell
 A vehicle detail screen with tabs/sections for Fuel, Maintenance, Documents (containers for D3–D5).
 **Done when:** tapping a vehicle opens detail with empty sub-sections.
 
-### 🟩 Task D3 — Fuel tracking UI
+#### 🟩 Task D3 — Fuel tracking UI
 List fuel logs, add/edit/delete entry form, and a fuel-stats card (calls `/fuel-stats`).
 **Done when:** adding logs updates the list and the computed economy/cost card.
 
-### 🟩 Task D4 — Maintenance UI
+#### 🟩 Task D4 — Maintenance UI
 List maintenance records, add/edit/delete form with service type + category + cost.
 **Done when:** records appear newest-first and persist via the API.
 
-### 🟩 Task D5a — Documents list (grouped)
+#### 🟩 Task D5a — Documents list (grouped)
 Repository + provider; the Documents section lists docs from `GET /documents` **grouped by
 type** with **expiry badges**, plus the 4 states.
 **Done when:** documents render grouped by type with expiry indicators and all states handled.
 
-### 🟩 Task D5b — Document upload (Cloudinary)
+#### 🟩 Task D5b — Document upload (Cloudinary)
 Pick a file/photo → signature → upload to Cloudinary → save metadata via `POST /documents`
 (modal form: docType, title, issue/expiry dates).
 **Done when:** a document uploads and appears in the grouped list.
 
-### 🟩 Task D5c — Document viewer + delete
+#### 🟩 Task D5c — Document viewer + delete
 Open the image/PDF from `storage_url`; delete (also deletes the Cloudinary asset server-side).
 **Done when:** a document can be opened and deleted.
 
-### 🟩 Task D6 — Dashboard screen
+---
+
+### `task/mobile-dashboard` — Home/Dashboard screen
+*Starts after `task/mobile-auth` merged AND B7 live. Parallel with the other two mobile screen worktrees.*
+
+#### 🟩 Task D6 — Dashboard screen
 Home dashboard calling `GET /dashboard`: monthly fuel spend, total ownership cost, cost
 breakdown, upcoming renewals.
 **Done when:** dashboard reflects real seeded data across vehicles.
@@ -183,21 +235,27 @@ upload document → view dashboard, against the deployed backend.
 
 ---
 
-## Suggested order
-```
-A1→A2→A3a→A3b→A3c→A4→A5 → B1→B2→B3→B4→B4b→B5→B6→B7
-→ C1→C2a→C2b→C2c→C3 → D1a→D1b→D1c→D2→D3→D4→D5a→D5b→D5c→D6 → E1
-```
-Backend can be built and tested fully before mobile starts, since Doc 3 is the fixed contract.
+## Worktree summary
 
-> **Task sizing:** tasks are split small enough for one focused session / a smaller LLM. Tip:
-> build the *first* of a repeated pattern carefully (B1 = the CRUD template; D1a = the
-> screen template), then later ones follow it almost mechanically.
+| Batch | Worktree branch | Tasks | Start condition |
+|---|---|---|---|
+| 1 | `task/backend-models` | A3a→A3b→A3c→A4→A5 | ✅ Ready now |
+| 1 | `task/mobile-auth` | C2a→C2b→C2c→C3 | ✅ Ready now |
+| 2 | `task/backend-fuel` | B1→B2→B3 | After `task/backend-models` merged |
+| 2 | `task/backend-maint` | B4→B4b | After `task/backend-models` merged |
+| 2 | `task/backend-documents` | B5 | After `task/backend-models` merged |
+| 3 | `task/backend-deploy` | B6→B7 | After all Batch 2 merged |
+| 4 | `task/mobile-garage` | D1a→D1b→D1c | After `task/mobile-auth` merged + B7 live |
+| 4 | `task/mobile-vehicle-detail` | D2→D3→D4→D5a→D5b→D5c | After `task/mobile-auth` merged + B7 live |
+| 4 | `task/mobile-dashboard` | D6 | After `task/mobile-auth` merged + B7 live |
+
+> **Task sizing tip:** B1 is the CRUD template — later B tasks follow the same pattern.
+> D1a is the screen template — later D tasks follow almost mechanically.
 
 ---
 
 ## Later phases (2–6)
 Detailed task docs for Phases 2–6 are written **just-in-time**, when each phase begins — not
 up front (they'd be speculative and rewritten once Phase 1 code exists). What already covers
-them: the **PRD** (per-phase features) and **`02-database-schema.md`** (all 6 phases of tables).
+them: the **PRD** (per-phase features) and `02-database-schema.md` (all 6 phases of tables).
 When a phase starts, create `0N-phaseN-tasks.md` in this same format.
