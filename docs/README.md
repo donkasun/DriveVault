@@ -18,6 +18,7 @@ This folder holds everything needed to build the app. Read the docs in the order
 | 3 | [`03-api-contract.md`](./03-api-contract.md) | **The API.** Phase 1 REST endpoints — every request/response shape, status codes, auth & ownership rules. |
 | 4 | [`04-phase1-tasks.md`](./04-phase1-tasks.md) | **The build plan.** Phase 1 split into ~24 small, ordered, testable tasks. Do one at a time. |
 | 5 | [`05-task-dashboard.md`](./05-task-dashboard.md) | **The tracker.** Live status of every task — order, status, and executor. Update as work progresses. |
+| 6 | [`06-ui-screens.md`](./06-ui-screens.md) | **The UI spec.** Navigation architecture, screen inventory, and per-screen data/actions. Visual layouts added from sketches. |
 
 Plus, at the repo root: [`../CLAUDE.md`](../CLAUDE.md) — the **working agreement** (rules) every
 coding agent follows. The docs above are the *source of truth*; `CLAUDE.md` is the *rules*.
