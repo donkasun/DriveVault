@@ -31,7 +31,9 @@
 |---|---|---|---|---|---|
 | 1 | A1 | Project scaffold + `/health` | ✅ | Opus | pytest passing |
 | 2 | A2 | Config + DB session + `docker-compose` | ✅ | Opus | Postgres 16 local |
-| 3 | A3 | SQLAlchemy models (P1+P2) + initial Alembic migration | ⬜ | SmallLLM | match `02-database-schema.md` exactly |
+| 3 | A3a | Alembic setup + users/vehicles models | ⬜ | SmallLLM | match Doc 2 exactly |
+| 3 | A3b | fuel/maintenance/documents models | ⬜ | SmallLLM | + migration |
+| 3 | A3c | schedules/reminders models | ⬜ | SmallLLM | + migration |
 | 4 | A4 | Firebase token auth dependency (`get_current_user`) | ⬜ | SmallLLM | mock `verify_id_token` in tests |
 | 5 | A5 | `/me` endpoints (GET, PATCH) | ⬜ | SmallLLM | lazy user upsert |
 | 6 | B1 | Vehicles CRUD | ⬜ | SmallLLM | ownership → 404 |
@@ -50,13 +52,19 @@
 | Order | ID | Task | Status | Executor | Notes |
 |---|---|---|---|---|---|
 | 1 | C1 | Flutter scaffold (feature folders, deps, shell, router) | ✅ | Opus | analyze clean, widget test passing |
-| 2 | C2 | Firebase init + Auth (email/Google/Apple) | ⬜ | SmallLLM | persists across restart |
+| 2 | C2a | Firebase init + email/password auth | ⬜ | SmallLLM | sign up/in/out |
+| 2 | C2b | Google sign-in | ⬜ | SmallLLM | Apple deferred |
+| 2 | C2c | Auth gate + persistence | ⬜ | SmallLLM | go_router redirect |
 | 3 | C3 | API client + token injection | ⬜ | SmallLLM | base URL via `--dart-define` |
-| 4 | D1 | Vehicles list + create/edit (+ photo upload) | ⬜ | SmallLLM | end-to-end vs live API |
-| 5 | D2 | Vehicle detail shell (tabs) | ⬜ | SmallLLM | containers for D3–D5 |
+| 4 | D1a | Vehicles list (Garage) | ⬜ | SmallLLM | VehicleCard + 4 states |
+| 4 | D1b | Add/Edit Vehicle form (modal) | ⬜ | SmallLLM | POST/PATCH + delete |
+| 4 | D1c | Vehicle photo upload (Cloudinary) | ⬜ | SmallLLM | signed upload |
+| 5 | D2 | Vehicle detail shell (one scroll) | ⬜ | SmallLLM | sections for D3–D5 |
 | 6 | D3 | Fuel tracking UI (+ stats card) | ⬜ | SmallLLM | |
 | 7 | D4 | Maintenance UI | ⬜ | SmallLLM | |
-| 8 | D5 | Document vault UI (upload/list/open) | ⬜ | SmallLLM | Cloudinary upload |
+| 8 | D5a | Documents list (grouped) | ⬜ | SmallLLM | by type + expiry |
+| 8 | D5b | Document upload (Cloudinary) | ⬜ | SmallLLM | signed upload |
+| 8 | D5c | Document viewer + delete | ⬜ | SmallLLM | open + delete |
 | 9 | D6 | Dashboard screen | ⬜ | SmallLLM | calls `/dashboard` |
 
 ---
@@ -74,10 +82,13 @@
 | Group | Done | Total |
 |---|---|---|
 | Setup | 7 | 8 |
-| Backend | 2 | 13 |
-| Mobile | 1 | 9 |
+| Backend | 2 | 15 |
+| Mobile | 1 | 15 |
 | Wrap-up | 0 | 1 |
-| **Total** | **10** | **31** |
+| **Total** | **10** | **39** |
+
+> Some tasks were split into sub-tasks (A3a–c, C2a–c, D1a–c, D5a–c) so each fits a single
+> focused session / a smaller LLM. See `04-phase1-tasks.md` for the definitions.
 
 **Critical path right now:** all setup is done except S6 (Android `cmdline-tools`, optional if
 building iOS). Firebase project + Admin key + Auth providers (Email/Google) and Cloudinary
