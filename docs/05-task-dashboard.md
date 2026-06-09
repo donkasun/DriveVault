@@ -49,32 +49,32 @@
 
 ---
 
-## Batch 2 — Start after `task/backend-models` merges ✅ Gate open (3 worktrees in parallel)
+## Batch 2 — ✅ COMPLETE (squash-merged to main)
 
 ### Worktree: `task/backend-fuel`
 
 | Order | ID | Task | Status | Executor | Notes |
 |---|---|---|---|---|---|
-| 1 | B1 | Vehicles CRUD | ⬜ | SmallLLM | ownership → 404 |
-| 2 | B2 | Fuel logs CRUD | ⬜ | SmallLLM | validate liters > 0 |
-| 3 | B3 | Fuel stats (computed) | ⬜ | SmallLLM | full-tank math in a service |
+| 1 | B1 | Vehicles CRUD | ✅ | SmallLLM | ownership → 404; tests passing |
+| 2 | B2 | Fuel logs CRUD | ✅ | SmallLLM | date-range filter + ownership; tests passing |
+| 3 | B3 | Fuel stats (computed) | ✅ | SmallLLM | full-tank math in service; exact-values test passing |
 
 ### Worktree: `task/backend-maint`
 
 | Order | ID | Task | Status | Executor | Notes |
 |---|---|---|---|---|---|
-| 1 | B4 | Maintenance CRUD | ⬜ | SmallLLM | `source='manual'` |
-| 2 | B4b | Cloudinary upload signature endpoint | ⬜ | SmallLLM | secret stays server-side |
+| 1 | B4 | Maintenance CRUD | ✅ | SmallLLM | `source='manual'`; category filter + ownership; tests passing |
+| 2 | B4b | Cloudinary upload signature endpoint | ✅ | SmallLLM | SHA-1 signing; secret never returned; test passing |
 
 ### Worktree: `task/backend-documents`
 
 | Order | ID | Task | Status | Executor | Notes |
 |---|---|---|---|---|---|
-| 1 | B5 | Documents CRUD (metadata) | ⬜ | SmallLLM | store `storageUrl` + `publicId`; delete Cloudinary asset |
+| 1 | B5 | Documents CRUD (metadata) | ✅ | SmallLLM | store `storageUrl` + `publicId`; docType filter; 20/20 tests passing |
 
 ---
 
-## Batch 3 — Start after all of Batch 2 merges (sequential)
+## Batch 3 — ✅ GATE OPEN — Start after all of Batch 2 merges (sequential)
 
 ### Worktree: `task/backend-deploy`
 
@@ -137,10 +137,10 @@
 | Group | Done | Total |
 |---|---|---|
 | Setup | 7 | 8 |
-| Backend | 7 | 15 |
+| Backend | 13 | 15 |
 | Mobile | 8 | 16 |
 | Wrap-up | 0 | 1 |
-| **Total** | **22** | **40** |
+| **Total** | **28** | **40** |
 
 ---
 
@@ -150,10 +150,10 @@
 |---|---|---|---|
 | 1 | `task/backend-models` | A3a→A3b→A3c→A4→A5 | ✅ Start now |
 | 1 | `task/mobile-auth` | C2a→C2b→C2c→C3 (→C2d follow-on) | ✅ Start now |
-| 2 | `task/backend-fuel` | B1→B2→B3 | ✅ Gate open |
-| 2 | `task/backend-maint` | B4→B4b | ✅ Gate open |
-| 2 | `task/backend-documents` | B5 | ✅ Gate open |
-| 3 | `task/backend-deploy` | B6→B7 | All Batch 2 merged |
+| 2 | `task/backend-fuel` | B1→B2→B3 | ✅ Merged |
+| 2 | `task/backend-maint` | B4→B4b | ✅ Merged |
+| 2 | `task/backend-documents` | B5 | ✅ Merged |
+| 3 | `task/backend-deploy` | B6→B7 | ✅ Gate open |
 | 4 | `task/mobile-garage` | D1a→D1b→D1c | `task/mobile-auth` ✅ + C2d merged + B7 live |
 | 4 | `task/mobile-vehicle-detail` | D2→D3→D4→D5a→D5b→D5c | `task/mobile-auth` ✅ + C2d merged + B7 live |
 | 4 | `task/mobile-dashboard` | D6 | `task/mobile-auth` ✅ + C2d merged + B7 live |
