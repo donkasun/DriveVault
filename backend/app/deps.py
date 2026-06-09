@@ -4,6 +4,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from firebase_admin import auth
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.db import get_db
@@ -23,8 +24,14 @@ async def get_current_user(
             detail="Missing authorization token",
         )
 
+    # Bug 2 fix: pass check_revoked=True so revoked tokens are rejected immediately.
     try:
-        decoded = auth.verify_id_token(credentials.credentials)
+        decoded = auth.verify_id_token(credentials.credentials, check_revoked=True)
+    except auth.RevokedIdTokenError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token has been revoked",
+        ) from exc
     except Exception as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -32,14 +39,21 @@ async def get_current_user(
         ) from exc
 
     firebase_uid = decoded["uid"]
-    email = decoded.get("email") or ""
+    # Bug 3 fix: only use email when Firebase has verified it.
+    email = decoded.get("email") if decoded.get("email_verified") is True else ""
 
     user = db.scalar(select(User).where(User.firebase_uid == firebase_uid))
     if user is None:
-        user = User(firebase_uid=firebase_uid, email=email)
-        db.add(user)
-        db.commit()
-        db.refresh(user)
+        # Bug 1 fix: handle race condition where two concurrent requests both see
+        # user is None and both attempt to INSERT the same firebase_uid.
+        try:
+            user = User(firebase_uid=firebase_uid, email=email)
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+        except IntegrityError:
+            db.rollback()
+            user = db.scalar(select(User).where(User.firebase_uid == firebase_uid))
 
     return user
 

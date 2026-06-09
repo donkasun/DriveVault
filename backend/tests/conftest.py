@@ -80,7 +80,17 @@ def migrated_engine() -> Generator[Engine, None, None]:
 def db_session(migrated_engine: Engine) -> Generator[Session, None, None]:
     connection = migrated_engine.connect()
     transaction = connection.begin()
-    session = sessionmaker(bind=connection, autoflush=False, autocommit=False, future=True)()
+    # Bug 4 fix: join_transaction_mode="create_savepoint" ensures that db.commit()
+    # calls inside the code-under-test only commit to a savepoint, not the outer
+    # connection transaction.  The outer transaction.rollback() then undoes all
+    # changes made during the test, providing proper test isolation.
+    session = sessionmaker(
+        bind=connection,
+        autoflush=False,
+        autocommit=False,
+        future=True,
+        join_transaction_mode="create_savepoint",
+    )()
     try:
         yield session
     finally:
