@@ -3,7 +3,9 @@
 Created lazily on first authenticated request.
 """
 
-from sqlalchemy import Column, Index, Text, TIMESTAMP, func
+import uuid
+
+from sqlalchemy import Index, Text, TIMESTAMP, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -13,8 +15,8 @@ from app.core.db import Base
 class User(Base):
     __tablename__ = "users"
 
-    id: Mapped[UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=func.gen_random_uuid()
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, server_default=func.gen_random_uuid()
     )
     firebase_uid: Mapped[str] = mapped_column(Text, unique=True, nullable=False)
     email: Mapped[str] = mapped_column(Text, nullable=False)
