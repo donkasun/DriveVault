@@ -1,0 +1,124 @@
+"""Fuel log business logic and fuel economy stats (Tasks B2/B3)."""
+
+from collections import defaultdict
+from datetime import UTC, date, datetime
+from decimal import Decimal
+from uuid import UUID
+
+from fastapi import HTTPException, status
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from app.models.fuel_logs import FuelLog
+from app.models.users import User
+from app.models.vehicles import Vehicle
+from app.schemas.fuel_logs import FuelLogCreate, FuelLogUpdate, FuelStatsRead, MonthlySpend
+from app.services.vehicles import get_vehicle_for_user
+
+
+def list_fuel_logs(
+    db: Session,
+    user: User,
+    vehicle_id: UUID,
+    from_date: date | None = None,
+    to_date: date | None = None,
+) -> list[FuelLog]:
+    get_vehicle_for_user(db, user, vehicle_id)
+    query = select(FuelLog).where(FuelLog.vehicle_id == vehicle_id)
+    if from_date is not None:
+        query = query.where(FuelLog.date >= from_date)
+    if to_date is not None:
+        query = query.where(FuelLog.date <= to_date)
+    query = query.order_by(FuelLog.date.desc(), FuelLog.created_at.desc())
+    return list(db.scalars(query))
+
+
+def create_fuel_log(db: Session, user: User, vehicle_id: UUID, payload: FuelLogCreate) -> FuelLog:
+    get_vehicle_for_user(db, user, vehicle_id)
+    fuel_log = FuelLog(vehicle_id=vehicle_id, **payload.model_dump())
+    db.add(fuel_log)
+    db.commit()
+    db.refresh(fuel_log)
+    return fuel_log
+
+
+def get_fuel_log_for_user(db: Session, user: User, fuel_log_id: UUID) -> FuelLog:
+    fuel_log = db.scalar(
+        select(FuelLog)
+        .join(Vehicle, FuelLog.vehicle_id == Vehicle.id)
+        .where(FuelLog.id == fuel_log_id, Vehicle.user_id == user.id)
+    )
+    if fuel_log is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Fuel log not found",
+        )
+    return fuel_log
+
+
+def update_fuel_log(db: Session, user: User, fuel_log_id: UUID, payload: FuelLogUpdate) -> FuelLog:
+    fuel_log = get_fuel_log_for_user(db, user, fuel_log_id)
+    data = payload.model_dump(exclude_unset=True)
+    for field, value in data.items():
+        setattr(fuel_log, field, value)
+
+    fuel_log.updated_at = datetime.now(UTC)
+    db.add(fuel_log)
+    db.commit()
+    db.refresh(fuel_log)
+    return fuel_log
+
+
+def delete_fuel_log(db: Session, user: User, fuel_log_id: UUID) -> None:
+    fuel_log = get_fuel_log_for_user(db, user, fuel_log_id)
+    db.delete(fuel_log)
+    db.commit()
+
+
+def compute_fuel_stats(db: Session, user: User, vehicle_id: UUID) -> FuelStatsRead:
+    get_vehicle_for_user(db, user, vehicle_id)
+    logs = list(
+        db.scalars(
+            select(FuelLog).where(FuelLog.vehicle_id == vehicle_id).order_by(FuelLog.date.asc())
+        )
+    )
+
+    total_liters = sum(Decimal(log.liters) for log in logs)
+    total_spent_cents = sum(log.price_cents for log in logs)
+
+    monthly_totals: dict[str, int] = defaultdict(int)
+    for log in logs:
+        monthly_totals[log.date.strftime("%Y-%m")] += log.price_cents
+
+    full_tank_logs = [log for log in logs if log.is_full_tank]
+    segment_liters = Decimal("0")
+    segment_spent_cents = 0
+    segment_distance_km = 0
+    for previous, current in zip(full_tank_logs, full_tank_logs[1:]):
+        distance = current.odometer - previous.odometer
+        if distance <= 0:
+            continue
+        segment_distance_km += distance
+        segment_liters += Decimal(current.liters)
+        segment_spent_cents += current.price_cents
+
+    avg_consumption = None
+    avg_cost_per_km_cents = None
+    if segment_distance_km > 0:
+        avg_consumption = round(
+            float((segment_liters / Decimal(segment_distance_km)) * Decimal(100)), 1
+        )
+        avg_cost_per_km_cents = round(segment_spent_cents / segment_distance_km)
+
+    monthly_spend = [
+        MonthlySpend(month=month, spent_cents=spent_cents)
+        for month, spent_cents in sorted(monthly_totals.items(), reverse=True)
+    ]
+
+    return FuelStatsRead(
+        avg_consumption_l_per_100_km=avg_consumption,
+        avg_cost_per_km_cents=avg_cost_per_km_cents,
+        total_liters=float(total_liters),
+        total_spent_cents=total_spent_cents,
+        monthly_spend=monthly_spend,
+    )
