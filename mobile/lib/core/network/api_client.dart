@@ -1,71 +1,97 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:drivevault/features/auth/data/auth_repository.dart';
 
-/// Custom exception for API errors.
-class ApiException implements Exception {
-  final int statusCode;
-  final String message;
-  final dynamic details;
+import '../config/app_config.dart';
+import '../../features/auth/data/auth_repository.dart';
+import 'api_exceptions.dart';
 
-  ApiException(this.statusCode, this.message, [this.details]);
-
-  @override
-  String toString() => 'ApiException(statusCode: $statusCode, message: $message, details: $details)';
-}
-
-/// A singleton API client using Dio.
+/// Low-level HTTP client. Attaches the Firebase ID token and maps API errors.
 class ApiClient {
   final Dio _dio;
   final Ref _ref;
 
-  ApiClient(this._ref) : _dio = Dio(BaseOptions(
-    baseUrl: const String.fromEnvironment('BASE_URL', defaultValue: 'http://localhost:8000'),
-    connectTimeout: const Duration(seconds: 10),
-    receiveTimeout: const Duration(seconds: 10),
-    headers: {'Content-Type': 'application/json'},
-  )) {
-    // Attach interceptor to inject Firebase ID token into every request.
-    _dio.interceptors.add(InterceptorsWrapper(
-      onRequest: (options, handler) async {
-        final authRepo = _ref.read(authRepositoryProvider);
-        final user = authRepo.currentUser;
-        if (user != null) {
-          // getIdToken forces a refresh if needed.
-          final idToken = await user.getIdToken();
-          options.headers['Authorization'] = 'Bearer $idToken';
-        }
-        handler.next(options);
-      },
-      onError: (DioError err, handler) {
-        // Convert error response to ApiException for easier handling.
-        final response = err.response;
-        if (response != null) {
-          final message = response.data is Map && response.data['error'] != null
-              ? response.data['error'].toString()
-              : err.message;
-          handler.reject(DioError(
-            requestOptions: err.requestOptions,
-            response: response,
-            type: err.type,
-            error: ApiException(response.statusCode ?? err.type.index, message, response.data),
-          ));
-        } else {
-          handler.next(err);
-        }
-      },
-    ));
+  ApiClient(this._ref, {Dio? dio})
+    : _dio =
+          dio ??
+          Dio(
+            BaseOptions(
+              baseUrl: AppConfig.apiV1BaseUrl,
+              connectTimeout: const Duration(seconds: 10),
+              receiveTimeout: const Duration(seconds: 10),
+              headers: const {'Content-Type': 'application/json'},
+            ),
+          ) {
+    _dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) async {
+          final authRepo = _ref.read(authRepositoryProvider);
+          final user = authRepo.currentUser;
+          if (user != null) {
+            final idToken = await user.getIdToken();
+            options.headers['Authorization'] = 'Bearer $idToken';
+          }
+          handler.next(options);
+        },
+        onError: (error, handler) {
+          handler.reject(
+            DioException(
+              requestOptions: error.requestOptions,
+              response: error.response,
+              type: error.type,
+              error: mapDioException(error),
+            ),
+          );
+        },
+      ),
+    );
   }
 
-  /// Example GET request for the current user profile.
-  Future<Map<String, dynamic>> getMe() async {
-    final response = await _dio.get('/api/v1/me');
-    return response.data as Map<String, dynamic>;
+  /// Maps a [DioException] to a typed [ApiException] (or [ApiAuthException] for 401).
+  static ApiException mapDioException(DioException error) {
+    final response = error.response;
+    if (response == null) {
+      return ApiException(0, error.message ?? 'Network error');
+    }
+
+    final statusCode = response.statusCode ?? 0;
+    var message = error.message ?? 'Request failed';
+
+    final data = response.data;
+    if (data is Map && data['detail'] != null) {
+      message = data['detail'].toString();
+    }
+
+    if (statusCode == 401) {
+      return ApiAuthException(message, data);
+    }
+
+    return ApiException(statusCode, message, data);
   }
 
-  // Additional helper methods (GET, POST, PATCH, DELETE) can be added here.
+  Future<Map<String, dynamic>> get(String path) async {
+    try {
+      final response = await _dio.get<Map<String, dynamic>>(path);
+      return response.data!;
+    } on DioException catch (error) {
+      final mapped = error.error;
+      if (mapped is ApiException) throw mapped;
+      throw mapDioException(error);
+    }
+  }
+
+  Future<Map<String, dynamic>> patch(
+    String path, {
+    required Map<String, dynamic> body,
+  }) async {
+    try {
+      final response = await _dio.patch<Map<String, dynamic>>(path, data: body);
+      return response.data!;
+    } on DioException catch (error) {
+      final mapped = error.error;
+      if (mapped is ApiException) throw mapped;
+      throw mapDioException(error);
+    }
+  }
 }
 
-/// Riverpod provider for the ApiClient. It is a simple Provider because the client has no mutable state.
 final apiClientProvider = Provider<ApiClient>((ref) => ApiClient(ref));

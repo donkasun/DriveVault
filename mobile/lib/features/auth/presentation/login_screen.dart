@@ -33,7 +33,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     });
 
     try {
-      await ref.read(authRepositoryProvider).signInWithEmailAndPassword(
+      await ref
+          .read(authRepositoryProvider)
+          .signInWithEmailAndPassword(
             email: _emailController.text.trim(),
             password: _passwordController.text,
           );
@@ -58,7 +60,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     });
 
     try {
-      final credential = await ref.read(authRepositoryProvider).signInWithGoogle();
+      final credential = await ref
+          .read(authRepositoryProvider)
+          .signInWithGoogle();
       if (credential == null) {
         // User cancelled the sign-in
         setState(() {
@@ -76,9 +80,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF3F4F7), // Light grey background from specs
+      backgroundColor: const Color(
+        0xFFF3F4F7,
+      ), // Light grey background from specs
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
@@ -105,14 +111,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               const SizedBox(height: 8),
               const Text(
                 'From first mile to resale.',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.grey,
-                ),
+                style: TextStyle(fontSize: 16, color: Colors.grey),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 32),
-              
+
               // Login Card
               Card(
                 elevation: 0,
@@ -135,7 +138,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           ),
                         ),
                         const SizedBox(height: 16),
-                        
+
                         if (_errorMessage != null) ...[
                           Container(
                             padding: const EdgeInsets.all(12),
@@ -153,7 +156,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           ),
                           const SizedBox(height: 16),
                         ],
-                        
+
                         TextFormField(
                           controller: _emailController,
                           keyboardType: TextInputType.emailAddress,
@@ -161,14 +164,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             labelText: 'Email',
                             prefixIcon: Icon(Icons.email_outlined),
                             border: OutlineInputBorder(
-                              borderRadius: BorderRadius.all(Radius.circular(12)),
+                              borderRadius: BorderRadius.all(
+                                Radius.circular(12),
+                              ),
                             ),
                           ),
                           validator: (value) {
                             if (value == null || value.trim().isEmpty) {
                               return 'Please enter your email';
                             }
-                            if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value.trim())) {
+                            if (!RegExp(
+                              r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
+                            ).hasMatch(value.trim())) {
                               return 'Please enter a valid email address';
                             }
                             return null;
@@ -182,7 +189,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             labelText: 'Password',
                             prefixIcon: Icon(Icons.lock_outlined),
                             border: OutlineInputBorder(
-                              borderRadius: BorderRadius.all(Radius.circular(12)),
+                              borderRadius: BorderRadius.all(
+                                Radius.circular(12),
+                              ),
                             ),
                           ),
                           validator: (value) {
@@ -196,7 +205,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           },
                         ),
                         const SizedBox(height: 8),
-                        
+
                         // Forgot Password Link
                         Align(
                           alignment: Alignment.centerRight,
@@ -214,10 +223,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           ),
                         ),
                         const SizedBox(height: 8),
-                        
+
                         // Submit Button
                         ElevatedButton(
-                          onPressed: _isLoading ? null : _signInWithEmailAndPassword,
+                          onPressed: _isLoading
+                              ? null
+                              : _signInWithEmailAndPassword,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF16A34A),
                             foregroundColor: Colors.white,
@@ -233,7 +244,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                   width: 20,
                                   child: CircularProgressIndicator(
                                     strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      Colors.white,
+                                    ),
                                   ),
                                 )
                               : const Text(
@@ -250,7 +263,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ),
               ),
               const SizedBox(height: 16),
-              
+
               // Divider
               const Row(
                 children: [
@@ -263,14 +276,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ],
               ),
               const SizedBox(height: 16),
-              
+
               // Google Sign-In Button
               OutlinedButton.icon(
                 onPressed: _isLoading ? null : _signInWithGoogle,
                 icon: Image.network(
                   'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/1024px-Google_%22G%22_logo.svg.png',
                   height: 20,
-                  errorBuilder: (context, error, stackTrace) => const Icon(Icons.login),
+                  errorBuilder: (context, error, stackTrace) =>
+                      const Icon(Icons.login),
                 ),
                 label: const Text(
                   'Continue with Google',
@@ -288,16 +302,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ),
                 ),
               ),
-              
+
               const SizedBox(height: 24),
-              
+
               // Link to Sign Up
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const Text("Don't have an account?"),
                   TextButton(
-                    onPressed: _isLoading ? null : () => context.push('/signup'),
+                    onPressed: _isLoading
+                        ? null
+                        : () => context.push('/signup'),
                     child: const Text(
                       'Create Account',
                       style: TextStyle(

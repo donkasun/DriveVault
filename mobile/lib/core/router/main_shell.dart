@@ -4,10 +4,7 @@ import 'package:go_router/go_router.dart';
 class MainShell extends StatelessWidget {
   final StatefulNavigationShell navigationShell;
 
-  const MainShell({
-    super.key,
-    required this.navigationShell,
-  });
+  const MainShell({super.key, required this.navigationShell});
 
   @override
   Widget build(BuildContext context) {
@@ -43,10 +40,7 @@ class _FloatingTabBar extends StatelessWidget {
   final int currentIndex;
   final ValueChanged<int> onTap;
 
-  const _FloatingTabBar({
-    required this.currentIndex,
-    required this.onTap,
-  });
+  const _FloatingTabBar({required this.currentIndex, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -114,7 +108,9 @@ class _FloatingTabBar extends StatelessWidget {
             ),
             child: Icon(
               isSelected ? activeIcon : icon,
-              color: isSelected ? const Color(0xFF16A34A) : Colors.grey.shade400,
+              color: isSelected
+                  ? const Color(0xFF16A34A)
+                  : Colors.grey.shade400,
               size: 26,
             ),
           ),
