@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import get_settings
 from app.core.firebase import init_firebase
-from app.routers import health, me, vehicles
+from app.routers import health, maintenance, me, vehicles
 
 settings = get_settings()
 
@@ -26,6 +26,7 @@ def create_app() -> FastAPI:
     app.include_router(health.router)
     app.include_router(me.router, prefix=settings.api_v1_prefix)
     app.include_router(vehicles.router, prefix=settings.api_v1_prefix)
+    app.include_router(maintenance.router, prefix=settings.api_v1_prefix)
 
     return app
 
