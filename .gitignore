@@ -59,3 +59,11 @@ postgres-data/
 
 # Superpowers brainstorm sessions
 .superpowers/
+docs/superpowers/
+
+# Playwright MCP screenshots/snapshots
+.playwright-mcp/
+
+# Git worktrees
+worktrees/
+.worktrees/

@@ -31,24 +31,25 @@
 
 | Order | ID | Task | Status | Executor | Notes |
 |---|---|---|---|---|---|
-| 1 | A3a | Alembic setup + users/vehicles models | ⬜ | SmallLLM | match Doc 2 exactly |
-| 2 | A3b | fuel/maintenance/documents models | ⬜ | SmallLLM | + migration |
-| 3 | A3c | schedules/reminders models | ⬜ | SmallLLM | + migration |
-| 4 | A4 | Firebase token auth dependency (`get_current_user`) | ⬜ | SmallLLM | mock `verify_id_token` in tests |
-| 5 | A5 | `/me` endpoints (GET, PATCH) | ⬜ | SmallLLM | lazy user upsert |
+| 1 | A3a | Alembic setup + users/vehicles models | ✅ | SmallLLM | migration passing |
+| 2 | A3b | fuel/maintenance/documents models | ✅ | SmallLLM | migration passing |
+| 3 | A3c | schedules/reminders models | ✅ | SmallLLM | migration passing |
+| 4 | A4 | Firebase token auth dependency (`get_current_user`) | ✅ | SmallLLM | check_revoked=True, email_verified guard, race condition handled |
+| 5 | A5 | `/me` endpoints (GET, PATCH) | ✅ | SmallLLM | lazy upsert; tests passing |
 
 ### Worktree: `task/mobile-auth`
 
 | Order | ID | Task | Status | Executor | Notes |
 |---|---|---|---|---|---|
-| 1 | C2a | Firebase init + email/password auth | ⬜ | SmallLLM | sign up/in/out |
-| 2 | C2b | Google sign-in | ⬜ | SmallLLM | Apple deferred |
-| 3 | C2c | Auth gate + persistence | ⬜ | SmallLLM | go_router redirect |
-| 4 | C3 | API client + token injection | ⬜ | SmallLLM | base URL via `--dart-define` |
+| 1 | C2a | Firebase init + email/password auth | ✅ | SmallLLM | tests passing, main initialized |
+| 2 | C2b | Google sign-in | ✅ | SmallLLM | google_sign_in integrated |
+| 3 | C2c | Auth gate + persistence | ✅ | SmallLLM | GoRouter redirect listener |
+| 4 | C3 | API client + token injection | ✅ | SmallLLM | Dio + token interceptor; null guard; typed exceptions |
+| 5 | C2d | Email-verification gate | ✅ | SmallLLM | committed `a60b0b2`; 25/25 tests, analyze clean; **gates Batch 4 mobile** |
 
 ---
 
-## Batch 2 — Start after `task/backend-models` merges (3 worktrees in parallel)
+## Batch 2 — Start after `task/backend-models` merges ✅ Gate open (3 worktrees in parallel)
 
 ### Worktree: `task/backend-fuel`
 
@@ -84,7 +85,7 @@
 
 ---
 
-## Batch 4 — Start after `task/mobile-auth` merged AND B7 live (3 worktrees in parallel)
+## Batch 4 — Start after `task/mobile-auth` + C2d merged AND B7 live (3 worktrees in parallel)
 
 ### Worktree: `task/mobile-garage`
 
@@ -136,10 +137,10 @@
 | Group | Done | Total |
 |---|---|---|
 | Setup | 7 | 8 |
-| Backend | 2 | 15 |
-| Mobile | 1 | 15 |
+| Backend | 7 | 15 |
+| Mobile | 8 | 16 |
 | Wrap-up | 0 | 1 |
-| **Total** | **10** | **39** |
+| **Total** | **22** | **40** |
 
 ---
 
@@ -148,14 +149,14 @@
 | Batch | Worktree | Tasks | Gate |
 |---|---|---|---|
 | 1 | `task/backend-models` | A3a→A3b→A3c→A4→A5 | ✅ Start now |
-| 1 | `task/mobile-auth` | C2a→C2b→C2c→C3 | ✅ Start now |
-| 2 | `task/backend-fuel` | B1→B2→B3 | `task/backend-models` merged |
-| 2 | `task/backend-maint` | B4→B4b | `task/backend-models` merged |
-| 2 | `task/backend-documents` | B5 | `task/backend-models` merged |
+| 1 | `task/mobile-auth` | C2a→C2b→C2c→C3 (→C2d follow-on) | ✅ Start now |
+| 2 | `task/backend-fuel` | B1→B2→B3 | ✅ Gate open |
+| 2 | `task/backend-maint` | B4→B4b | ✅ Gate open |
+| 2 | `task/backend-documents` | B5 | ✅ Gate open |
 | 3 | `task/backend-deploy` | B6→B7 | All Batch 2 merged |
-| 4 | `task/mobile-garage` | D1a→D1b→D1c | `task/mobile-auth` merged + B7 live |
-| 4 | `task/mobile-vehicle-detail` | D2→D3→D4→D5a→D5b→D5c | `task/mobile-auth` merged + B7 live |
-| 4 | `task/mobile-dashboard` | D6 | `task/mobile-auth` merged + B7 live |
+| 4 | `task/mobile-garage` | D1a→D1b→D1c | `task/mobile-auth` ✅ + C2d merged + B7 live |
+| 4 | `task/mobile-vehicle-detail` | D2→D3→D4→D5a→D5b→D5c | `task/mobile-auth` ✅ + C2d merged + B7 live |
+| 4 | `task/mobile-dashboard` | D6 | `task/mobile-auth` ✅ + C2d merged + B7 live |
 
 > **How to update:** when a task finishes, flip its Status to ✅ and add a one-line note.
 > When a worktree merges, check that batch's gate conditions and spin up the next batch.

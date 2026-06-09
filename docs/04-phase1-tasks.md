@@ -38,7 +38,7 @@ BATCH 3 — sequential (start after all of Batch 2 merges)
 └───────────────────────┬───────────────┘
                         │ merge + deploy live
                         ▼
-BATCH 4 — 3 parallel worktrees (start after B7 live AND task/mobile-auth merged)
+BATCH 4 — 3 parallel worktrees (start after B7 live AND task/mobile-auth + C2d merged)
 ┌─────────────────────────┐ ┌────────────────────────────────────────┐ ┌────────────────────────┐
 │ task/mobile-garage      │ │ task/mobile-vehicle-detail             │ │ task/mobile-dashboard  │
 │ D1a → D1b → D1c        │ │ D2 → D3 → D4 → D5a → D5b → D5c       │ │ D6                     │
@@ -96,10 +96,20 @@ Add a go_router **redirect** (auth gate): signed-out → `/login`, signed-in →
 auth state **persists across app restarts**.
 **Done when:** restarting the app keeps the user signed in; signing out returns to `/login`.
 
-### 🟩 Task C3 — API client with token injection
+### 🟩 Task C3 — API client with token injection (in progress)
 An `ApiClient` (base URL via `--dart-define`) that attaches the current Firebase ID token as
 `Authorization: Bearer` on every request and maps error JSON to typed failures.
 **Done when:** calling `GET /me` returns the user; a 401 is surfaced as a typed auth error.
+
+### 🟩 Task C2d — Email-verification gate *(follow-on; runs anytime, no backend dep)*
+Send `sendEmailVerification()` after email/password sign-up; route unverified password users to
+a `/verify-email` screen (Resend / I've-verified / Sign out); Google/Apple bypass. Extend
+`resolveAuthRedirect` with `isEmailVerified` + `isPasswordProvider`. Plan:
+`docs/superpowers/plans/2026-06-09-email-verification-gate.md`.
+**Done when:** gate unit tests pass for verified / unverified / provider-bypass; an unverified
+email/password user lands on `/verify-email` and reaches `/home` only after verifying.
+**Gates:** must merge before the Batch 4 mobile worktrees start (so unverified accounts can't
+seed real vehicle data).
 
 ---
 
@@ -240,14 +250,14 @@ upload document → view dashboard, against the deployed backend.
 | Batch | Worktree branch | Tasks | Start condition |
 |---|---|---|---|
 | 1 | `task/backend-models` | A3a→A3b→A3c→A4→A5 | ✅ Ready now |
-| 1 | `task/mobile-auth` | C2a→C2b→C2c→C3 | ✅ Ready now |
+| 1 | `task/mobile-auth` | C2a→C2b→C2c→C3 (→C2d follow-on) | ✅ Ready now |
 | 2 | `task/backend-fuel` | B1→B2→B3 | After `task/backend-models` merged |
 | 2 | `task/backend-maint` | B4→B4b | After `task/backend-models` merged |
 | 2 | `task/backend-documents` | B5 | After `task/backend-models` merged |
 | 3 | `task/backend-deploy` | B6→B7 | After all Batch 2 merged |
-| 4 | `task/mobile-garage` | D1a→D1b→D1c | After `task/mobile-auth` merged + B7 live |
-| 4 | `task/mobile-vehicle-detail` | D2→D3→D4→D5a→D5b→D5c | After `task/mobile-auth` merged + B7 live |
-| 4 | `task/mobile-dashboard` | D6 | After `task/mobile-auth` merged + B7 live |
+| 4 | `task/mobile-garage` | D1a→D1b→D1c | After `task/mobile-auth` + C2d merged + B7 live |
+| 4 | `task/mobile-vehicle-detail` | D2→D3→D4→D5a→D5b→D5c | After `task/mobile-auth` + C2d merged + B7 live |
+| 4 | `task/mobile-dashboard` | D6 | After `task/mobile-auth` + C2d merged + B7 live |
 
 > **Task sizing tip:** B1 is the CRUD template — later B tasks follow the same pattern.
 > D1a is the screen template — later D tasks follow almost mechanically.
