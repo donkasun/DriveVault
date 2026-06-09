@@ -25,7 +25,7 @@
 
 ---
 
-## Batch 1 — Run NOW (2 worktrees in parallel)
+## Batch 1 — ✅ COMPLETE (squash-merged to main `35a23f8`)
 
 ### Worktree: `task/backend-models`
 

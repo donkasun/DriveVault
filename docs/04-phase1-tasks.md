@@ -14,14 +14,14 @@ Legend: 🟦 backend · 🟩 mobile · 🟨 infra/setup
 ## Parallel Execution Plan
 
 ```
-BATCH 1 — run now, both in parallel
+BATCH 1 — ✅ COMPLETE (merged to main)
 ┌─────────────────────────────────────┐  ┌─────────────────────────────────────┐
-│ task/backend-models                 │  │ task/mobile-auth                    │
-│ A3a → A3b → A3c → A4 → A5          │  │ C2a → C2b → C2c → C3               │
+│ task/backend-models ✅              │  │ task/mobile-auth ✅                 │
+│ A3a → A3b → A3c → A4 → A5          │  │ C2a → C2b → C2c → C3 → C2d         │
 └──────────────┬──────────────────────┘  └──────────────────────┬──────────────┘
-               │ merge                                           │ merge
+               │ merged                                          │ merged
                ▼                                                 │
-BATCH 2 — 3 parallel worktrees (start after task/backend-models merges)
+BATCH 2 — ✅ GATE OPEN — 3 parallel worktrees (start after task/backend-models merges)
 ┌─────────────────────┐ ┌────────────────────┐ ┌────────────────────────┐
 │ task/backend-fuel   │ │task/backend-maint  │ │task/backend-documents  │
 │ B1 → B2 → B3        │ │ B4 → B4b           │ │ B5                     │
@@ -249,11 +249,11 @@ upload document → view dashboard, against the deployed backend.
 
 | Batch | Worktree branch | Tasks | Start condition |
 |---|---|---|---|
-| 1 | `task/backend-models` | A3a→A3b→A3c→A4→A5 | ✅ Ready now |
-| 1 | `task/mobile-auth` | C2a→C2b→C2c→C3 (→C2d follow-on) | ✅ Ready now |
-| 2 | `task/backend-fuel` | B1→B2→B3 | After `task/backend-models` merged |
-| 2 | `task/backend-maint` | B4→B4b | After `task/backend-models` merged |
-| 2 | `task/backend-documents` | B5 | After `task/backend-models` merged |
+| 1 | `task/backend-models` | A3a→A3b→A3c→A4→A5 | ✅ Merged to main |
+| 1 | `task/mobile-auth` | C2a→C2b→C2c→C3→C2d | ✅ Merged to main |
+| 2 | `task/backend-fuel` | B1→B2→B3 | ✅ Gate open |
+| 2 | `task/backend-maint` | B4→B4b | ✅ Gate open |
+| 2 | `task/backend-documents` | B5 | ✅ Gate open |
 | 3 | `task/backend-deploy` | B6→B7 | After all Batch 2 merged |
 | 4 | `task/mobile-garage` | D1a→D1b→D1c | After `task/mobile-auth` + C2d merged + B7 live |
 | 4 | `task/mobile-vehicle-detail` | D2→D3→D4→D5a→D5b→D5c | After `task/mobile-auth` + C2d merged + B7 live |
