@@ -113,8 +113,8 @@ void main() {
         ],
       );
 
-      expect(
-        () => container.read(userRepositoryProvider).getMe(),
+      await expectLater(
+        container.read(userRepositoryProvider).getMe(),
         throwsA(isA<ApiAuthException>()),
       );
     });
