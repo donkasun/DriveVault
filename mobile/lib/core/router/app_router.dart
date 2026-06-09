@@ -31,6 +31,7 @@ class _RouterListenable extends ChangeNotifier {
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   final listenable = _RouterListenable(ref);
+  ref.onDispose(() => listenable.dispose());
 
   return GoRouter(
     initialLocation: '/splash',
