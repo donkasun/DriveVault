@@ -36,7 +36,7 @@ def test_a4_protected_route_returns_401_without_token(auth_client):
 
 @patch("app.deps.auth.verify_id_token")
 def test_a4_protected_route_returns_200_with_valid_token(mock_verify, auth_client):
-    mock_verify.return_value = {"uid": "firebase-test-uid", "email": "auth@example.com"}
+    mock_verify.return_value = {"uid": "firebase-test-uid", "email": "auth@example.com", "email_verified": True}
 
     response = auth_client.get(
         "/api/v1/_protected-test",
@@ -45,4 +45,19 @@ def test_a4_protected_route_returns_200_with_valid_token(mock_verify, auth_clien
 
     assert response.status_code == 200
     assert response.json()["ok"] is True
-    mock_verify.assert_called_once_with("valid-token")
+    mock_verify.assert_called_once_with("valid-token", check_revoked=True)
+
+
+@patch("app.deps.auth.verify_id_token")
+def test_a4_revoked_token_returns_401(mock_verify, auth_client):
+    from firebase_admin import auth as firebase_auth
+
+    mock_verify.side_effect = firebase_auth.RevokedIdTokenError("token revoked")
+
+    response = auth_client.get(
+        "/api/v1/_protected-test",
+        headers={"Authorization": "Bearer revoked-token"},
+    )
+
+    assert response.status_code == 401
+    assert response.json()["detail"] == "Token has been revoked"

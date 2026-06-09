@@ -27,7 +27,7 @@ def me_client(db_session):
 
 @patch("app.deps.auth.verify_id_token")
 def test_a5_get_me_creates_user_on_first_call(mock_verify, me_client, db_session):
-    mock_verify.return_value = {"uid": "firebase-me-1", "email": "me1@example.com"}
+    mock_verify.return_value = {"uid": "firebase-me-1", "email": "me1@example.com", "email_verified": True}
 
     response = me_client.get(
         "/api/v1/me",
@@ -56,7 +56,7 @@ def test_a5_get_me_returns_existing_user(mock_verify, me_client, db_session):
     db_session.add(existing)
     db_session.commit()
 
-    mock_verify.return_value = {"uid": "firebase-me-2", "email": "me2@example.com"}
+    mock_verify.return_value = {"uid": "firebase-me-2", "email": "me2@example.com", "email_verified": True}
 
     response = me_client.get(
         "/api/v1/me",
@@ -75,7 +75,7 @@ def test_a5_patch_me_updates_profile(mock_verify, me_client, db_session):
     db_session.add(user)
     db_session.commit()
 
-    mock_verify.return_value = {"uid": "firebase-me-3", "email": "me3@example.com"}
+    mock_verify.return_value = {"uid": "firebase-me-3", "email": "me3@example.com", "email_verified": True}
 
     response = me_client.patch(
         "/api/v1/me",
@@ -91,3 +91,19 @@ def test_a5_patch_me_updates_profile(mock_verify, me_client, db_session):
     db_session.refresh(user)
     assert user.display_name == "Kasun"
     assert user.photo_url == "https://example.com/photo.jpg"
+
+
+@patch("app.deps.auth.verify_id_token")
+def test_a5_unverified_email_stores_empty_string(mock_verify, me_client, db_session):
+    """email_verified absent/False → email stored as empty string."""
+    mock_verify.return_value = {"uid": "firebase-me-unverified", "email": "test@example.com"}
+
+    response = me_client.get(
+        "/api/v1/me",
+        headers={"Authorization": "Bearer token-unverified"},
+    )
+
+    assert response.status_code == 200
+    user = db_session.scalar(select(User).where(User.firebase_uid == "firebase-me-unverified"))
+    assert user is not None
+    assert user.email == ""
