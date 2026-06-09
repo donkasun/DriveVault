@@ -29,12 +29,14 @@ tab bar** (active tab = white circle + colored icon), green progress rings + min
 
 ### Top level (no tab bar)
 ```
-/splash            decides auth state → /login or /home
+/splash            decides auth state → /login, /verify-email, or /home
 /login
 /signup
 /forgot-password
+/verify-email      email/password users only, until Firebase email is verified
 ```
-Auth success → enter the shell (tabs appear). Sign-out → back to `/login`.
+Verified auth success → enter the shell (tabs appear). Unverified email/password sign-up
+→ `/verify-email` (stay signed in). Sign-out → back to `/login`.
 
 ### Shell — StatefulShellRoute with 3 branches
 ```
@@ -74,6 +76,7 @@ Auth success → enter the shell (tabs appear). Sign-out → back to `/login`.
 | Auth | Login | `/login` |
 | Auth | Sign-up | `/signup` |
 | Auth | Forgot password | `/forgot-password` |
+| Auth | Verify email | `/verify-email` |
 | Garage | Vehicles list | `/garage` |
 | Garage | Vehicle detail | `/garage/vehicle/:id` |
 | Garage | Add/Edit Vehicle | modal |
@@ -101,6 +104,13 @@ Auth success → enter the shell (tabs appear). Sign-out → back to `/login`.
 ### Auth — Sign-up
 - **Fields:** email, password, (display name — optional), social buttons, back-to-login link.
 - **States:** idle · submitting · error.
+- **On success:** sends Firebase verification email → redirects to `/verify-email` (not `/home`).
+
+### Auth — Verify email
+- **Data:** signed-in user's email address.
+- **Actions:** "I've verified" (reload user + re-check) · Resend email · Sign out.
+- **States:** idle · checking · resending · message (sent / not verified yet / error).
+- **Gate:** Google/Apple users bypass; only email/password accounts see this screen.
 
 ### Auth — Forgot password
 - **Fields:** email → send reset. **States:** idle · sent · error.
