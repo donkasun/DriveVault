@@ -35,13 +35,14 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     });
 
     try {
-      await ref
-          .read(authRepositoryProvider)
-          .createUserWithEmailAndPassword(
-            email: _emailController.text.trim(),
-            password: _passwordController.text,
-          );
-      // Auth state changes will trigger redirect
+      final repo = ref.read(authRepositoryProvider);
+      await repo.createUserWithEmailAndPassword(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+      );
+      // Send the verification email; the auth gate then routes the (now
+      // signed-in but unverified) user to /verify-email.
+      await repo.sendEmailVerification();
     } catch (e) {
       setState(() {
         _errorMessage = e.toString().replaceFirst('Exception: ', '');

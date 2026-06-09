@@ -7,6 +7,7 @@ import '../../features/auth/data/auth_repository.dart';
 import '../../features/auth/presentation/login_screen.dart';
 import '../../features/auth/presentation/signup_screen.dart';
 import '../../features/auth/presentation/forgot_password_screen.dart';
+import '../../features/auth/presentation/verify_email_screen.dart';
 import '../../features/auth/presentation/splash_screen.dart';
 import '../../features/dashboard/presentation/dashboard_screen.dart';
 import '../../features/vehicles/presentation/garage_screen.dart';
@@ -38,10 +39,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     refreshListenable: listenable,
     redirect: (context, state) {
       final authValue = listenable.authState;
+      final user = authValue.value;
+      final isPasswordProvider =
+          user?.providerData.any((p) => p.providerId == 'password') ?? false;
       return resolveAuthRedirect(
         currentRoute: state.uri.path,
         isLoading: authValue.isLoading,
-        isLoggedIn: authValue.value != null,
+        isLoggedIn: user != null,
+        isEmailVerified: user?.emailVerified ?? false,
+        isPasswordProvider: isPasswordProvider,
       );
     },
     routes: [
@@ -57,6 +63,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/forgot-password',
         builder: (context, state) => const ForgotPasswordScreen(),
+      ),
+      GoRoute(
+        path: '/verify-email',
+        builder: (context, state) => const VerifyEmailScreen(),
       ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) {

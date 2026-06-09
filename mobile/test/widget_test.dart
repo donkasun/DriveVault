@@ -12,6 +12,26 @@ class FakeUser extends Fake implements User {
   String get displayName => 'Test User';
   @override
   String get uid => 'test-uid';
+  @override
+  bool get emailVerified => true;
+  @override
+  List<UserInfo> get providerData => [];
+}
+
+class FakeUnverifiedPasswordUser extends Fake implements User {
+  @override
+  String get email => 'test@example.com';
+  @override
+  String get uid => 'test-uid';
+  @override
+  bool get emailVerified => false;
+  @override
+  List<UserInfo> get providerData => [_FakePasswordProvider()];
+}
+
+class _FakePasswordProvider extends Fake implements UserInfo {
+  @override
+  String get providerId => 'password';
 }
 
 void main() {
@@ -73,5 +93,29 @@ void main() {
       find.text('Dashboard coming soon — Phase 1 scaffold.'),
       findsOneWidget,
     );
+  });
+
+  testWidgets('App boots to VerifyEmailScreen when signed in but unverified', (
+    WidgetTester tester,
+  ) async {
+    final fakeUser = FakeUnverifiedPasswordUser();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          authStateChangesProvider.overrideWith(
+            (ref) => Stream.value(fakeUser),
+          ),
+          authRepositoryProvider.overrideWithValue(
+            AuthRepository.testing(currentUser: fakeUser),
+          ),
+        ],
+        child: const DriveVaultApp(),
+      ),
+    );
+    await tester.pump();
+    await tester.pumpAndSettle();
+
+    expect(find.text('Verify your email'), findsOneWidget);
+    expect(find.widgetWithText(ElevatedButton, "I've verified"), findsOneWidget);
   });
 }

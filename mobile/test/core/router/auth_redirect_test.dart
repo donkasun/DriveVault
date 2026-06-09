@@ -9,6 +9,8 @@ void main() {
           currentRoute: '/login',
           isLoading: true,
           isLoggedIn: false,
+          isEmailVerified: false,
+          isPasswordProvider: false,
         ),
         '/splash',
       );
@@ -20,6 +22,8 @@ void main() {
           currentRoute: '/splash',
           isLoading: false,
           isLoggedIn: false,
+          isEmailVerified: false,
+          isPasswordProvider: false,
         ),
         '/login',
       );
@@ -31,6 +35,8 @@ void main() {
           currentRoute: '/home',
           isLoading: false,
           isLoggedIn: false,
+          isEmailVerified: false,
+          isPasswordProvider: false,
         ),
         '/login',
       );
@@ -42,41 +48,114 @@ void main() {
           currentRoute: '/signup',
           isLoading: false,
           isLoggedIn: false,
+          isEmailVerified: false,
+          isPasswordProvider: false,
         ),
         isNull,
       );
     });
 
-    test('signed-in user on login goes to home', () {
+    test('signed-out user on verify-email goes to login', () {
+      expect(
+        resolveAuthRedirect(
+          currentRoute: '/verify-email',
+          isLoading: false,
+          isLoggedIn: false,
+          isEmailVerified: false,
+          isPasswordProvider: false,
+        ),
+        '/login',
+      );
+    });
+
+    test('verified password user on login goes to home', () {
       expect(
         resolveAuthRedirect(
           currentRoute: '/login',
           isLoading: false,
           isLoggedIn: true,
+          isEmailVerified: true,
+          isPasswordProvider: true,
         ),
         '/home',
       );
     });
 
-    test('signed-in user on splash goes to home', () {
-      expect(
-        resolveAuthRedirect(
-          currentRoute: '/splash',
-          isLoading: false,
-          isLoggedIn: true,
-        ),
-        '/home',
-      );
-    });
-
-    test('signed-in user on home stays on home', () {
+    test('verified password user on home stays on home', () {
       expect(
         resolveAuthRedirect(
           currentRoute: '/home',
           isLoading: false,
           isLoggedIn: true,
+          isEmailVerified: true,
+          isPasswordProvider: true,
         ),
         isNull,
+      );
+    });
+
+    test('unverified password user on home is sent to verify-email', () {
+      expect(
+        resolveAuthRedirect(
+          currentRoute: '/home',
+          isLoading: false,
+          isLoggedIn: true,
+          isEmailVerified: false,
+          isPasswordProvider: true,
+        ),
+        '/verify-email',
+      );
+    });
+
+    test('unverified password user on splash is sent to verify-email', () {
+      expect(
+        resolveAuthRedirect(
+          currentRoute: '/splash',
+          isLoading: false,
+          isLoggedIn: true,
+          isEmailVerified: false,
+          isPasswordProvider: true,
+        ),
+        '/verify-email',
+      );
+    });
+
+    test('unverified password user stays on verify-email', () {
+      expect(
+        resolveAuthRedirect(
+          currentRoute: '/verify-email',
+          isLoading: false,
+          isLoggedIn: true,
+          isEmailVerified: false,
+          isPasswordProvider: true,
+        ),
+        isNull,
+      );
+    });
+
+    test('Google user (not password provider) bypasses the gate', () {
+      expect(
+        resolveAuthRedirect(
+          currentRoute: '/home',
+          isLoading: false,
+          isLoggedIn: true,
+          isEmailVerified: false,
+          isPasswordProvider: false,
+        ),
+        isNull,
+      );
+    });
+
+    test('verified user on verify-email is sent home', () {
+      expect(
+        resolveAuthRedirect(
+          currentRoute: '/verify-email',
+          isLoading: false,
+          isLoggedIn: true,
+          isEmailVerified: true,
+          isPasswordProvider: true,
+        ),
+        '/home',
       );
     });
 
@@ -86,6 +165,8 @@ void main() {
           currentRoute: '/profile',
           isLoading: false,
           isLoggedIn: false,
+          isEmailVerified: false,
+          isPasswordProvider: false,
         ),
         '/login',
       );

@@ -14,4 +14,16 @@ void main() {
       expect(repository.currentUser, isNull);
     });
   });
+
+  group('email verification methods', () {
+    test('sendEmailVerification is a no-op when there is no current user', () async {
+      final repo = AuthRepository.testing(currentUser: null);
+      await expectLater(repo.sendEmailVerification(), completes);
+    });
+
+    test('reloadUser is a no-op when there is no current user', () async {
+      final repo = AuthRepository.testing(currentUser: null);
+      await expectLater(repo.reloadUser(), completes);
+    });
+  });
 }

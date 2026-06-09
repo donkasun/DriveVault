@@ -89,9 +89,11 @@ class AuthRepository {
   }
 
   Future<void> signOut() async {
+    final firebaseAuth = _firebaseAuth;
+    final googleSignIn = _googleSignIn;
     await Future.wait([
-      if (_firebaseAuth != null) _firebaseAuth!.signOut(),
-      if (_googleSignIn != null) _googleSignIn!.signOut(),
+      if (firebaseAuth != null) firebaseAuth.signOut(),
+      if (googleSignIn != null) googleSignIn.signOut(),
     ]);
   }
 
@@ -101,6 +103,21 @@ class AuthRepository {
     } on FirebaseAuthException {
       rethrow;
     }
+  }
+
+  /// Sends a verification email to the currently signed-in user, if any.
+  /// No-op when there is no Firebase-backed current user (e.g. in unit tests).
+  Future<void> sendEmailVerification() async {
+    final user = _firebaseAuth?.currentUser;
+    if (user != null && !user.emailVerified) {
+      await user.sendEmailVerification();
+    }
+  }
+
+  /// Reloads the current user from Firebase so `emailVerified` reflects the
+  /// latest server state. No-op when there is no Firebase-backed current user.
+  Future<void> reloadUser() async {
+    await _firebaseAuth?.currentUser?.reload();
   }
 }
 
