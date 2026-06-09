@@ -71,7 +71,11 @@ class ApiClient {
   Future<Map<String, dynamic>> get(String path) async {
     try {
       final response = await _dio.get<Map<String, dynamic>>(path);
-      return response.data!;
+      final data = response.data;
+      if (data == null) {
+        throw ApiException(response.statusCode ?? 0, 'Empty response body');
+      }
+      return data;
     } on DioException catch (error) {
       final mapped = error.error;
       if (mapped is ApiException) throw mapped;
@@ -85,7 +89,11 @@ class ApiClient {
   }) async {
     try {
       final response = await _dio.patch<Map<String, dynamic>>(path, data: body);
-      return response.data!;
+      final data = response.data;
+      if (data == null) {
+        throw ApiException(response.statusCode ?? 0, 'Empty response body');
+      }
+      return data;
     } on DioException catch (error) {
       final mapped = error.error;
       if (mapped is ApiException) throw mapped;
