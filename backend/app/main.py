@@ -4,12 +4,15 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import get_settings
-from app.routers import health
+from app.core.firebase import init_firebase
+from app.routers import health, me
 
 settings = get_settings()
 
 
 def create_app() -> FastAPI:
+    init_firebase()
+
     app = FastAPI(title="DriveVault API", version="0.1.0")
 
     app.add_middleware(
@@ -20,11 +23,8 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
-    # Public, unversioned health check.
     app.include_router(health.router)
-
-    # Versioned API routers are registered here as they are built (Tasks A5, B1–B6).
-    # Example: app.include_router(vehicles.router, prefix=settings.api_v1_prefix)
+    app.include_router(me.router, prefix=settings.api_v1_prefix)
 
     return app
 
