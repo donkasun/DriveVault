@@ -54,6 +54,11 @@ async def get_current_user(
         except IntegrityError:
             db.rollback()
             user = db.scalar(select(User).where(User.firebase_uid == firebase_uid))
+            if user is None:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="User creation failed",
+                )
 
     return user
 
