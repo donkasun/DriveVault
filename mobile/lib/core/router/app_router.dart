@@ -11,6 +11,7 @@ import '../../features/auth/presentation/splash_screen.dart';
 import '../../features/dashboard/presentation/dashboard_screen.dart';
 import '../../features/vehicles/presentation/garage_screen.dart';
 import '../../features/profile/presentation/profile_screen.dart';
+import 'auth_redirect.dart';
 import 'main_shell.dart';
 
 // We use a separate class to keep the notifier clean and prevent disposal issues
@@ -19,14 +20,10 @@ class _RouterListenable extends ChangeNotifier {
   AsyncValue<User?> _authState = const AsyncValue.loading();
 
   _RouterListenable(this._ref) {
-    _ref.listen<AsyncValue<User?>>(
-      authStateChangesProvider,
-      (previous, next) {
-        _authState = next;
-        notifyListeners();
-      },
-      fireImmediately: true,
-    );
+    _ref.listen<AsyncValue<User?>>(authStateChangesProvider, (previous, next) {
+      _authState = next;
+      notifyListeners();
+    }, fireImmediately: true);
   }
 
   AsyncValue<User?> get authState => _authState;
@@ -39,44 +36,19 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     initialLocation: '/splash',
     refreshListenable: listenable,
     redirect: (context, state) {
-      final currentRoute = state.uri.path;
       final authValue = listenable.authState;
-
-      // Handle loading state
-      if (authValue.isLoading) {
-        return '/splash';
-      }
-
-      final user = authValue.value;
-      final isLoggedIn = user != null;
-
-      final isAuthRoute = currentRoute == '/login' ||
-          currentRoute == '/signup' ||
-          currentRoute == '/forgot-password';
-
-      if (!isLoggedIn) {
-        // If not logged in and not on an auth route, go to login
-        if (currentRoute == '/splash' || !isAuthRoute) {
-          return '/login';
-        }
-      } else {
-        // If logged in and on an auth route/splash, go to home
-        if (currentRoute == '/splash' || isAuthRoute) {
-          return '/home';
-        }
-      }
-
-      return null;
+      return resolveAuthRedirect(
+        currentRoute: state.uri.path,
+        isLoading: authValue.isLoading,
+        isLoggedIn: authValue.value != null,
+      );
     },
     routes: [
       GoRoute(
         path: '/splash',
         builder: (context, state) => const SplashScreen(),
       ),
-      GoRoute(
-        path: '/login',
-        builder: (context, state) => const LoginScreen(),
-      ),
+      GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
       GoRoute(
         path: '/signup',
         builder: (context, state) => const SignupScreen(),
@@ -117,8 +89,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         ],
       ),
     ],
-    errorBuilder: (context, state) => Scaffold(
-      body: Center(child: Text('Route not found: ${state.uri}')),
-    ),
+    errorBuilder: (context, state) =>
+        Scaffold(body: Center(child: Text('Route not found: ${state.uri}'))),
   );
 });

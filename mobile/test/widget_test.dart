@@ -15,7 +15,9 @@ class FakeUser extends Fake implements User {
 }
 
 void main() {
-  testWidgets('App boots to LoginScreen when signed out', (WidgetTester tester) async {
+  testWidgets('App boots to LoginScreen when signed out', (
+    WidgetTester tester,
+  ) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
@@ -33,12 +35,32 @@ void main() {
     expect(find.widgetWithText(ElevatedButton, 'Sign In'), findsOneWidget);
   });
 
-  testWidgets('App boots to DashboardScreen when signed in', (WidgetTester tester) async {
+  testWidgets('Login screen shows Google sign-in button', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          authStateChangesProvider.overrideWith((ref) => Stream.value(null)),
+        ],
+        child: const DriveVaultApp(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Continue with Google'), findsOneWidget);
+  });
+
+  testWidgets('App boots to DashboardScreen when signed in', (
+    WidgetTester tester,
+  ) async {
     final fakeUser = FakeUser();
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          authStateChangesProvider.overrideWith((ref) => Stream.value(fakeUser)),
+          authStateChangesProvider.overrideWith(
+            (ref) => Stream.value(fakeUser),
+          ),
         ],
         child: const DriveVaultApp(),
       ),
@@ -47,6 +69,9 @@ void main() {
     await tester.pumpAndSettle(); // Wait for transitions to finish
 
     // Should find the dashboard/home screen text
-    expect(find.text('Dashboard coming soon — Phase 1 scaffold.'), findsOneWidget);
+    expect(
+      find.text('Dashboard coming soon — Phase 1 scaffold.'),
+      findsOneWidget,
+    );
   });
 }

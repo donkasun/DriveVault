@@ -8,9 +8,7 @@ class GarageScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
       appBar: AppBar(title: const Text('Garage')),
-      body: const Center(
-        child: Text('Garage Screen — Coming Soon (Phase 1)'),
-      ),
+      body: const Center(child: Text('Garage Screen — Coming Soon (Phase 1)')),
     );
   }
 }
