@@ -21,17 +21,17 @@ BATCH 1 — ✅ COMPLETE (merged to main)
 └──────────────┬──────────────────────┘  └──────────────────────┬──────────────┘
                │ merged                                          │ merged
                ▼                                                 │
-BATCH 2 — ✅ GATE OPEN — 3 parallel worktrees (start after task/backend-models merges)
+BATCH 2 — ✅ COMPLETE (merged to main)
 ┌─────────────────────┐ ┌────────────────────┐ ┌────────────────────────┐
-│ task/backend-fuel   │ │task/backend-maint  │ │task/backend-documents  │
+│ task/backend-fuel ✅│ │task/backend-maint ✅│ │task/backend-documents ✅│
 │ B1 → B2 → B3        │ │ B4 → B4b           │ │ B5                     │
 └──────────┬──────────┘ └────────┬───────────┘ └───────────┬────────────┘
            │                     │                          │
            └──────────┬──────────┘                          │
-                      │ all 3 merge                         │
+                      │ merged                              │
                       └──────────────┬──────────────────────┘
                                      ▼
-BATCH 3 — sequential (start after all of Batch 2 merges)
+BATCH 3 — ✅ GATE OPEN — sequential (start after all of Batch 2 merges)
 ┌───────────────────────────────────────┐
 │ task/backend-deploy                   │
 │ B6 → B7                               │
