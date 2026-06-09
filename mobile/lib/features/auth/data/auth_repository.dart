@@ -14,10 +14,10 @@ class AuthRepository {
     Stream<User?>? testAuthStateChanges,
     User? testCurrentUser,
   })  : _firebaseAuth = testAuthStateChanges != null || testCurrentUser != null
-            ? firebaseAuth
+            ? null
             : (firebaseAuth ?? FirebaseAuth.instance),
         _googleSignIn = testAuthStateChanges != null || testCurrentUser != null
-            ? googleSignIn
+            ? null
             : (googleSignIn ?? GoogleSignIn()),
         _testAuthStateChanges = testAuthStateChanges,
         _testCurrentUser = testCurrentUser;
