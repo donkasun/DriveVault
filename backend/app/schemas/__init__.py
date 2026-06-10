@@ -10,9 +10,9 @@ from app.schemas.documents import (
     UpcomingRenewal,
 )
 from app.schemas.fuel_logs import FuelLogBase, FuelLogCreate, FuelLogRead, FuelLogUpdate, FuelStatsRead, MonthlySpend
-from app.schemas.maintenance import MaintenanceRecordBase, MaintenanceRecordCreate, MaintenanceRecordRead, MaintenanceRecordUpdate
-from app.schemas.uploads import CloudinarySignature, UploadProgress
-from app.schemas.users import UserCreate, UserRead, UserUpdate
+from app.schemas.maintenance import MaintenanceBase, MaintenanceCreate, MaintenanceRead, MaintenanceUpdate
+from app.schemas.uploads import CloudinarySignatureRead, CloudinarySignatureRequest
+from app.schemas.users import UserRead, UserUpdate
 from app.schemas.vehicles import VehicleBase, VehicleCreate, VehicleRead, VehicleUpdate
 
 __all__ = [
@@ -29,13 +29,12 @@ __all__ = [
     "FuelLogUpdate",
     "FuelStatsRead",
     "MonthlySpend",
-    "MaintenanceRecordBase",
-    "MaintenanceRecordCreate",
-    "MaintenanceRecordRead",
-    "MaintenanceRecordUpdate",
-    "CloudinarySignature",
-    "UploadProgress",
-    "UserCreate",
+    "MaintenanceBase",
+    "MaintenanceCreate",
+    "MaintenanceRead",
+    "MaintenanceUpdate",
+    "CloudinarySignatureRead",
+    "CloudinarySignatureRequest",
     "UserRead",
     "UserUpdate",
     "VehicleBase",
