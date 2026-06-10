@@ -72,7 +72,7 @@ class Vehicle {
         'updatedAt': updatedAt.toIso8601String(),
       };
 
-  String get displayName => '$year $make $model'.trim();
+  String get displayName => '${year != null ? '$year ' : ''}$make $model'.trim();
 
   Vehicle copyWith({
     String? id,

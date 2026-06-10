@@ -16,8 +16,9 @@ class DashboardData {
   });
 
   factory DashboardData.fromJson(Map<String, dynamic> json) {
-    final breakdownJson = json['costBreakdown'] as Map<String, dynamic>;
-    final renewalsList = (json['upcomingRenewals'] as List<dynamic>)
+    final breakdownJson =
+        (json['costBreakdown'] as Map<String, dynamic>?) ?? {};
+    final renewalsList = (json['upcomingRenewals'] as List<dynamic>? ?? [])
         .map((e) => UpcomingRenewal.fromJson(e as Map<String, dynamic>))
         .toList();
 
@@ -44,9 +45,9 @@ class CostBreakdown {
 
   factory CostBreakdown.fromJson(Map<String, dynamic> json) {
     return CostBreakdown(
-      fuelCents: json['fuelCents'] as int,
-      maintenanceCents: json['maintenanceCents'] as int,
-      purchaseCents: json['purchaseCents'] as int,
+      fuelCents: (json['fuelCents'] as int?) ?? 0,
+      maintenanceCents: (json['maintenanceCents'] as int?) ?? 0,
+      purchaseCents: (json['purchaseCents'] as int?) ?? 0,
     );
   }
 }

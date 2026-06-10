@@ -179,11 +179,11 @@ class _VehicleFormScreenState extends ConsumerState<VehicleFormScreen> {
         ),
         actions: [
           TextButton(
-            onPressed: () => ctx.pop(false),
+            onPressed: () => Navigator.of(ctx).pop(false),
             child: const Text('Cancel'),
           ),
           TextButton(
-            onPressed: () => ctx.pop(true),
+            onPressed: () => Navigator.of(ctx).pop(true),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
             child: const Text('Delete'),
           ),

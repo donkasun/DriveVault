@@ -8,12 +8,11 @@ import 'cloudinary_result.dart';
 
 class UploadRepository {
   final ApiClient _apiClient;
+  final Dio _dio;
 
-  UploadRepository(this._apiClient);
+  UploadRepository(this._apiClient, {Dio? dio}) : _dio = dio ?? Dio();
 
-  Future<CloudinaryResult> uploadFile(
-      Uint8List bytes, String folder) async {
-    // Step 1: Get Cloudinary signature from backend
+  Future<CloudinaryResult> uploadFile(Uint8List bytes, String folder) async {
     final sigData = await _apiClient.post(
       '/uploads/cloudinary-signature',
       body: {'folder': folder},
@@ -25,7 +24,6 @@ class UploadRepository {
     final cloudName = sigData['cloudName'] as String;
     final sigFolder = sigData['folder'] as String;
 
-    // Step 2: Upload directly to Cloudinary
     final formData = FormData.fromMap({
       'file': MultipartFile.fromBytes(bytes, filename: 'upload'),
       'api_key': apiKey,
@@ -34,16 +32,19 @@ class UploadRepository {
       'folder': sigFolder,
     });
 
-    final dio = Dio();
-    final response = await dio.post<Map<String, dynamic>>(
+    final response = await _dio.post<Map<String, dynamic>>(
       'https://api.cloudinary.com/v1_1/$cloudName/auto/upload',
       data: formData,
     );
 
-    final responseData = response.data!;
+    if (response.data == null) {
+      throw Exception('Empty Cloudinary upload response');
+    }
+
+    final data = response.data!;
     return CloudinaryResult(
-      secureUrl: responseData['secure_url'] as String,
-      publicId: responseData['public_id'] as String,
+      secureUrl: data['secure_url'] as String,
+      publicId: data['public_id'] as String,
     );
   }
 }
