@@ -77,10 +77,14 @@ tests still pass; a test asserts `distanceUnit: null` is accepted (inherit).
 **Done when:** a fuel log persists `fuelVariant`; a fuel log AND a maintenance record created
 without `currency` are stored with the user's preferred currency; explicit `currency` still wins.
 
-### 🟨 F4d — Deploy
+### 🟨 F4d — Deploy ✅
 Apply the migration to Neon and deploy the updated backend to Cloud Run (push to `main` /
 `gcloud run deploy`).
 **Done when:** the live API returns the new fields on `/me` and vehicle/fuel responses.
+**Done:** Neon (`silent-haze-14400595`) migrated to `f1001`; backend image `:e1164cf` built
+(amd64) + deployed manually via `gcloud run deploy` from the feature branch (not merged to
+`main`) → revision `drivevault-backend-00003-69g`. Verified: `/health` ok, `/me` 401, and the
+live `/openapi.json` exposes `distanceUnit`/`fuelType`/`defaultFuelVariant`/`fuelVariant`.
 
 ---
 
