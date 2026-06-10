@@ -8,6 +8,11 @@ class VehicleRepository {
 
   VehicleRepository(this._apiClient);
 
+  Future<Vehicle> fetchVehicle(String id) async {
+    final json = await _apiClient.get('/vehicles/$id');
+    return Vehicle.fromJson(json);
+  }
+
   Future<List<Vehicle>> fetchVehicles() async {
     final data = await _apiClient.getList('/vehicles');
     return data.map(Vehicle.fromJson).toList();
@@ -30,4 +35,10 @@ class VehicleRepository {
 
 final vehicleRepositoryProvider = Provider<VehicleRepository>((ref) {
   return VehicleRepository(ref.watch(apiClientProvider));
+});
+
+final vehicleProvider =
+    FutureProvider.family<Vehicle, String>((ref, id) async {
+  final repo = ref.watch(vehicleRepositoryProvider);
+  return repo.fetchVehicle(id);
 });
