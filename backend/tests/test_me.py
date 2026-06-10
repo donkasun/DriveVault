@@ -158,3 +158,99 @@ def test_a5_get_me_handles_concurrent_insert(mock_verify, me_client, db_session)
     body = response.json()
     assert body["firebaseUid"] == "firebase-race"
     assert body["email"] == "race@example.com"
+
+
+# ── F2 tests ────────────────────────────────────────────────────────────────
+
+
+@patch("app.deps.auth.verify_id_token")
+def test_f2_get_me_includes_currency_and_distance_unit(mock_verify, me_client, db_session):
+    """GET /me response includes currency and distanceUnit fields."""
+    mock_verify.return_value = {
+        "uid": "firebase-f2-get",
+        "email": "f2get@example.com",
+        "email_verified": True,
+    }
+
+    response = me_client.get(
+        "/api/v1/me",
+        headers={"Authorization": "Bearer f2-get-token"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["currency"] == "USD"
+    assert body["distanceUnit"] == "km"
+
+
+@patch("app.deps.auth.verify_id_token")
+def test_f2_patch_me_updates_currency_and_distance_unit(mock_verify, me_client, db_session):
+    """PATCH /me with valid currency and distanceUnit updates both fields."""
+    user = User(firebase_uid="firebase-f2-patch", email="f2patch@example.com")
+    db_session.add(user)
+    db_session.commit()
+
+    mock_verify.return_value = {
+        "uid": "firebase-f2-patch",
+        "email": "f2patch@example.com",
+        "email_verified": True,
+    }
+
+    response = me_client.patch(
+        "/api/v1/me",
+        headers={"Authorization": "Bearer f2-patch-token"},
+        json={"currency": "EUR", "distanceUnit": "mi"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["currency"] == "EUR"
+    assert body["distanceUnit"] == "mi"
+
+    db_session.refresh(user)
+    assert user.currency == "EUR"
+    assert user.distance_unit == "mi"
+
+
+@patch("app.deps.auth.verify_id_token")
+def test_f2_patch_me_invalid_distance_unit_returns_422(mock_verify, me_client, db_session):
+    """PATCH /me with an invalid distanceUnit value returns 422."""
+    user = User(firebase_uid="firebase-f2-invalid", email="f2invalid@example.com")
+    db_session.add(user)
+    db_session.commit()
+
+    mock_verify.return_value = {
+        "uid": "firebase-f2-invalid",
+        "email": "f2invalid@example.com",
+        "email_verified": True,
+    }
+
+    response = me_client.patch(
+        "/api/v1/me",
+        headers={"Authorization": "Bearer f2-invalid-token"},
+        json={"distanceUnit": "miles"},
+    )
+
+    assert response.status_code == 422
+
+
+@patch("app.deps.auth.verify_id_token")
+def test_f2_patch_me_invalid_currency_returns_422(mock_verify, me_client, db_session):
+    """PATCH /me with a non-3-letter currency code returns 422."""
+    user = User(firebase_uid="firebase-f2-badcurr", email="f2badcurr@example.com")
+    db_session.add(user)
+    db_session.commit()
+
+    mock_verify.return_value = {
+        "uid": "firebase-f2-badcurr",
+        "email": "f2badcurr@example.com",
+        "email_verified": True,
+    }
+
+    response = me_client.patch(
+        "/api/v1/me",
+        headers={"Authorization": "Bearer f2-badcurr-token"},
+        json={"currency": "EURO"},
+    )
+
+    assert response.status_code == 422

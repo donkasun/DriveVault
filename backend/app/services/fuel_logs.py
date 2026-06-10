@@ -35,7 +35,10 @@ def list_fuel_logs(
 
 def create_fuel_log(db: Session, user: User, vehicle_id: UUID, payload: FuelLogCreate) -> FuelLog:
     get_vehicle_for_user(db, user, vehicle_id)
-    fuel_log = FuelLog(vehicle_id=vehicle_id, **payload.model_dump())
+    data = payload.model_dump()
+    if data.get("currency") is None:
+        data["currency"] = user.currency
+    fuel_log = FuelLog(vehicle_id=vehicle_id, **data)
     db.add(fuel_log)
     db.commit()
     db.refresh(fuel_log)

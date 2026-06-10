@@ -230,3 +230,120 @@ def test_b3_fuel_stats_computes_exact_metrics(mock_verify, fuel_client, db_sessi
         {"month": "2026-06", "spentCents": 13900},
         {"month": "2026-05", "spentCents": 7500},
     ]
+
+
+# ── F3 tests (vehicle fuel + unit fields) ─────────────────────────────────────
+
+
+@patch("app.deps.auth.verify_id_token")
+def test_f3_vehicle_create_and_patch_fuel_and_unit_fields(
+    mock_verify, fuel_client, db_session, users
+):
+    owner, _ = users
+    _mock_owner(mock_verify)
+
+    create_response = fuel_client.post(
+        "/api/v1/vehicles",
+        headers=_auth_headers(),
+        json={
+            "make": "Toyota",
+            "model": "Hilux",
+            "fuelType": "petrol",
+            "defaultFuelVariant": "95 Octane",
+            "distanceUnit": "mi",
+        },
+    )
+    assert create_response.status_code == 201
+    body = create_response.json()
+    assert body["fuelType"] == "petrol"
+    assert body["defaultFuelVariant"] == "95 Octane"
+    assert body["distanceUnit"] == "mi"
+
+    vehicle_id = body["id"]
+    patch_response = fuel_client.patch(
+        f"/api/v1/vehicles/{vehicle_id}",
+        headers=_auth_headers(),
+        json={"fuelType": "diesel", "defaultFuelVariant": "Premium", "distanceUnit": "km"},
+    )
+    assert patch_response.status_code == 200
+    patched = patch_response.json()
+    assert patched["fuelType"] == "diesel"
+    assert patched["defaultFuelVariant"] == "Premium"
+    assert patched["distanceUnit"] == "km"
+
+
+@patch("app.deps.auth.verify_id_token")
+def test_f3_vehicle_distance_unit_null_accepted(mock_verify, fuel_client, db_session, users):
+    owner, _ = users
+    _mock_owner(mock_verify)
+
+    response = fuel_client.post(
+        "/api/v1/vehicles",
+        headers=_auth_headers(),
+        json={"make": "Toyota", "model": "Corolla", "distanceUnit": None},
+    )
+    assert response.status_code == 201
+    body = response.json()
+    assert body["distanceUnit"] is None
+    # fuel fields omitted → null (inherit / unset)
+    assert body["fuelType"] is None
+    assert body["defaultFuelVariant"] is None
+
+
+@patch("app.deps.auth.verify_id_token")
+def test_f3_vehicle_invalid_fuel_type_returns_422(mock_verify, fuel_client, db_session, users):
+    owner, _ = users
+    _mock_owner(mock_verify)
+
+    response = fuel_client.post(
+        "/api/v1/vehicles",
+        headers=_auth_headers(),
+        json={"make": "Toyota", "model": "Yaris", "fuelType": "kerosene"},
+    )
+    assert response.status_code == 422
+
+
+# ── F4 tests (fuel variant + currency-from-preference) ────────────────────────
+
+
+@patch("app.deps.auth.verify_id_token")
+def test_f4_fuel_log_variant_and_currency_from_preference(
+    mock_verify, fuel_client, db_session, users
+):
+    owner, _ = users
+    owner.currency = "EUR"
+    db_session.commit()
+    vehicle = _create_vehicle(db_session, owner)
+    _mock_owner(mock_verify)
+
+    # currency omitted → falls back to the user's preference; fuelVariant persists
+    response = fuel_client.post(
+        f"/api/v1/vehicles/{vehicle.id}/fuel-logs",
+        headers=_auth_headers(),
+        json={
+            "date": "2026-06-01",
+            "liters": 45.5,
+            "priceCents": 7800,
+            "odometer": 48200,
+            "fuelVariant": "98 Octane",
+        },
+    )
+    assert response.status_code == 201
+    body = response.json()
+    assert body["currency"] == "EUR"
+    assert body["fuelVariant"] == "98 Octane"
+
+    # explicit currency wins
+    explicit = fuel_client.post(
+        f"/api/v1/vehicles/{vehicle.id}/fuel-logs",
+        headers=_auth_headers(),
+        json={
+            "date": "2026-06-02",
+            "liters": 40.0,
+            "priceCents": 7000,
+            "odometer": 48600,
+            "currency": "GBP",
+        },
+    )
+    assert explicit.status_code == 201
+    assert explicit.json()["currency"] == "GBP"

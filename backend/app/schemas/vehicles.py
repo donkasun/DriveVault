@@ -4,7 +4,9 @@ from datetime import date, datetime
 from typing import Annotated
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+FUEL_TYPES = {"petrol", "diesel", "electric", "hybrid", "other"}
 
 
 class VehicleBase(BaseModel):
@@ -20,8 +22,25 @@ class VehicleBase(BaseModel):
     currency: str = "USD"
     current_mileage: int | None = Field(default=None, alias="currentMileage")
     vehicle_type: str | None = Field(default=None, alias="vehicleType")
+    fuel_type: str | None = Field(default=None, alias="fuelType")
+    default_fuel_variant: str | None = Field(default=None, alias="defaultFuelVariant")
+    distance_unit: str | None = Field(default=None, alias="distanceUnit")
     photo_url: str | None = Field(default=None, alias="photoUrl")
     photo_public_id: str | None = Field(default=None, alias="photoPublicId")
+
+    @field_validator("fuel_type")
+    @classmethod
+    def validate_fuel_type(cls, v: str | None) -> str | None:
+        if v is not None and v not in FUEL_TYPES:
+            raise ValueError(f"fuelType must be one of {sorted(FUEL_TYPES)}")
+        return v
+
+    @field_validator("distance_unit")
+    @classmethod
+    def validate_distance_unit(cls, v: str | None) -> str | None:
+        if v is not None and v not in {"km", "mi"}:
+            raise ValueError('distanceUnit must be "km", "mi", or null')
+        return v
 
 
 class VehicleCreate(VehicleBase):
@@ -53,6 +72,11 @@ class VehicleRead(BaseModel):
         int | None, Field(default=None, serialization_alias="currentMileage")
     ]
     vehicle_type: Annotated[str | None, Field(default=None, serialization_alias="vehicleType")]
+    fuel_type: Annotated[str | None, Field(default=None, serialization_alias="fuelType")]
+    default_fuel_variant: Annotated[
+        str | None, Field(default=None, serialization_alias="defaultFuelVariant")
+    ]
+    distance_unit: Annotated[str | None, Field(default=None, serialization_alias="distanceUnit")]
     photo_url: Annotated[str | None, Field(default=None, serialization_alias="photoUrl")]
     photo_public_id: Annotated[str | None, Field(default=None, serialization_alias="photoPublicId")]
     created_at: Annotated[datetime, Field(serialization_alias="createdAt")]

@@ -57,20 +57,20 @@ Alembic migration adding, exactly per Doc 2:
 `alembic downgrade -1` cleanly removes them, and existing rows backfill the `NOT NULL` user
 columns via server defaults.
 
-### 🟦 F2 — `/me` preferences
+### 🟦 F2 — `/me` preferences ✅
 Extend the user Pydantic schema + `me` router/service to expose and update `currency` and
 `distanceUnit` (Doc 3). Validate `distanceUnit ∈ {km, mi}` and `currency` is a 3-letter code.
 **Done when:** `GET /me` returns the new fields; `PATCH /me` updates them; tests cover a valid
 update and a 422 on an invalid `distanceUnit`.
 
-### 🟦 F3 — Vehicle fuel + unit fields
+### 🟦 F3 — Vehicle fuel + unit fields ✅
 Add `fuelType`, `defaultFuelVariant`, `distanceUnit` to the vehicle create/patch/response
 schemas + service (Doc 3). All optional; `fuelType` validated against the enum, `distanceUnit ∈
 {km, mi, null}`.
 **Done when:** create/patch round-trips the three fields; existing vehicle CRUD + ownership
 tests still pass; a test asserts `distanceUnit: null` is accepted (inherit).
 
-### 🟦 F4 — Fuel variant + currency-from-preference
+### 🟦 F4 — Fuel variant + currency-from-preference ✅
 - Add optional `fuelVariant` to fuel-log create/patch/response.
 - Make `currency` optional on **fuel-log** and **maintenance** create; when omitted, fill from
   the requesting user's `currency` preference (Doc 3 conventions).
@@ -86,7 +86,7 @@ Apply the migration to Neon and deploy the updated backend to Cloud Run (push to
 
 ## Mobile
 
-### 🟩 F5 — Distance-unit display utility
+### 🟩 F5 — Distance-unit display utility ✅
 A shared helper that converts/display-formats odometer values using the effective unit
 (vehicle `distanceUnit` ?? user `distanceUnit`). Storage/wire stays km — convert at the edge.
 **Done when:** unit tests cover km↔mi conversion and the vehicle-override-falls-back-to-user rule.

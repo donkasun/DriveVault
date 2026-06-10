@@ -202,3 +202,35 @@ def test_b4b_cloudinary_signature_matches_known_sha1(
     assert "top-secret" not in str(body)
 
     get_settings.cache_clear()
+
+
+# ── F4 test (currency-from-preference for maintenance) ────────────────────────
+
+
+@patch("app.deps.auth.verify_id_token")
+def test_f4_maintenance_currency_from_preference(
+    mock_verify, maintenance_client, db_session, users
+):
+    owner, _ = users
+    owner.currency = "EUR"
+    db_session.commit()
+    vehicle = _create_vehicle(db_session, owner)
+    _mock_owner(mock_verify)
+
+    # currency omitted → falls back to the user's preference
+    response = maintenance_client.post(
+        f"/api/v1/vehicles/{vehicle.id}/maintenance",
+        headers=_auth_headers(),
+        json={"date": "2026-05-20", "serviceType": "Oil Change", "costCents": 6500},
+    )
+    assert response.status_code == 201
+    assert response.json()["currency"] == "EUR"
+
+    # explicit currency wins
+    explicit = maintenance_client.post(
+        f"/api/v1/vehicles/{vehicle.id}/maintenance",
+        headers=_auth_headers(),
+        json={"date": "2026-05-21", "serviceType": "Brake Service", "currency": "GBP"},
+    )
+    assert explicit.status_code == 201
+    assert explicit.json()["currency"] == "GBP"
