@@ -11,6 +11,8 @@ import '../../features/auth/presentation/verify_email_screen.dart';
 import '../../features/auth/presentation/splash_screen.dart';
 import '../../features/dashboard/presentation/dashboard_screen.dart';
 import '../../features/vehicles/presentation/garage_screen.dart';
+import '../../features/vehicles/presentation/vehicle_detail_screen.dart';
+import '../../features/vehicles/presentation/vehicle_form_screen.dart';
 import '../../features/profile/presentation/profile_screen.dart';
 import 'auth_redirect.dart';
 import 'main_shell.dart';
@@ -78,6 +80,32 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: '/garage',
                 builder: (context, state) => const GarageScreen(),
+                routes: [
+                  GoRoute(
+                    path: 'vehicle/:id',
+                    builder: (context, state) => VehicleDetailScreen(
+                      vehicleId: state.pathParameters['id']!,
+                    ),
+                  ),
+                  GoRoute(
+                    path: 'add-vehicle',
+                    pageBuilder: (context, state) => MaterialPage(
+                      fullscreenDialog: true,
+                      child: const VehicleFormScreen(),
+                    ),
+                  ),
+                  GoRoute(
+                    path: 'edit-vehicle/:id',
+                    pageBuilder: (context, state) {
+                      final extra = state.extra as Map<String, dynamic>?;
+                      final vehicle = extra?['vehicle'];
+                      return MaterialPage(
+                        fullscreenDialog: true,
+                        child: VehicleFormScreen(vehicle: vehicle),
+                      );
+                    },
+                  ),
+                ],
               ),
             ],
           ),
