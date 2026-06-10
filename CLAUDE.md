@@ -80,3 +80,21 @@ If a file grows past a few hundred lines, split it — it's doing too much.
 - [ ] Lint/format clean (`ruff`/`black` for Python; `dart format` for Flutter).
 
 When unsure, stop and ask. A small clarifying question is cheaper than a wrong implementation.
+
+---
+
+## Learned User Preferences
+
+- Do not commit changes unless explicitly asked.
+- After email/password sign-up, route unverified users to `/verify-email` (Firebase verification link + in-app gate), not `/home`; Google/Apple sign-in bypasses the gate.
+- Use isolated git worktrees under `.worktrees/` for parallel Phase 1 task branches (e.g. `task/backend-models`, `task/mobile-auth`).
+- When pointed at a plan in `docs/superpowers/plans/`, implement that plan rather than improvising.
+- Configure project MCP for Claude Code via repo-root `.mcp.json`; Cursor MCP plugins are separate and not shared automatically.
+
+## Learned Workspace Facts
+
+- Phase 1 Batch 1 development uses branch `batch-1` with parallel worktrees for backend models and mobile auth.
+- Claude Code Neon MCP is configured in `.mcp.json` (OAuth at `https://mcp.neon.tech/mcp`, safe to commit); Render MCP is not configured.
+- UI design references live in `docs/design-references/` (`mockup-screens.html`, `DESIGN-LANGUAGE.md`, `ref-0N-*.png` screenshots).
+- Local backend Docker Postgres may bind to host port 5433 when macOS Postgres already occupies 5432.
+- Email verification gate is task C2d; implementation plan at `docs/superpowers/plans/2026-06-09-email-verification-gate.md`.
