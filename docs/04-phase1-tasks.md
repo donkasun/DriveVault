@@ -174,7 +174,7 @@ deploy to Render, set env vars, confirm `/health` is reachable publicly.
 
 ---
 
-## D. Mobile Screens
+## D. Mobile Screens ✅ COMPLETE (squash-merged to main `b44060d`)
 
 ### `task/mobile-garage` — Garage tab
 *Starts after `task/mobile-auth` merged AND B7 live.*

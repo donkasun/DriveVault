@@ -85,32 +85,32 @@
 
 ---
 
-## Batch 4 — ✅ GATE OPEN (3 worktrees in parallel)
+## Batch 4 — ✅ COMPLETE (squash-merged to main `b44060d`)
 
 ### Worktree: `task/mobile-garage`
 
 | Order | ID | Task | Status | Executor | Notes |
 |---|---|---|---|---|---|
-| 1 | D1a | Vehicles list (Garage) | ⬜ | SmallLLM | VehicleCard + 4 states |
-| 2 | D1b | Add/Edit Vehicle form (modal) | ⬜ | SmallLLM | POST/PATCH + delete |
-| 3 | D1c | Vehicle photo upload (Cloudinary) | ⬜ | SmallLLM | signed upload |
+| 1 | D1a | Vehicles list (Garage) | ✅ | SmallLLM | VehicleCard + 4 states |
+| 2 | D1b | Add/Edit Vehicle form (modal) | ✅ | SmallLLM | POST/PATCH + delete |
+| 3 | D1c | Vehicle photo upload (Cloudinary) | ✅ | SmallLLM | signed upload |
 
 ### Worktree: `task/mobile-vehicle-detail`
 
 | Order | ID | Task | Status | Executor | Notes |
 |---|---|---|---|---|---|
-| 1 | D2 | Vehicle detail shell (one scroll) | ⬜ | SmallLLM | sections for D3–D5 |
-| 2 | D3 | Fuel tracking UI (+ stats card) | ⬜ | SmallLLM | |
-| 3 | D4 | Maintenance UI | ⬜ | SmallLLM | |
-| 4 | D5a | Documents list (grouped) | ⬜ | SmallLLM | by type + expiry |
-| 5 | D5b | Document upload (Cloudinary) | ⬜ | SmallLLM | signed upload |
-| 6 | D5c | Document viewer + delete | ⬜ | SmallLLM | open + delete |
+| 1 | D2 | Vehicle detail shell (one scroll) | ✅ | SmallLLM | sections for D3–D5 |
+| 2 | D3 | Fuel tracking UI (+ stats card) | ✅ | SmallLLM | fuel logs + stats card |
+| 3 | D4 | Maintenance UI | ✅ | SmallLLM | maintenance records list + form |
+| 4 | D5a | Documents list (grouped) | ✅ | SmallLLM | by type + expiry badges |
+| 5 | D5b | Document upload (Cloudinary) | ✅ | SmallLLM | signed upload |
+| 6 | D5c | Document viewer + delete | ✅ | SmallLLM | URL launcher + delete |
 
 ### Worktree: `task/mobile-dashboard`
 
 | Order | ID | Task | Status | Executor | Notes |
 |---|---|---|---|---|---|
-| 1 | D6 | Dashboard screen | ⬜ | SmallLLM | calls `/dashboard` |
+| 1 | D6 | Dashboard screen | ✅ | SmallLLM | vehicle count, fuel spend, ownership cost, renewals |
 
 ---
 
@@ -138,9 +138,9 @@
 |---|---|---|
 | Setup | 7 | 8 |
 | Backend | 15 | 15 |
-| Mobile | 8 | 16 |
+| Mobile | 18 | 18 |
 | Wrap-up | 0 | 1 |
-| **Total** | **30** | **40** |
+| **Total** | **40** | **41** |
 
 ---
 
