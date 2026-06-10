@@ -45,3 +45,22 @@ class DocumentRead(BaseModel):
     expiry_date: Annotated[date | None, Field(default=None, serialization_alias="expiryDate")]
     created_at: Annotated[datetime, Field(serialization_alias="createdAt")]
     updated_at: Annotated[datetime, Field(serialization_alias="updatedAt")]
+
+class CostBreakdown(BaseModel):
+    fuel_cents: int = Field(serialization_alias="fuelCents")
+    maintenance_cents: int = Field(serialization_alias="maintenanceCents")
+    purchase_cents: int = Field(serialization_alias="purchaseCents")
+
+
+class UpcomingRenewal(BaseModel):
+    vehicle_id: Annotated[UUID, Field(serialization_alias="vehicleId")]
+    title: str
+    expiry_date: Annotated[date, Field(serialization_alias="expiryDate")]
+
+
+class DashboardRead(BaseModel):
+    vehicle_count: int = Field(serialization_alias="vehicleCount")
+    monthly_fuel_spend_cents: int = Field(serialization_alias="monthlyFuelSpendCents")
+    total_ownership_cost_cents: int = Field(serialization_alias="totalOwnershipCostCents")
+    cost_breakdown: Annotated[CostBreakdown, Field(serialization_alias="costBreakdown")]
+    upcoming_renewals: Annotated[list[UpcomingRenewal], Field(default=[], serialization_alias="upcomingRenewals")]

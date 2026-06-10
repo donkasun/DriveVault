@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: drivevault-backend
+    env: python
+    region: oregon
+    repo: https://github.com/donkasungallage/DriveVault.git
+    branch: main
+    rootDirectory: backend
+    buildCommand: pip install --no-cache-dir -e .
+    startCommand: gunicorn app.main:app -k uvicorn.workers.UvicornWorker -b 0.0.0.0:$PORT
+    plan: free
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: drivevault-db
+      - key: FIREBASE_PROJECT_ID
+        value: drivevault-app
+      - key: FIREBASE_SERVICE_ACCOUNT_JSON
+        fromSecret: firebase-service-account-json
+      - key: CLOUDINARY_CLOUD_NAME
+        fromSecret: cloudinary-cloud-name
+      - key: CLOUDINARY_API_KEY
+        fromSecret: cloudinary-api-key
+      - key: CLOUDINARY_API_SECRET
+        fromSecret: cloudinary-api-secret
+      - key: CORS_ORIGINS
+        value: http://localhost:*
