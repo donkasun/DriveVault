@@ -10,8 +10,10 @@ COPY pyproject.toml ./
 RUN pip install --no-cache-dir --upgrade pip && pip install --no-cache-dir .
 
 COPY app ./app
+COPY alembic ./alembic
+COPY alembic.ini ./
 
 EXPOSE 8000
 
-# Render provides $PORT; default to 8000 locally.
-CMD ["sh", "-c", "gunicorn app.main:app -k uvicorn.workers.UvicornWorker -b 0.0.0.0:${PORT:-8000}"]
+# Run Alembic migrations then start Gunicorn+Uvicorn workers
+CMD ["sh", "-c", "python -m alembic upgrade head && gunicorn app.main:app -k uvicorn.workers.UvicornWorker -b 0.0.0.0:${PORT:-8000}"]
