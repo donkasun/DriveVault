@@ -83,12 +83,101 @@ class ApiClient {
     }
   }
 
+  Future<List<Map<String, dynamic>>> getList(
+    String path, {
+    Map<String, dynamic>? queryParams,
+  }) async {
+    try {
+      final response = await _dio.get<List<dynamic>>(
+        path,
+        queryParameters: queryParams,
+      );
+      final data = response.data;
+      if (data == null) {
+        throw ApiException(response.statusCode ?? 0, 'Empty response body');
+      }
+      return data.cast<Map<String, dynamic>>();
+    } on DioException catch (error) {
+      final mapped = error.error;
+      if (mapped is ApiException) throw mapped;
+      throw mapDioException(error);
+    }
+  }
+
+  Future<Map<String, dynamic>> post(
+    String path, {
+    required Map<String, dynamic> body,
+  }) async {
+    try {
+      final response = await _dio.post<Map<String, dynamic>>(path, data: body);
+      final data = response.data;
+      if (data == null) {
+        throw ApiException(response.statusCode ?? 0, 'Empty response body');
+      }
+      return data;
+    } on DioException catch (error) {
+      final mapped = error.error;
+      if (mapped is ApiException) throw mapped;
+      throw mapDioException(error);
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> postAndExpectList(
+    String path, {
+    required Map<String, dynamic> body,
+  }) async {
+    try {
+      final response = await _dio.post<List<dynamic>>(path, data: body);
+      final data = response.data;
+      if (data == null) {
+        throw ApiException(response.statusCode ?? 0, 'Empty response body');
+      }
+      return data.cast<Map<String, dynamic>>();
+    } on DioException catch (error) {
+      final mapped = error.error;
+      if (mapped is ApiException) throw mapped;
+      throw mapDioException(error);
+    }
+  }
+
   Future<Map<String, dynamic>> patch(
     String path, {
     required Map<String, dynamic> body,
   }) async {
     try {
       final response = await _dio.patch<Map<String, dynamic>>(path, data: body);
+      final data = response.data;
+      if (data == null) {
+        throw ApiException(response.statusCode ?? 0, 'Empty response body');
+      }
+      return data;
+    } on DioException catch (error) {
+      final mapped = error.error;
+      if (mapped is ApiException) throw mapped;
+      throw mapDioException(error);
+    }
+  }
+
+  Future<void> delete(String path) async {
+    try {
+      await _dio.delete<dynamic>(path);
+    } on DioException catch (error) {
+      final mapped = error.error;
+      if (mapped is ApiException) throw mapped;
+      throw mapDioException(error);
+    }
+  }
+
+  Future<Map<String, dynamic>> postMultipart(
+    String path,
+    FormData formData,
+  ) async {
+    try {
+      final response = await _dio.post<Map<String, dynamic>>(
+        path,
+        data: formData,
+        options: Options(contentType: 'multipart/form-data'),
+      );
       final data = response.data;
       if (data == null) {
         throw ApiException(response.statusCode ?? 0, 'Empty response body');

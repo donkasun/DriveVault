@@ -31,14 +31,14 @@ BATCH 2 — ✅ COMPLETE (merged to main)
                       │ merged                              │
                       └──────────────┬──────────────────────┘
                                      ▼
-BATCH 3 — ✅ GATE OPEN — sequential (start after all of Batch 2 merges)
+BATCH 3 — ✅ COMPLETE (squash-merged to main d677aad)
 ┌───────────────────────────────────────┐
 │ task/backend-deploy                   │
-│ B6 → B7                               │
+│ B6 ✅ → B7 ✅ (deploy deferred)       │
 └───────────────────────┬───────────────┘
-                        │ merge + deploy live
+                        │ merged
                         ▼
-BATCH 4 — 3 parallel worktrees (start after B7 live AND task/mobile-auth + C2d merged)
+BATCH 4 — ✅ GATE OPEN — 3 parallel worktrees
 ┌─────────────────────────┐ ┌────────────────────────────────────────┐ ┌────────────────────────┐
 │ task/mobile-garage      │ │ task/mobile-vehicle-detail             │ │ task/mobile-dashboard  │
 │ D1a → D1b → D1c        │ │ D2 → D3 → D4 → D5a → D5b → D5c       │ │ D6                     │

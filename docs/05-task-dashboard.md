@@ -74,18 +74,18 @@
 
 ---
 
-## Batch 3 — ✅ GATE OPEN — Start after all of Batch 2 merges (sequential)
+## Batch 3 — ✅ COMPLETE (squash-merged to main `d677aad`)
 
 ### Worktree: `task/backend-deploy`
 
 | Order | ID | Task | Status | Executor | Notes |
 |---|---|---|---|---|---|
-| 1 | B6 | Dashboard aggregate | ⬜ | SmallLLM | `/api/v1/dashboard` |
-| 2 | B7 | Deploy to Render + Neon | ⬜ | User + SmallLLM | needs Neon & Render accounts |
+| 1 | B6 | Dashboard aggregate | ✅ | SmallLLM | `/api/v1/dashboard`; 3 tests passing |
+| 2 | B7 | Deploy to Render + Neon | ✅ | User + SmallLLM | Neon DB live + migrations run; deployment deferred (no free permanent URL); `render.yaml` + `Dockerfile` ready |
 
 ---
 
-## Batch 4 — Start after `task/mobile-auth` + C2d merged AND B7 live (3 worktrees in parallel)
+## Batch 4 — ✅ GATE OPEN (3 worktrees in parallel)
 
 ### Worktree: `task/mobile-garage`
 
@@ -137,10 +137,10 @@
 | Group | Done | Total |
 |---|---|---|
 | Setup | 7 | 8 |
-| Backend | 13 | 15 |
+| Backend | 15 | 15 |
 | Mobile | 8 | 16 |
 | Wrap-up | 0 | 1 |
-| **Total** | **28** | **40** |
+| **Total** | **30** | **40** |
 
 ---
 
@@ -153,10 +153,10 @@
 | 2 | `task/backend-fuel` | B1→B2→B3 | ✅ Merged |
 | 2 | `task/backend-maint` | B4→B4b | ✅ Merged |
 | 2 | `task/backend-documents` | B5 | ✅ Merged |
-| 3 | `task/backend-deploy` | B6→B7 | ✅ Gate open |
-| 4 | `task/mobile-garage` | D1a→D1b→D1c | `task/mobile-auth` ✅ + C2d merged + B7 live |
-| 4 | `task/mobile-vehicle-detail` | D2→D3→D4→D5a→D5b→D5c | `task/mobile-auth` ✅ + C2d merged + B7 live |
-| 4 | `task/mobile-dashboard` | D6 | `task/mobile-auth` ✅ + C2d merged + B7 live |
+| 3 | `task/backend-deploy` | B6→B7 | ✅ Merged to main |
+| 4 | `task/mobile-garage` | D1a→D1b→D1c | ✅ Gate open |
+| 4 | `task/mobile-vehicle-detail` | D2→D3→D4→D5a→D5b→D5c | ✅ Gate open |
+| 4 | `task/mobile-dashboard` | D6 | ✅ Gate open |
 
 > **How to update:** when a task finishes, flip its Status to ✅ and add a one-line note.
 > When a worktree merges, check that batch's gate conditions and spin up the next batch.
