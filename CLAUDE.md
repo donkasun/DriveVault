@@ -90,6 +90,10 @@ When unsure, stop and ask. A small clarifying question is cheaper than a wrong i
 - Use isolated git worktrees under `.worktrees/` for parallel Phase 1 task branches (e.g. `task/backend-models`, `task/mobile-auth`).
 - When pointed at a plan in `docs/superpowers/plans/`, implement that plan rather than improvising.
 - Configure project MCP for Claude Code via repo-root `.mcp.json`; Cursor MCP plugins are separate and not shared automatically.
+- **Model delegation (cost discipline):** keep the main session (Opus) for planning, contract/schema decisions, and review — and offload the actual work to subagents:
+  - **Coding/implementation tasks → Sonnet subagents** (e.g. writing a router/service, building a screen, implementing a well-specified task from `07-fuel-prefs-tasks.md`). Give the subagent the exact task + the relevant doc sections.
+  - **Small mechanical tasks → Haiku subagents** (file moves/renames/deletes, `grep`/search/locate, simple find-and-replace, listing/counting).
+  - Use judgement: anything ambiguous, cross-cutting, or contract-affecting stays in the main session; only dispatch once the task is well-defined.
 
 ## Learned Workspace Facts
 

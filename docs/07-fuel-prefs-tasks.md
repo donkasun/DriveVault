@@ -11,27 +11,43 @@ Scope source: `feature-notes.md` (🟢 Now + 🟡 1.5 items). 🔴 Odometer OCR 
 
 ---
 
-## Ordering
+## Parallel Execution Plan
+
+F1 (migration) is done ✅ and unblocks everything below. F2/F3/F4 touch different
+routers+schemas (`me`/users, `vehicles`, `fuel`+`maintenance`) so they run in parallel; F5 has
+no backend dependency so it runs alongside them.
 
 ```
-BACKEND (sequential — migration first)
-  F1 (migration) → F2 (/me prefs) → F3 (vehicle fields) → F4 (fuel variant + currency default)
-        │ deploy to Cloud Run
-        ▼
-MOBILE (after backend live; F6–F8 parallel)
-  F5 (distance-unit util) ─┬─ F6 (settings)
-                           ├─ F7 (vehicle form + detail)
-                           ├─ F8 (fuel record rework)
-                           └─ F9 (home quick actions)
-        ▼
-  F10 (smoke pass)
+BATCH 1 — parallel (F1 ✅ unblocks all)
+┌─────────────────────┐ ┌──────────────────────┐ ┌────────────────────────────┐ ┌────────────────────────┐
+│ 🟦 F2 /me prefs     │ │ 🟦 F3 vehicle fields │ │ 🟦 F4 fuel variant+currency│ │ 🟩 F5 distance-unit util│
+│ task/be-me-prefs    │ │ task/be-vehicle-flds │ │ task/be-fuel-variant       │ │ task/mobile-distance-util│
+└──────────┬──────────┘ └──────────┬───────────┘ └─────────────┬──────────────┘ └────────────┬───────────┘
+           └───────── merge F2+F3+F4 ─────────────┬─────────────┘                             │ merge
+                                                  ▼                                            │
+                                   GATE 🟨 F4d — migrate Neon + deploy Cloud Run               │
+                                                  └──────────────────┬─────────────────────────┘
+                                                                     ▼
+BATCH 2 — parallel (after F4d live AND F5 merged)
+┌─────────────────────┐ ┌──────────────────────────┐ ┌────────────────────────────────────┐
+│ 🟩 F6 settings      │ │ 🟩 F7 vehicle form+detail │ │ 🟩 F8 fuel record → 🟩 F9 home quick │
+│ task/mobile-settings│ │ task/mobile-vehicle-form  │ │ task/mobile-fuel-record (F8 then F9) │
+└──────────┬──────────┘ └────────────┬─────────────┘ └──────────────────┬───────────────────┘
+           └───────────────── merge all ─────────────────────────────────┘
+                                      ▼
+BATCH 3
+  🟩🟦 F10 — end-to-end smoke pass
 ```
+
+> **Delegation (per CLAUDE.md):** dispatch each Batch-1/Batch-2 worktree to a **Sonnet subagent**
+> with its task spec + the relevant Doc 2/Doc 3 section. Keep F4d (deploy) and F10 (smoke) in the
+> main session. Worktrees live under `.worktrees/`, branched off `feat/fuel-prefs-and-ui`.
 
 ---
 
 ## Backend
 
-### 🟦 F1 — Migration: new columns
+### 🟦 F1 — Migration: new columns ✅
 Alembic migration adding, exactly per Doc 2:
 - `users`: `currency char(3) NOT NULL DEFAULT 'USD'`, `distance_unit text NOT NULL DEFAULT 'km'`
 - `vehicles`: `fuel_type text NULL`, `default_fuel_variant text NULL`, `distance_unit text NULL`
@@ -112,6 +128,28 @@ Against the deployed backend: set currency + distance prefs → add a vehicle wi
 variant + unit override → from home quick action, add a fuel log (dropdown vehicle, prefilled
 price, placeholder odometer, variant) → confirm it persists and displays in the right unit.
 **Done when:** the full flow works on a device; note any bugs as follow-ups.
+
+---
+
+## Worktree summary
+
+| Batch | Worktree branch | Tasks | Track | Start condition |
+|---|---|---|---|---|
+| 1 | `task/be-me-prefs` | F2 | 🟦 | F1 ✅ |
+| 1 | `task/be-vehicle-flds` | F3 | 🟦 | F1 ✅ |
+| 1 | `task/be-fuel-variant` | F4 | 🟦 | F1 ✅ |
+| 1 | `task/mobile-distance-util` | F5 | 🟩 | none (no backend dep) |
+| gate | — (main session) | F4d deploy | 🟨 | F2 + F3 + F4 merged |
+| 2 | `task/mobile-settings` | F6 | 🟩 | F4d live **and** F5 merged |
+| 2 | `task/mobile-vehicle-form` | F7 | 🟩 | F4d live **and** F5 merged |
+| 2 | `task/mobile-fuel-record` | F8 → F9 | 🟩 | F4d live **and** F5 merged |
+| 3 | — (main session) | F10 smoke | 🟩🟦 | all Batch-2 merged |
+
+> **Conflict check:** Batch-1 backend tasks edit disjoint files (F2: `users` schema + `me`
+> router/service · F3: `vehicles` schema + service · F4: `fuel`/`maintenance` schemas + services).
+> F4 only *reads* `current_user.currency` — no users-schema change — so it won't collide with F2.
+> Batch-2 tasks live in separate feature folders (settings, vehicles, fuel/dashboard) and all
+> import the already-merged F5 util.
 
 ---
 
