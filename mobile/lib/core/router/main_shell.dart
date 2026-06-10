@@ -1,21 +1,30 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
+import '../theme/app_theme.dart';
+import 'shell_tab_provider.dart';
 
-class MainShell extends StatelessWidget {
+class MainShell extends ConsumerWidget {
   final StatefulNavigationShell navigationShell;
 
   const MainShell({super.key, required this.navigationShell});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Allow any widget to request a tab switch via pendingTabProvider.
+    ref.listen<int?>(pendingTabProvider, (_, next) {
+      if (next != null) {
+        navigationShell.goBranch(next);
+        ref.read(pendingTabProvider.notifier).clear();
+      }
+    });
+
     return Scaffold(
-      // Allow content to draw behind the floating tab bar
       extendBody: true,
       body: Stack(
         children: [
-          // The main content area
           navigationShell,
-          // The floating tab bar at the bottom
           Positioned(
             left: 24,
             right: 24,
@@ -42,80 +51,109 @@ class _FloatingTabBar extends StatelessWidget {
 
   const _FloatingTabBar({required this.currentIndex, required this.onTap});
 
-  @override
+    @override
   Widget build(BuildContext context) {
     return Container(
-      height: 68,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      height: 72,
       decoration: BoxDecoration(
-        color: const Color(0xFF15151C), // Dark color from specs
-        borderRadius: BorderRadius.circular(34),
-        boxShadow: const [
+        color: Colors.black87,
+        borderRadius: BorderRadius.circular(36),
+        boxShadow: [
           BoxShadow(
             color: Colors.black26,
-            blurRadius: 12,
-            offset: Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          _buildTabItem(
-            index: 0,
-            icon: Icons.garage_outlined,
-            activeIcon: Icons.garage,
-            label: 'Garage',
-          ),
-          _buildTabItem(
-            index: 1,
-            icon: Icons.home_outlined,
-            activeIcon: Icons.home,
-            label: 'Home',
-          ),
-          _buildTabItem(
-            index: 2,
-            icon: Icons.person_outline,
-            activeIcon: Icons.person,
-            label: 'Profile',
-          ),
-        ],
-      ),
-    );
-  }
+            blurRadius: 20,
+            offset: Offset(0, 6),
+           ),
+         ],
+       ),
+      child: _TabBarContent(currentIndex: currentIndex, onTap: onTap),
+     );
+   }
+}
 
-  Widget _buildTabItem({
-    required int index,
-    required IconData icon,
-    required IconData activeIcon,
-    required String label,
-  }) {
-    final isSelected = currentIndex == index;
+class _TabBarContent extends StatefulWidget {
+  final int currentIndex;
+  final ValueChanged<int> onTap;
 
-    return GestureDetector(
-      onTap: () => onTap(index),
-      behavior: HitTestBehavior.opaque,
-      child: SizedBox(
-        width: 80,
-        height: 68,
-        child: Center(
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: isSelected ? Colors.white : Colors.transparent,
-              shape: BoxShape.circle,
+  const _TabBarContent({required this.currentIndex, required this.onTap});
+
+    @override
+  State<_TabBarContent> createState() => _TabBarContentState();
+}
+
+class _TabBarContentState extends State<_TabBarContent> {
+  static const _iconAssets = [
+    'assets/icons/garage.svg',
+    'assets/icons/dashboard.svg',
+    'assets/icons/settings.svg',
+  ];
+  static const _labels = ['Garage', 'Home', 'Settings'];
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final slotWidth = constraints.maxWidth / 3;
+        final pillWidth = slotWidth - 16;
+        final pillLeft = widget.currentIndex * slotWidth + 8;
+
+        return Stack(
+          children: [
+            // Single pill that slides between tabs
+            AnimatedPositioned(
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeInOut,
+              left: pillLeft,
+              top: 8,
+              bottom: 8,
+              width: pillWidth,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: AppColors.primary,
+                  borderRadius: BorderRadius.circular(100),
+                ),
+              ),
             ),
-            child: Icon(
-              isSelected ? activeIcon : icon,
-              color: isSelected
-                  ? const Color(0xFF16A34A)
-                  : Colors.grey.shade400,
-              size: 26,
+            // Tab items rendered above the pill
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: List.generate(3, (index) {
+                final isSelected = index == widget.currentIndex;
+                return Expanded(
+                  child: GestureDetector(
+                    onTap: () => widget.onTap(index),
+                    behavior: HitTestBehavior.opaque,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        SvgPicture.asset(
+                          _iconAssets[index],
+                          width: 22,
+                          height: 22,
+                          colorFilter: ColorFilter.mode(
+                            isSelected ? AppColors.onPrimary : Colors.grey.shade500,
+                            BlendMode.srcIn,
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          _labels[index],
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                            color: isSelected ? AppColors.onPrimary : Colors.grey.shade500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }),
             ),
-          ),
-        ),
-      ),
+          ],
+        );
+      },
     );
   }
 }
+

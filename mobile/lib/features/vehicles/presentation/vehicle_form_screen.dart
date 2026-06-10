@@ -37,9 +37,6 @@ class _VehicleFormScreenState extends ConsumerState<VehicleFormScreen> {
   late final TextEditingController _modelCtrl;
   late final TextEditingController _yearCtrl;
   late final TextEditingController _regCtrl;
-  late final TextEditingController _vinCtrl;
-  late final TextEditingController _priceCtrl;
-  late final TextEditingController _currencyCtrl;
   late final TextEditingController _mileageCtrl;
 
   String? _vehicleType;
@@ -60,13 +57,6 @@ class _VehicleFormScreenState extends ConsumerState<VehicleFormScreen> {
       text: v?.year != null ? v!.year.toString() : '',
     );
     _regCtrl = TextEditingController(text: v?.registrationNumber ?? '');
-    _vinCtrl = TextEditingController(text: v?.vin ?? '');
-    _priceCtrl = TextEditingController(
-      text: v?.purchasePriceCents != null
-          ? (v!.purchasePriceCents! / 100).toStringAsFixed(2)
-          : '',
-    );
-    _currencyCtrl = TextEditingController(text: v?.currency ?? 'USD');
     _mileageCtrl = TextEditingController(
       text: v?.currentMileage != null ? v!.currentMileage.toString() : '',
     );
@@ -81,9 +71,6 @@ class _VehicleFormScreenState extends ConsumerState<VehicleFormScreen> {
     _modelCtrl.dispose();
     _yearCtrl.dispose();
     _regCtrl.dispose();
-    _vinCtrl.dispose();
-    _priceCtrl.dispose();
-    _currencyCtrl.dispose();
     _mileageCtrl.dispose();
     super.dispose();
   }
@@ -123,13 +110,6 @@ class _VehicleFormScreenState extends ConsumerState<VehicleFormScreen> {
 
     setState(() => _isSaving = true);
 
-    final priceText = _priceCtrl.text.trim();
-    int? priceCents;
-    if (priceText.isNotEmpty) {
-      final amount = double.tryParse(priceText);
-      if (amount != null) priceCents = (amount * 100).round();
-    }
-
     final data = <String, dynamic>{
       'make': _makeCtrl.text.trim(),
       'model': _modelCtrl.text.trim(),
@@ -138,11 +118,6 @@ class _VehicleFormScreenState extends ConsumerState<VehicleFormScreen> {
     if (year != null) data['year'] = year;
     final reg = _regCtrl.text.trim();
     if (reg.isNotEmpty) data['registrationNumber'] = reg;
-    final vin = _vinCtrl.text.trim();
-    if (vin.isNotEmpty) data['vin'] = vin;
-    if (priceCents != null) data['purchasePriceCents'] = priceCents;
-    final currency = _currencyCtrl.text.trim();
-    if (currency.isNotEmpty) data['currency'] = currency;
     final mileage = int.tryParse(_mileageCtrl.text.trim());
     if (mileage != null) data['currentMileage'] = mileage;
     if (_vehicleType != null) data['vehicleType'] = _vehicleType;
@@ -211,10 +186,15 @@ class _VehicleFormScreenState extends ConsumerState<VehicleFormScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        centerTitle: true,
+        leadingWidth: 80,
         title: Text(_isEditMode ? 'Edit Vehicle' : 'Add Vehicle'),
         leading: TextButton(
           onPressed: () => context.pop(),
-          child: const Text('Cancel'),
+          style: TextButton.styleFrom(
+            foregroundColor: AppColors.textPrimary,
+          ),
+          child: const Text('Cancel', maxLines: 1),
         ),
         actions: [
           if (_isEditMode)
@@ -223,20 +203,32 @@ class _VehicleFormScreenState extends ConsumerState<VehicleFormScreen> {
               tooltip: 'Delete vehicle',
               onPressed: _confirmDelete,
             ),
-          TextButton(
-            onPressed: _isSaving ? null : _save,
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
             child: _isSaving
-                ? const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Text(
-                    'Save',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w700,
-                      color: AppTheme.primaryGreen,
+                ? const Center(
+                    child: SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
                     ),
+                  )
+                : TextButton(
+                    onPressed: _save,
+                    style: TextButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: AppColors.onPrimary,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 4),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      textStyle: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14,
+                      ),
+                    ),
+                    child: const Text('Save'),
                   ),
           ),
         ],
@@ -341,57 +333,6 @@ class _VehicleFormScreenState extends ConsumerState<VehicleFormScreen> {
                   border: OutlineInputBorder(),
                 ),
                 textCapitalization: TextCapitalization.characters,
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _vinCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'VIN',
-                  hintText: 'Vehicle identification number',
-                  border: OutlineInputBorder(),
-                ),
-                textCapitalization: TextCapitalization.characters,
-              ),
-              const SizedBox(height: 24),
-
-              _SectionLabel('Purchase Info'),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    flex: 3,
-                    child: TextFormField(
-                      controller: _priceCtrl,
-                      decoration: const InputDecoration(
-                        labelText: 'Purchase Price',
-                        hintText: '0.00',
-                        border: OutlineInputBorder(),
-                      ),
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                      ),
-                      inputFormatters: [
-                        FilteringTextInputFormatter.allow(
-                          RegExp(r'^\d*\.?\d{0,2}'),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    flex: 1,
-                    child: TextFormField(
-                      controller: _currencyCtrl,
-                      decoration: const InputDecoration(
-                        labelText: 'Currency',
-                        border: OutlineInputBorder(),
-                      ),
-                      textCapitalization: TextCapitalization.characters,
-                      maxLength: 3,
-                      buildCounter: (context, {required currentLength, required isFocused, maxLength}) => null,
-                    ),
-                  ),
-                ],
               ),
               const SizedBox(height: 24),
 

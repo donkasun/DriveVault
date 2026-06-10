@@ -118,7 +118,7 @@
 
 | Order | ID | Task | Status | Executor | Notes |
 |---|---|---|---|---|---|
-| 1 | E1 | End-to-end Phase 1 smoke pass | ⬜ | User | add vehicle → fuel → service → doc → dashboard |
+| 1 | E1 | End-to-end Phase 1 smoke pass | ✅ | User | add vehicle → fuel → service → doc → dashboard — passed 2026-06-10 |
 
 ---
 
@@ -139,8 +139,8 @@
 | Setup | 7 | 8 |
 | Backend | 15 | 15 |
 | Mobile | 18 | 18 |
-| Wrap-up | 0 | 1 |
-| **Total** | **40** | **41** |
+| Wrap-up | 1 | 1 |
+| **Total** | **41** | **41** |
 
 ---
 

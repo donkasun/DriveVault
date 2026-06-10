@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
@@ -14,6 +15,11 @@ void main() async {
       options: DefaultFirebaseOptions.currentPlatform,
     );
   }
+  SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+    statusBarColor: Colors.transparent,
+    statusBarBrightness: Brightness.light,       // iOS: dark icons
+    statusBarIconBrightness: Brightness.dark,    // Android: dark icons
+  ));
   runApp(const ProviderScope(child: DriveVaultApp()));
 }
 
@@ -27,7 +33,6 @@ class DriveVaultApp extends ConsumerWidget {
       title: 'DriveVault',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
-      darkTheme: AppTheme.dark,
       routerConfig: router,
     );
   }

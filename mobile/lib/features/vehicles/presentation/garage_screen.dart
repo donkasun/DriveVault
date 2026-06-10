@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/widgets/app_button.dart';
 import 'vehicles_provider.dart';
 import 'widgets/vehicle_card.dart';
 
@@ -15,28 +16,7 @@ class GarageScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: RichText(
-          text: const TextSpan(
-            style: TextStyle(fontSize: 22, color: Colors.black87),
-            children: [
-              TextSpan(text: 'Your '),
-              TextSpan(
-                text: 'Garage',
-                style: TextStyle(fontWeight: FontWeight.w800),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 16),
-            child: CircleAvatar(
-              radius: 18,
-              backgroundColor: AppTheme.primaryGreen,
-              child: const Icon(Icons.person, color: Colors.white, size: 20),
-            ),
-          ),
-        ],
+        title: const Text('Your Garage'),
       ),
       body: vehiclesAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -111,21 +91,10 @@ class _EmptyState extends StatelessWidget {
               style: TextStyle(color: Colors.grey),
             ),
             const SizedBox(height: 24),
-            ElevatedButton.icon(
+            AppButton(
+              label: 'Add your first vehicle',
               onPressed: onAddTap,
               icon: const Icon(Icons.add),
-              label: const Text('Add your first vehicle'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primaryGreen,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 14,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
             ),
           ],
         ),
@@ -141,32 +110,28 @@ class _AddVehicleCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        height: 80,
-        decoration: BoxDecoration(
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Material(
+        color: AppColors.primary,
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          onTap: onTap,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: AppTheme.primaryGreen.withValues(alpha: 0.5),
-            width: 2,
-            style: BorderStyle.none,
-          ),
-        ),
-        child: CustomPaint(
-          painter: _DashedBorderPainter(),
-          child: const Center(
+          splashColor: AppColors.onPrimary.withValues(alpha: 0.15),
+          child: SizedBox(
+            height: 80,
             child: Row(
-              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.add_circle_outline, color: AppTheme.primaryGreen),
-                SizedBox(width: 8),
+                Icon(Icons.add_circle_outline,
+                    color: AppColors.onPrimary, size: 22),
+                const SizedBox(width: 8),
                 Text(
                   'Add Vehicle',
                   style: TextStyle(
-                    color: AppTheme.primaryGreen,
-                    fontWeight: FontWeight.w600,
+                    color: AppColors.onPrimary,
+                    fontWeight: FontWeight.w700,
                     fontSize: 15,
                   ),
                 ),
@@ -179,37 +144,3 @@ class _AddVehicleCard extends StatelessWidget {
   }
 }
 
-class _DashedBorderPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    const dashWidth = 6.0;
-    const dashSpace = 4.0;
-    const radius = 16.0;
-    final paint = Paint()
-      ..color = AppTheme.primaryGreen.withValues(alpha: 0.5)
-      ..strokeWidth = 2
-      ..style = PaintingStyle.stroke;
-
-    final rect = Rect.fromLTWH(1, 1, size.width - 2, size.height - 2);
-    final rrect = RRect.fromRectAndRadius(rect, const Radius.circular(radius));
-    final path = Path()..addRRect(rrect);
-
-    final pathMetrics = path.computeMetrics();
-    for (final metric in pathMetrics) {
-      double distance = 0;
-      while (distance < metric.length) {
-        canvas.drawPath(
-          metric.extractPath(
-            distance,
-            distance + dashWidth,
-          ),
-          paint,
-        );
-        distance += dashWidth + dashSpace;
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}

@@ -3,10 +3,11 @@ import 'dart:math' as math;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/router/shell_tab_provider.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/widgets/app_button.dart';
 import '../../../shared/utils/formatting.dart';
 import '../domain/dashboard_data.dart';
 import 'dashboard_provider.dart';
@@ -19,7 +20,7 @@ class DashboardScreen extends ConsumerWidget {
     final dashboardAsync = ref.watch(dashboardProvider);
 
     return Scaffold(
-      backgroundColor: AppTheme.lightBg,
+      backgroundColor: AppColors.background,
       body: SafeArea(
         child: dashboardAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
@@ -82,11 +83,11 @@ class _Header extends StatelessWidget {
               )
             : CircleAvatar(
                 radius: 20,
-                backgroundColor: AppTheme.primaryGreen,
+                backgroundColor: AppColors.primary,
                 child: Text(
                   initials,
                   style: const TextStyle(
-                    color: Colors.white,
+                    color: AppColors.onPrimary,
                     fontWeight: FontWeight.bold,
                     fontSize: 14,
                   ),
@@ -145,11 +146,11 @@ class _ErrorState extends StatelessWidget {
   }
 }
 
-class _EmptyState extends StatelessWidget {
+class _EmptyState extends ConsumerWidget {
   const _EmptyState();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -173,20 +174,10 @@ class _EmptyState extends StatelessWidget {
               style: TextStyle(color: Colors.black54),
             ),
             const SizedBox(height: 24),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primaryGreen,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 12,
-                ),
-              ),
-              onPressed: () => context.go('/garage'),
-              child: const Text('Add your first vehicle'),
+            AppButton(
+              label: 'Add your first vehicle',
+              onPressed: () =>
+                  ref.read(pendingTabProvider.notifier).switchTo(0),
             ),
           ],
         ),
@@ -313,7 +304,7 @@ class _RingPainter extends CustomPainter {
       ..strokeCap = StrokeCap.round;
 
     final fgPaint = Paint()
-      ..color = AppTheme.primaryGreen
+      ..color = AppColors.primary
       ..style = PaintingStyle.stroke
       ..strokeWidth = strokeWidth
       ..strokeCap = StrokeCap.round;
@@ -405,7 +396,7 @@ class _StatCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 20, color: AppTheme.primaryGreen),
+          Icon(icon, size: 20, color: AppColors.primary),
           const SizedBox(height: 8),
           Text(
             value,

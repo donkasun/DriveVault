@@ -38,12 +38,12 @@ BATCH 3 — ✅ COMPLETE (squash-merged to main d677aad)
 └───────────────────────┬───────────────┘
                         │ merged
                         ▼
-BATCH 4 — ✅ GATE OPEN — 3 parallel worktrees
+BATCH 4 — ✅ COMPLETE (squash-merged to main b44060d)
 ┌─────────────────────────┐ ┌────────────────────────────────────────┐ ┌────────────────────────┐
-│ task/mobile-garage      │ │ task/mobile-vehicle-detail             │ │ task/mobile-dashboard  │
+│ task/mobile-garage ✅   │ │ task/mobile-vehicle-detail ✅          │ │ task/mobile-dashboard ✅│
 │ D1a → D1b → D1c        │ │ D2 → D3 → D4 → D5a → D5b → D5c       │ │ D6                     │
 └─────────────────────────┘ └────────────────────────────────────────┘ └────────────────────────┘
-           All 3 merge → E1 (end-to-end smoke pass)
+           All 3 merge → E1 ✅ (end-to-end smoke pass — passed 2026-06-10)
 ```
 
 ---

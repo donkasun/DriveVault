@@ -75,6 +75,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           return MainShell(navigationShell: navigationShell);
         },
         branches: [
+          // Branch 0 — Garage (left tab)
           StatefulShellBranch(
             routes: [
               GoRoute(
@@ -109,6 +110,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               ),
             ],
           ),
+          // Branch 1 — Home / Dashboard (centre tab, default landing)
           StatefulShellBranch(
             routes: [
               GoRoute(
@@ -117,6 +119,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               ),
             ],
           ),
+          // Branch 2 — Profile / Settings (right tab)
           StatefulShellBranch(
             routes: [
               GoRoute(

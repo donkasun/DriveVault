@@ -19,7 +19,7 @@ class VehicleCard extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
-        color: AppTheme.darkCardBg,
+        color: AppColors.surfaceDark,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Stack(
@@ -77,7 +77,7 @@ class VehicleCard extends StatelessWidget {
                     child: const Text(
                       'DETAILS →',
                       style: TextStyle(
-                        color: AppTheme.amberLink,
+                        color: AppColors.primary,
                         fontWeight: FontWeight.w700,
                         fontSize: 13,
                         letterSpacing: 0.5,

@@ -10,6 +10,10 @@
 - **Auth:** every endpoint except none-listed-as-public requires header
   `Authorization: Bearer <Firebase ID token>`. The backend resolves the current user from it.
 - All request/response bodies are JSON. Timestamps are ISO-8601 UTC. Money is integer cents.
+- **Currency:** single currency per user (stored on `users.currency`). On money-bearing
+  records (`fuel_logs`, `maintenance_records`), `currency` is optional in requests; when
+  omitted the backend uses the user's preference. **Distance unit** (`km`/`mi`) is a
+  display-only preference — odometer/mileage values on the wire and in storage are always km.
 - A user can only access **their own** vehicles and nested resources. Accessing another
   user's resource returns `404` (not `403`, to avoid leaking existence).
 
@@ -40,12 +44,17 @@ Returns the current user, lazily creating the `users` row on first call.
   "email": "user@example.com",
   "displayName": "Kasun",
   "photoUrl": null,
+  "currency": "USD",
+  "distanceUnit": "km",
   "createdAt": "2026-06-08T10:00:00Z"
 }
 ```
+`currency` (3-letter code) and `distanceUnit` (`"km"`\|`"mi"`) are the user's account-wide
+preferences. `distanceUnit` is display-only (storage stays in km).
 
 ### `PATCH /api/v1/me`
-Update profile fields. Body (all optional): `{ "displayName": "...", "photoUrl": "..." }`
+Update profile fields. Body (all optional):
+`{ "displayName": "...", "photoUrl": "...", "currency": "EUR", "distanceUnit": "mi" }`
 **Response 200** — updated user object.
 
 ---
@@ -70,11 +79,16 @@ Create a vehicle.
   "currency": "USD",
   "currentMileage": 48000,
   "vehicleType": "pickup",
+  "fuelType": "petrol",
+  "defaultFuelVariant": "95 Octane",
+  "distanceUnit": null,
   "photoUrl": null,
   "photoPublicId": null
 }
 ```
-Only `make` and `model` are required. **201** → `Vehicle`.
+Only `make` and `model` are required. `fuelType` (`petrol`\|`diesel`\|`electric`\|`hybrid`\|`other`)
+is optional and fixed per vehicle. `defaultFuelVariant` is free text. `distanceUnit`
+(`"km"`\|`"mi"`\|`null`) overrides the user default per vehicle; `null` = inherit. **201** → `Vehicle`.
 
 ### `GET /api/v1/vehicles/{vehicleId}`
 **200** → `Vehicle`  ·  **404** if not owned.
@@ -93,6 +107,7 @@ Deletes the vehicle **and all nested data** (cascade). **204** no content.
   "registrationNumber": "ABC-1234", "vin": "JTEBU5JR...",
   "purchaseDate": "2020-03-15", "purchasePriceCents": 3500000, "currency": "USD",
   "currentMileage": 48000, "vehicleType": "pickup",
+  "fuelType": "petrol", "defaultFuelVariant": "95 Octane", "distanceUnit": null,
   "photoUrl": null, "photoPublicId": null,
   "createdAt": "2026-06-08T10:00:00Z", "updatedAt": "2026-06-08T10:00:00Z"
 }
@@ -116,10 +131,13 @@ Query params (optional): `from=YYYY-MM-DD`, `to=YYYY-MM-DD`. **200** → `[ Fuel
   "currency": "USD",
   "odometer": 48200,
   "isFullTank": true,
+  "fuelVariant": "95 Octane",
   "notes": null
 }
 ```
-Required: `date`, `liters`, `priceCents`, `odometer`. **201** → `FuelLog`.
+Required: `date`, `liters`, `priceCents`, `odometer`. `fuelVariant` is optional free text
+(client defaults it to the vehicle's `defaultFuelVariant`). `currency` is optional — if omitted,
+the backend fills it from the user's `currency` preference. **201** → `FuelLog`.
 
 ### `PATCH /api/v1/fuel-logs/{id}` · `DELETE /api/v1/fuel-logs/{id}`
 Update / delete a single log. **200** / **204**.
@@ -162,7 +180,8 @@ Optional `category`, `from`, `to` query params. **200** → `[ MaintenanceRecord
   "notes": "5W-30 synthetic"
 }
 ```
-Required: `date`, `serviceType`. **201** → `MaintenanceRecord`.
+Required: `date`, `serviceType`. `currency` is optional — if omitted, the backend fills it
+from the user's `currency` preference (the app does not show a currency dropdown). **201** → `MaintenanceRecord`.
 
 ### `GET /api/v1/maintenance/{id}` · `PATCH /api/v1/maintenance/{id}` · `DELETE /api/v1/maintenance/{id}`
 **200** / **200** / **204**.

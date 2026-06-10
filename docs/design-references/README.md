@@ -9,28 +9,40 @@ Visual direction for the mobile app, agreed during UI brainstorming. Pair this w
 - **`ref-02-tab-bar.png`** — floating dark pill tab bar (active tab in white circle).
 - **`ref-03-design-language.png`** — "Drive Safe" app screens (overall visual language).
 - **`ref-04-vehicle-card.png`** — dark vehicle card reference ("Ferrari Sergio").
+- **`ref-color-theme.jpg`** — ⭐ **Active color reference.** Furniture app UI showing the yellow/black/white design language: cool grey background, white cards with soft shadows, dark navy nav pill, bright yellow accent. This is the source of truth for the current palette.
 
 ## Source references
 
 | File | What it showed | What we took from it |
 |---|---|---|
 | `ref-01-paper-sketch.png` *(not yet added)* | Your hand sketch | Screen structure: Garage list, Home cards, Vehicle detail, tab bar |
-| `ref-02-tab-bar.png` | Dark floating pill tab bar | **Tab bar style** — floating dark pill, active tab in a white circle highlight |
-| `ref-03-design-language.png` | "Drive Safe" app screens | **Overall language** — light bg, soft rounded cards, green accent, rings, sparklines |
-| `ref-04-vehicle-card.png` | Dark car card ("Ferrari Sergio") | **Vehicle card** — photo overlapping top, name/meta, "DETAILS →", stat row |
+| `ref-02-tab-bar.png` | Dark floating pill tab bar | **Tab bar style** — floating dark pill, active tab pill |
+| `ref-03-design-language.png` | "Drive Safe" app screens | Screen structure reference (green accent retired) |
+| `ref-04-vehicle-card.png` | Dark car card ("Ferrari Sergio") | **Vehicle card** — photo overlapping top, name/meta, stat row |
+| `ref-color-theme.jpg` | Furniture app — yellow/black/white UI | ⭐ **Active palette source** — background, surface, dark nav, yellow accent, shadows |
 
 ## Design language (summary)
 
-**Mood:** clean, modern, friendly — light backgrounds with bold dark feature cards.
+**Mood:** clean, light, high-contrast — cool grey background, white cards, yellow accent with dark navy surfaces.
+Reference: furniture app UI (yellow product highlights, dark nav pill, soft card shadows).
 
-**Color**
-- Background: light grey `#f3f4f7`
-- Surfaces/cards: white `#ffffff`, soft shadow `0 4px 14px rgba(20,20,40,.06)`
-- **Primary accent: green** `#16a34a` / `#22c55e`
-- Secondary: blue `#2f6bff`
-- Highlight/link: amber `#f5b301` (e.g. "DETAILS →")
-- Dark cards (vehicles, hero): `#15151c → #23232e` gradient
-- Status pills: warn `#fde7e7/#d23b3b`, ok `#e3f6ea/#16a34a`, info `#e6efff/#2f6bff`
+**Color** (`AppColors` in `mobile/lib/core/theme/app_theme.dart`)
+
+| Token | Hex | Use |
+|---|---|---|
+| `background` | `#EBEBF0` | App scaffold background |
+| `surface` | `#FFFFFF` | Cards, sheets, inputs |
+| `surfaceDark` | `#1E1D2B` | Vehicle cards, tab bar, dark hero sections |
+| `primary` | `#FFD600` | Buttons, active tab pill, highlights |
+| `onPrimary` | `#1E1D2B` | Text / icons on yellow |
+| `textPrimary` | `#1A1A2E` | Body text, headings |
+| `textMuted` | `#9898A6` | Secondary labels, captions |
+| `textOnDark` | `#FFFFFF` | Text on dark surfaces |
+| `textOnDarkMuted` | `#9898A6` | Muted text on dark surfaces |
+| `divider` | `#E2E2EA` | List dividers, input borders |
+| `success` | `#22C55E` | OK status pills |
+| `warning` | `#F59E0B` | Warning pills |
+| `danger` | `#EF4444` | Error / overdue |
 
 **Shape & type**
 - Card radius ~16–18px; tab bar radius ~26px; generous padding

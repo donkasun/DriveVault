@@ -136,7 +136,7 @@ class _HeroAppBar extends ConsumerWidget {
     return SliverAppBar(
       expandedHeight: 240,
       pinned: true,
-      backgroundColor: AppTheme.darkBg,
+      backgroundColor: AppColors.surfaceDark,
       leading: IconButton(
         icon: const Icon(Icons.arrow_back, color: Colors.white),
         onPressed: () => context.go('/garage'),
@@ -161,10 +161,10 @@ class _HeroAppBar extends ConsumerWidget {
                 imageUrl: vehicle.photoUrl!,
                 fit: BoxFit.cover,
                 errorWidget: (_, url, err) =>
-                    Container(color: AppTheme.darkCardBg),
+                    Container(color: AppColors.surfaceDark),
               )
             else
-              Container(color: AppTheme.darkCardBg),
+              Container(color: AppColors.surfaceDark),
             // Gradient overlay
             Container(
               decoration: BoxDecoration(
@@ -328,7 +328,7 @@ class _SectionHeader extends StatelessWidget {
             icon: const Text('＋', style: TextStyle(fontSize: 16)),
             label: Text(buttonLabel),
             style: TextButton.styleFrom(
-                foregroundColor: AppTheme.primaryGreen),
+                foregroundColor: AppColors.primary),
             onPressed: onAdd,
           ),
         ],

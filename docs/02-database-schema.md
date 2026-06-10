@@ -11,7 +11,8 @@
 - Money is stored as **integer cents** (`*_cents`) plus a 3-letter `currency` (default `'USD'`).
 - Foreign keys use `ON DELETE CASCADE` from a parent the child cannot exist without
   (e.g. delete a vehicle → delete its fuel logs).
-- Mileage/odometer stored as integer kilometres (`int`).
+- Mileage/odometer stored as integer kilometres (`int`). A `distance_unit` (`'km'`/`'mi'`) is
+  **display-only** — the app converts mi↔km at the edge; stored values are always kilometres.
 - `created_at`/`updated_at` omitted from column lists below for brevity — **add them to every table**.
 
 ---
@@ -42,6 +43,8 @@ Mirrors a Firebase Auth account. Created lazily on first authenticated request.
 | email | text | NOT NULL |
 | display_name | text | NULL |
 | photo_url | text | NULL |
+| currency | char(3) | NOT NULL DEFAULT 'USD' (user-level money preference) |
+| distance_unit | text | NOT NULL DEFAULT 'km' ('km'\|'mi', display-only) |
 | created_at | timestamptz | NOT NULL |
 | updated_at | timestamptz | NOT NULL |
 
@@ -64,6 +67,9 @@ Indexes: unique on `firebase_uid`, index on `email`.
 | photo_url | text | NULL (Cloudinary secure_url) |
 | photo_public_id | text | NULL (Cloudinary public_id, for replace/delete) |
 | vehicle_type | text | NULL ('car'\|'motorcycle'\|'pickup'\|'other') |
+| fuel_type | text | NULL ('petrol'\|'diesel'\|'electric'\|'hybrid'\|'other', fixed per vehicle) |
+| default_fuel_variant | text | NULL (free text, e.g. '95 Octane' — the usual variant) |
+| distance_unit | text | NULL ('km'\|'mi', display-only; NULL = inherit user default) |
 
 Indexes: `user_id`.
 
@@ -78,6 +84,7 @@ Indexes: `user_id`.
 | currency | char(3) | NOT NULL DEFAULT 'USD' |
 | odometer | int | NOT NULL (km) |
 | is_full_tank | boolean | NOT NULL DEFAULT true |
+| fuel_variant | text | NULL (free text; variant for THIS fill-up, defaults to vehicle.default_fuel_variant, editable) |
 | notes | text | NULL |
 
 Indexes: `vehicle_id`, `(vehicle_id, date)`.
