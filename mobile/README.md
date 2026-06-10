@@ -13,9 +13,27 @@ Flutter app for DriveVault. See `../docs/01-tech-spec.md` for architecture and
 cd mobile
 flutter pub get
 
-# API base URL is injected at build time (never hard-coded).
+# Local backend (default)
 flutter run --dart-define=API_BASE_URL=http://localhost:8000
+
+# Production backend
+flutter run --dart-define=API_BASE_URL=https://drivevault-backend-250609806849.us-central1.run.app
 ```
+
+## Build (production APK / IPA)
+
+```bash
+# Android
+flutter build apk \
+  --dart-define=API_BASE_URL=https://drivevault-backend-250609806849.us-central1.run.app
+
+# iOS
+flutter build ipa \
+  --dart-define=API_BASE_URL=https://drivevault-backend-250609806849.us-central1.run.app
+```
+
+> The API base URL is never hard-coded — it is injected via `--dart-define=API_BASE_URL`
+> at build/run time. Omitting it falls back to `http://localhost:8000` (local dev only).
 
 ## Test / analyze
 ```bash

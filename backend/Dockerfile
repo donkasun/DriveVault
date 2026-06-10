@@ -1,4 +1,4 @@
-# Production image for Render (see docs/01-tech-spec.md §6).
+# Production image for Cloud Run (see docs/01-tech-spec.md §6).
 FROM python:3.12-slim
 
 ENV PYTHONUNBUFFERED=1 \

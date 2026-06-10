@@ -22,7 +22,7 @@
 | Auth | Firebase Auth | latest SDK |
 | File/blob storage | **Cloudinary** (free tier) | latest SDK |
 | Push notifications | Firebase Cloud Messaging (FCM) | latest SDK |
-| Backend hosting | Render (free web service) | — |
+| Backend hosting | Google Cloud Run (always-free tier) | — |
 | DB hosting | Neon (free serverless Postgres) | — |
 
 ### What Firebase is used for (and only this)
@@ -53,7 +53,7 @@ stays server-side only).
    (1) sign in  │             │ (3) API calls w/ Firebase ID token
                 ▼             ▼
         ┌──────────────┐   ┌──────────────────────────┐
-        │ Firebase Auth│   │   FastAPI backend (Render)│
+        │ Firebase Auth│   │ FastAPI backend (Cloud Run)│
         │ + FCM        │   │   - verifies ID token     │
         └──────┬───────┘   │   - business logic        │
                │           │   - signs Cloudinary uploads│
@@ -172,14 +172,16 @@ CORS_ORIGINS=http://localhost:*,https://<your-app-domain>
 | | Local | Production |
 |---|---|---|
 | Postgres | Docker `postgres:16` container | Neon free tier |
-| Backend | `uvicorn app.main:app --reload` | Render web service (Gunicorn+Uvicorn) |
+| Backend | `uvicorn app.main:app --reload` | Cloud Run (Gunicorn+Uvicorn, `--min-instances=0`) |
 | Firebase | Real Firebase project (dev) | Same or separate prod project |
-| API base URL | `http://localhost:8000` | `https://drivevault-api.onrender.com` |
+| API base URL | `http://localhost:8000` | `https://drivevault-backend-250609806849.us-central1.run.app` |
 
 `docker-compose.yml` runs Postgres locally so devs don't need Neon to start.
 
-> **Render free-tier note:** the service spins down after ~15 min idle; the first request
-> after sleep is slow (~30s cold start). Acceptable for demos — wake it before a showcase.
+> **Cloud Run free-tier note:** `--min-instances=0` means the container scales to zero when
+> idle. Cold starts are ~1-3 s (acceptable). The always-free quota (2M requests/month,
+> 360K GB-s memory, 180K vCPU-s) covers typical dev/demo loads with no billing card needed
+> provided `--min-instances` stays at 0.
 
 ---
 
@@ -219,9 +221,9 @@ architecture doesn't need rework. **Hard constraint: keep the app small — no o
 | 6 | Embeddings for semantic search | Gemini embeddings → `document_embeddings` (pgvector) | 0 |
 
 ### Notes
-- **The LLM "thinking" never runs in the app or on Render's free CPU** — it's an API call to
-  Gemini. Render free tier cannot host an LLM (no GPU, low RAM), so self-hosting is out unless
-  hosting is upgraded.
+- **The LLM "thinking" never runs in the app or on Cloud Run's container** — it's an API call
+  to Gemini. Cloud Run cannot host an LLM (no GPU), so self-hosting is out unless hosting is
+  upgraded.
 - Phase 4 tool-calling is the highest-risk AI feature; a stronger provider can be swapped in
   via `AIProvider` if Gemini-free quality is insufficient.
 - Trade-off accepted: **AI features require a network connection** (no offline AI). Fine for a

@@ -35,7 +35,7 @@ When the PRD and these docs disagree on a technical detail, **the docs win**.
 - **File storage:** Cloudinary (free tier). Clients upload directly via a backend-signed
   request; the backend stores only the returned `secure_url`. (Firebase Storage is NOT used —
   it requires the paid Blaze plan.)
-- **Hosting:** Render (backend) + Neon (DB).
+- **Hosting:** Google Cloud Run (`--min-instances=0`, always-free tier) + Neon (DB).
 - **AI (Phases 3/4/6 only):** Gemini free tier behind an `AIProvider` interface; ML Kit for
   on-device OCR. **No on-device LLM / no bundled model** (keeps app size small).
 
@@ -94,7 +94,11 @@ When unsure, stop and ask. A small clarifying question is cheaper than a wrong i
 ## Learned Workspace Facts
 
 - Phase 1 Batch 1 development uses branch `batch-1` with parallel worktrees for backend models and mobile auth.
-- Claude Code Neon MCP is configured in `.mcp.json` (OAuth at `https://mcp.neon.tech/mcp`, safe to commit); Render MCP is not configured.
+- Claude Code Neon MCP is configured in `.mcp.json` (OAuth at `https://mcp.neon.tech/mcp`, safe to commit); no Render MCP (Render replaced by Cloud Run).
+- Backend hosting is Google Cloud Run (`--min-instances=0`) — always-free tier, ~1-3s cold starts. Live URL: `https://drivevault-backend-250609806849.us-central1.run.app`. Deploy via `gcloud run deploy` or push to `main` (GitHub Actions auto-deploys on `backend/**` changes).
+- GCP deploy service account: `github-deployer@drivevault-app.iam.gserviceaccount.com` (roles: `run.admin`, `artifactregistry.writer`, `iam.serviceAccountUser`). Key stored as `GCP_SA_KEY` GitHub secret.
+- When building the Docker image locally on Apple Silicon (arm64), always pass `--platform=linux/amd64` — Cloud Run requires amd64 and will reject an arm64 image with a manifest type error.
+- Firebase service-account credentials stored in GCP Secret Manager as `firebase-credentials` (project `drivevault-app`), injected into Cloud Run as `FIREBASE_CREDENTIALS_JSON`.
 - UI design references live in `docs/design-references/` (`mockup-screens.html`, `DESIGN-LANGUAGE.md`, `ref-0N-*.png` screenshots).
 - Local backend Docker Postgres may bind to host port 5433 when macOS Postgres already occupies 5432.
 - Email verification gate is task C2d; implementation plan at `docs/superpowers/plans/2026-06-09-email-verification-gate.md`.

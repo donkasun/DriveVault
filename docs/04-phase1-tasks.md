@@ -34,7 +34,7 @@ BATCH 2 — ✅ COMPLETE (merged to main)
 BATCH 3 — ✅ COMPLETE (squash-merged to main d677aad)
 ┌───────────────────────────────────────┐
 │ task/backend-deploy                   │
-│ B6 ✅ → B7 ✅ (deploy deferred)       │
+│ B6 ✅ → B7 ✅                          │
 └───────────────────────┬───────────────┘
                         │ merged
                         ▼
@@ -167,10 +167,13 @@ known SHA-1 of the sorted params + secret, and the secret is never returned.
 cost breakdown, and upcoming document-expiry renewals (Doc 3).
 **Done when:** a test seeds 1 vehicle with fuel+maintenance and asserts the aggregated response.
 
-### 🟨 Task B7 — Deploy backend to Render + Neon
-Add `Dockerfile` (Gunicorn+Uvicorn), create a Neon project, run migrations against Neon,
-deploy to Render, set env vars, confirm `/health` is reachable publicly.
-**Done when:** the public Render URL serves `/health` and a manual authed `/me` call works.
+### 🟨 Task B7 — Deploy backend to Cloud Run + Neon ✅
+`Dockerfile` (Gunicorn+Uvicorn) + `.dockerignore` added. Neon DB (`silent-haze-14400595`) already
+had migrations applied. Firebase credentials stored in GCP Secret Manager (`firebase-credentials`).
+Deployed to Google Cloud Run (`--min-instances=0`, `--allow-unauthenticated`).
+GitHub Actions auto-deploy wired up (`.github/workflows/deploy-backend.yml`).
+**Live URL:** `https://drivevault-backend-250609806849.us-central1.run.app`
+**Done when:** ✅ `/health` → `{"status":"ok"}` · ✅ `/api/v1/me` without token → `401`
 
 ---
 
@@ -241,7 +244,7 @@ breakdown, upcoming renewals.
 ### 🟩🟦 Task E1 — End-to-end smoke pass
 Manually run the full PRD Phase 1 success path: add vehicle → track fuel → add service →
 upload document → view dashboard, against the deployed backend.
-**Done when:** all five flows work on a device against Render+Neon; note any bugs as follow-ups.
+**Done when:** all five flows work on a device against Cloud Run+Neon; note any bugs as follow-ups.
 
 ---
 
