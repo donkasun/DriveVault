@@ -12,7 +12,6 @@ class Vehicle {
   final int? currentMileage;
   final String? vehicleType;
   final String? fuelType;
-  final String? defaultFuelVariant;
 
   /// Per-vehicle distance-unit override ("km" / "mi" / null).
   /// null means inherit the user's account-level default.
@@ -35,7 +34,6 @@ class Vehicle {
     this.currentMileage,
     this.vehicleType,
     this.fuelType,
-    this.defaultFuelVariant,
     this.distanceUnit,
     this.photoUrl,
     this.photoPublicId,
@@ -56,7 +54,6 @@ class Vehicle {
     currentMileage: json['currentMileage'] as int?,
     vehicleType: json['vehicleType'] as String?,
     fuelType: json['fuelType'] as String?,
-    defaultFuelVariant: json['defaultFuelVariant'] as String?,
     distanceUnit: json['distanceUnit'] as String?,
     photoUrl: json['photoUrl'] as String?,
     photoPublicId: json['photoPublicId'] as String?,
@@ -77,7 +74,6 @@ class Vehicle {
     if (currentMileage != null) 'currentMileage': currentMileage,
     if (vehicleType != null) 'vehicleType': vehicleType,
     if (fuelType != null) 'fuelType': fuelType,
-    if (defaultFuelVariant != null) 'defaultFuelVariant': defaultFuelVariant,
     if (distanceUnit != null) 'distanceUnit': distanceUnit,
     if (photoUrl != null) 'photoUrl': photoUrl,
     if (photoPublicId != null) 'photoPublicId': photoPublicId,
@@ -101,7 +97,6 @@ class Vehicle {
     int? currentMileage,
     String? vehicleType,
     String? fuelType,
-    String? defaultFuelVariant,
     String? distanceUnit,
     String? photoUrl,
     String? photoPublicId,
@@ -121,7 +116,6 @@ class Vehicle {
       currentMileage: currentMileage ?? this.currentMileage,
       vehicleType: vehicleType ?? this.vehicleType,
       fuelType: fuelType ?? this.fuelType,
-      defaultFuelVariant: defaultFuelVariant ?? this.defaultFuelVariant,
       distanceUnit: distanceUnit ?? this.distanceUnit,
       photoUrl: photoUrl ?? this.photoUrl,
       photoPublicId: photoPublicId ?? this.photoPublicId,

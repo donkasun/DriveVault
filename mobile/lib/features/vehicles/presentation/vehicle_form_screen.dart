@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../data/upload_repository.dart';
+import '../data/vehicle_repository.dart';
 import '../domain/vehicle.dart';
 import 'vehicles_provider.dart';
 
@@ -34,7 +35,6 @@ class _VehicleFormScreenState extends ConsumerState<VehicleFormScreen> {
   late final TextEditingController _yearCtrl;
   late final TextEditingController _regCtrl;
   late final TextEditingController _mileageCtrl;
-  late final TextEditingController _variantCtrl;
 
   String? _vehicleType;
   String? _fuelType;
@@ -64,7 +64,6 @@ class _VehicleFormScreenState extends ConsumerState<VehicleFormScreen> {
     _vehicleType = v?.vehicleType;
     _fuelType = v?.fuelType;
     _distanceUnit = v?.distanceUnit;
-    _variantCtrl = TextEditingController(text: v?.defaultFuelVariant ?? '');
     _photoUrl = v?.photoUrl;
     _photoPublicId = v?.photoPublicId;
   }
@@ -76,7 +75,6 @@ class _VehicleFormScreenState extends ConsumerState<VehicleFormScreen> {
     _yearCtrl.dispose();
     _regCtrl.dispose();
     _mileageCtrl.dispose();
-    _variantCtrl.dispose();
     super.dispose();
   }
 
@@ -129,8 +127,6 @@ class _VehicleFormScreenState extends ConsumerState<VehicleFormScreen> {
     // Fuel & unit fields — sent explicitly (incl. null) so edits can clear them.
     // distanceUnit null = inherit the user's account-level default.
     data['fuelType'] = _fuelType;
-    final variant = _variantCtrl.text.trim();
-    data['defaultFuelVariant'] = variant.isEmpty ? null : variant;
     data['distanceUnit'] = _distanceUnit;
     if (_photoUrl != null) data['photoUrl'] = _photoUrl;
     if (_photoPublicId != null) data['photoPublicId'] = _photoPublicId;
@@ -140,6 +136,8 @@ class _VehicleFormScreenState extends ConsumerState<VehicleFormScreen> {
         await ref
             .read(vehiclesProvider.notifier)
             .updateVehicle(widget.vehicle!.id, data);
+        // Refresh the detail screen, which watches the single-vehicle provider.
+        ref.invalidate(vehicleProvider(widget.vehicle!.id));
       } else {
         await ref.read(vehiclesProvider.notifier).create(data);
       }
@@ -152,44 +150,6 @@ class _VehicleFormScreenState extends ConsumerState<VehicleFormScreen> {
       }
     } finally {
       if (mounted) setState(() => _isSaving = false);
-    }
-  }
-
-  Future<void> _confirmDelete() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Delete Vehicle'),
-        content: const Text(
-          'Are you sure you want to delete this vehicle? This cannot be undone.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed == true && mounted) {
-      try {
-        await ref
-            .read(vehiclesProvider.notifier)
-            .deleteVehicle(widget.vehicle!.id);
-        if (mounted) context.go('/garage');
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('Delete failed: $e')));
-        }
-      }
     }
   }
 
@@ -206,12 +166,6 @@ class _VehicleFormScreenState extends ConsumerState<VehicleFormScreen> {
           child: const Text('Cancel', maxLines: 1),
         ),
         actions: [
-          if (_isEditMode)
-            IconButton(
-              icon: const Icon(Icons.delete_outline, color: Colors.red),
-              tooltip: 'Delete vehicle',
-              onPressed: _confirmDelete,
-            ),
           Padding(
             padding: const EdgeInsets.only(right: 8),
             child: _isSaving
@@ -229,8 +183,10 @@ class _VehicleFormScreenState extends ConsumerState<VehicleFormScreen> {
                       foregroundColor: AppColors.onPrimary,
                       padding: const EdgeInsets.symmetric(
                         horizontal: 12,
-                        vertical: 4,
+                        vertical: 2,
                       ),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(20),
                       ),
@@ -367,15 +323,6 @@ class _VehicleFormScreenState extends ConsumerState<VehicleFormScreen> {
                   ),
                 ],
                 onChanged: (value) => setState(() => _fuelType = value),
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _variantCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Default Fuel Variant',
-                  hintText: 'e.g. 95 Octane',
-                  border: OutlineInputBorder(),
-                ),
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String?>(

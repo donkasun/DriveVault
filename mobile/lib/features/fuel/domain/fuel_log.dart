@@ -7,7 +7,6 @@ class FuelLog {
   final String currency;
   final int odometer;
   final bool isFullTank;
-  final String? fuelVariant;
   final String? notes;
   final DateTime createdAt;
 
@@ -20,7 +19,6 @@ class FuelLog {
     required this.currency,
     required this.odometer,
     required this.isFullTank,
-    this.fuelVariant,
     this.notes,
     required this.createdAt,
   });
@@ -36,7 +34,6 @@ class FuelLog {
     currency: json['currency'] as String? ?? 'USD',
     odometer: json['odometer'] as int,
     isFullTank: json['isFullTank'] as bool? ?? false,
-    fuelVariant: json['fuelVariant'] as String?,
     notes: json['notes'] as String?,
     createdAt: DateTime.parse(json['createdAt'] as String),
   );
@@ -50,7 +47,6 @@ class FuelLog {
     'currency': currency,
     'odometer': odometer,
     'isFullTank': isFullTank,
-    if (fuelVariant != null) 'fuelVariant': fuelVariant,
     if (notes != null) 'notes': notes,
     'createdAt': createdAt.toIso8601String(),
   };

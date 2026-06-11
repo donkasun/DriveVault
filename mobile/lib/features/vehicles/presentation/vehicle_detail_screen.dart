@@ -3,8 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/network/api_exceptions.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/utils/distance_unit.dart';
+import '../../../shared/utils/formatting.dart';
+import '../../dashboard/presentation/dashboard_provider.dart';
 import '../../documents/data/document_repository.dart';
 import '../../documents/domain/document.dart';
 import '../../documents/presentation/document_upload_screen.dart';
@@ -16,8 +19,10 @@ import '../../fuel/presentation/fuel_log_form_screen.dart';
 import '../../maintenance/data/maintenance_repository.dart';
 import '../../maintenance/domain/maintenance_record.dart';
 import '../../maintenance/presentation/maintenance_form_screen.dart';
+import '../../profile/data/user_repository.dart';
 import '../data/vehicle_repository.dart';
 import '../domain/vehicle.dart';
+import '../presentation/vehicles_provider.dart';
 
 class VehicleDetailScreen extends ConsumerWidget {
   final String vehicleId;
@@ -83,11 +88,10 @@ class _VehicleDetailBody extends ConsumerWidget {
   }
 
   void _openEditVehicle(BuildContext context, WidgetRef ref) {
-    // Edit vehicle modal — placeholder for now; full vehicle form
-    // is a separate task. Show a snackbar indicating intent.
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Edit vehicle — coming soon')));
+    context.go(
+      '/garage/edit-vehicle/${vehicle.id}',
+      extra: {'vehicle': vehicle},
+    );
   }
 
   @override
@@ -133,6 +137,7 @@ class _HeroAppBar extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final fuelStatsAsync = ref.watch(fuelStatsProvider(vehicle.id));
+    final currency = ref.watch(meProvider).asData?.value.currency ?? 'USD';
 
     return SliverAppBar(
       expandedHeight: 240,
@@ -229,8 +234,8 @@ class _HeroAppBar extends ConsumerWidget {
                           ? '${stats.avgConsumptionLPer100Km!.toStringAsFixed(1)} L/100'
                           : '—';
                       final spent = stats.totalSpentCents > 0
-                          ? '\$${(stats.totalSpentCents / 100).toStringAsFixed(0)}'
-                          : '\$0';
+                          ? formatCents(stats.totalSpentCents, currency: currency)
+                          : formatCents(0, currency: currency);
                       return _StatRow(
                         mileage: mileage,
                         economy: economy,
@@ -307,7 +312,7 @@ class _StatChip extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Vehicle info card (fuel type, default variant, distance unit)
+// Vehicle info card (fuel type, distance unit)
 // ---------------------------------------------------------------------------
 
 class _VehicleInfoCard extends StatelessWidget {
@@ -321,7 +326,6 @@ class _VehicleInfoCard extends StatelessWidget {
     // otherwise keep the detail layout unchanged.
     final hasData =
         vehicle.fuelType != null ||
-        vehicle.defaultFuelVariant != null ||
         vehicle.distanceUnit != null;
     if (!hasData) return const SizedBox.shrink();
 
@@ -333,8 +337,6 @@ class _VehicleInfoCard extends StatelessWidget {
               vehicle.fuelType![0].toUpperCase() +
               vehicle.fuelType!.substring(1),
         ),
-      if (vehicle.defaultFuelVariant != null)
-        _InfoRow(label: 'Default variant', value: vehicle.defaultFuelVariant!),
       if (vehicle.distanceUnit != null)
         _InfoRow(
           label: 'Distance unit',
@@ -434,6 +436,7 @@ class _FuelSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final logsAsync = ref.watch(fuelLogsProvider(vehicleId));
     final statsAsync = ref.watch(fuelStatsProvider(vehicleId));
+    final currency = ref.watch(meProvider).asData?.value.currency ?? 'USD';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -457,7 +460,7 @@ class _FuelSection extends ConsumerWidget {
             child: LinearProgressIndicator(),
           ),
           error: (e, st) => const SizedBox.shrink(),
-          data: (stats) => _FuelStatsCard(stats: stats),
+          data: (stats) => _FuelStatsCard(stats: stats, currency: currency),
         ),
         // Logs list
         logsAsync.when(
@@ -487,6 +490,9 @@ class _FuelSection extends ConsumerWidget {
                 onRefresh: () {
                   ref.invalidate(fuelLogsProvider(vehicleId));
                   ref.invalidate(fuelStatsProvider(vehicleId));
+                  ref.invalidate(vehicleProvider(vehicleId));
+                  ref.invalidate(vehiclesProvider);
+                  ref.invalidate(dashboardProvider);
                 },
               ),
             );
@@ -499,8 +505,9 @@ class _FuelSection extends ConsumerWidget {
 
 class _FuelStatsCard extends StatelessWidget {
   final FuelStats stats;
+  final String currency;
 
-  const _FuelStatsCard({required this.stats});
+  const _FuelStatsCard({required this.stats, required this.currency});
 
   @override
   Widget build(BuildContext context) {
@@ -520,12 +527,12 @@ class _FuelStatsCard extends StatelessWidget {
             _StatItem(
               label: 'Cost/km',
               value: stats.avgCostPerKmCents != null
-                  ? '\$${(stats.avgCostPerKmCents! / 100).toStringAsFixed(2)}'
+                  ? formatCents(stats.avgCostPerKmCents!, currency: currency)
                   : '—',
             ),
             _StatItem(
               label: 'Total Spent',
-              value: '\$${(stats.totalSpentCents / 100).toStringAsFixed(2)}',
+              value: formatCents(stats.totalSpentCents, currency: currency),
             ),
           ],
         ),
@@ -566,31 +573,87 @@ class _FuelLogTile extends ConsumerWidget {
     required this.onRefresh,
   });
 
+  Future<void> _deleteFuelLog(BuildContext context, WidgetRef ref) async {
+    try {
+      final repo = ref.read(fuelRepositoryProvider);
+      await repo.deleteFuelLog(log.id);
+      onRefresh();
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Fuel log deleted')),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        final msg = e is ApiException ? e.message : 'Delete failed';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(msg)),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return ListTile(
-      leading: const Icon(Icons.local_gas_station),
-      title: Text(log.date),
-      subtitle: Text(
-        '${log.liters.toStringAsFixed(1)} L • '
-        '\$${(log.priceCents / 100).toStringAsFixed(2)}',
-      ),
-      trailing: log.isFullTank
-          ? const Chip(
-              label: Text('Full', style: TextStyle(fontSize: 11)),
-              padding: EdgeInsets.zero,
-            )
-          : null,
-      onTap: () async {
-        await Navigator.of(context).push(
-          MaterialPageRoute(
-            fullscreenDialog: true,
-            builder: (_) =>
-                FuelLogFormScreen(vehicleId: vehicleId, existing: log),
+    final currency = ref.watch(meProvider).asData?.value.currency ?? 'USD';
+    return Dismissible(
+      key: ValueKey(log.id),
+      direction: DismissDirection.endToStart,
+      confirmDismiss: (_) async {
+        return showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Delete Fuel Log'),
+            content: Text(
+              'Delete the fuel log for ${log.date}? This cannot be undone.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(true),
+                child: const Text(
+                  'Delete',
+                  style: TextStyle(color: Colors.red),
+                ),
+              ),
+            ],
           ),
         );
-        onRefresh();
       },
+      onDismissed: (_) => _deleteFuelLog(context, ref),
+      background: Container(
+        alignment: Alignment.centerRight,
+        color: Colors.red,
+        padding: const EdgeInsets.only(right: 16),
+        child: const Icon(Icons.delete_outline, color: Colors.white),
+      ),
+      child: ListTile(
+        leading: const Icon(Icons.local_gas_station),
+        title: Text(log.date),
+        subtitle: Text(
+          '${log.liters.toStringAsFixed(1)} L • '
+          '${formatCents(log.priceCents, currency: currency)}',
+        ),
+        trailing: log.isFullTank
+            ? const Chip(
+                label: Text('Full', style: TextStyle(fontSize: 11)),
+                padding: EdgeInsets.zero,
+              )
+            : null,
+        onTap: () async {
+          await Navigator.of(context).push(
+            MaterialPageRoute(
+              fullscreenDialog: true,
+              builder: (_) =>
+                  FuelLogFormScreen(vehicleId: vehicleId, existing: log),
+            ),
+          );
+          onRefresh();
+        },
+      ),
     );
   }
 }
@@ -672,13 +735,14 @@ class _MaintenanceTile extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final currency = ref.watch(meProvider).asData?.value.currency ?? 'USD';
     return ListTile(
       leading: const Icon(Icons.build_outlined),
       title: Text(record.serviceType),
       subtitle: Text(
         '${record.date}'
         '${record.workshop != null ? ' • ${record.workshop}' : ''}'
-        '${record.costCents != null ? ' • \$${(record.costCents! / 100).toStringAsFixed(2)}' : ''}',
+        '${record.costCents != null ? ' • ${formatCents(record.costCents!, currency: currency)}' : ''}',
       ),
       onTap: () async {
         await Navigator.of(context).push(

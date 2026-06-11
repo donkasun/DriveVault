@@ -9,6 +9,8 @@ import 'package:drivevault/features/fuel/data/fuel_repository.dart';
 import 'package:drivevault/features/fuel/domain/fuel_stats.dart';
 import 'package:drivevault/features/maintenance/data/maintenance_repository.dart';
 import 'package:drivevault/features/documents/data/document_repository.dart';
+import 'package:drivevault/features/profile/data/user_repository.dart';
+import 'package:drivevault/features/profile/domain/user.dart';
 import 'package:drivevault/features/vehicles/presentation/vehicle_detail_screen.dart';
 
 final _testVehicle = Vehicle(
@@ -27,10 +29,19 @@ final _testStats = FuelStats(
   monthlySpend: [],
 );
 
+final _testUser = AppUser(
+  id: 'u-1',
+  firebaseUid: 'uid-1',
+  email: 'test@example.com',
+  currency: 'USD',
+  createdAt: DateTime(2020, 1, 1),
+);
+
 void main() {
   Widget buildSubject({AsyncValue<Vehicle>? vehicleOverride}) {
     return ProviderScope(
       overrides: [
+        meProvider.overrideWith((ref) async => _testUser),
         vehicleProvider('v-1').overrideWith(
           (ref) async => vehicleOverride != null
               ? vehicleOverride.when(
@@ -60,6 +71,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          meProvider.overrideWith((ref) async => _testUser),
           vehicleProvider('v-1').overrideWith((ref) => completer.future),
           fuelLogsProvider('v-1').overrideWith((ref) async => []),
           fuelStatsProvider('v-1').overrideWith((ref) async => _testStats),
@@ -113,6 +125,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          meProvider.overrideWith((ref) async => _testUser),
           vehicleProvider('v-1').overrideWith(
             (ref) async => throw Exception('not found'),
           ),

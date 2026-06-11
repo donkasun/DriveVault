@@ -32,21 +32,4 @@ void main() {
     });
   });
 
-  group('FuelLog fuelVariant (F8)', () {
-    test('fromJson maps fuelVariant', () {
-      final log = FuelLog.fromJson(baseJson()..['fuelVariant'] = '95 Octane');
-      expect(log.fuelVariant, '95 Octane');
-    });
-
-    test('fuelVariant null when absent; toJson omits it', () {
-      final log = FuelLog.fromJson(baseJson());
-      expect(log.fuelVariant, isNull);
-      expect(log.toJson().containsKey('fuelVariant'), isFalse);
-    });
-
-    test('toJson includes fuelVariant when set', () {
-      final log = FuelLog.fromJson(baseJson()..['fuelVariant'] = 'Diesel');
-      expect(log.toJson()['fuelVariant'], 'Diesel');
-    });
-  });
 }

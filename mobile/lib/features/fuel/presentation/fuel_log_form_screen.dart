@@ -1,23 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/network/api_exceptions.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../../shared/utils/distance_unit.dart';
+import '../../dashboard/presentation/dashboard_provider.dart';
 import '../../profile/data/user_repository.dart';
 import '../../vehicles/data/vehicle_repository.dart';
 import '../../vehicles/domain/vehicle.dart';
 import '../../vehicles/presentation/vehicles_provider.dart';
 import '../data/fuel_repository.dart';
 import '../domain/fuel_log.dart';
-
-/// Common fuel variant presets offered as quick-fill chips. The variant is
-/// free text, so users can also type their own.
-const _variantPresets = [
-  '92 Octane',
-  '95 Octane',
-  '98 Octane',
-  'Diesel',
-  'Super Diesel',
-];
 
 class FuelLogFormScreen extends ConsumerStatefulWidget {
   /// Pre-selected vehicle (e.g. opened from a vehicle's detail). When null the
@@ -37,7 +30,6 @@ class _FuelLogFormScreenState extends ConsumerState<FuelLogFormScreen> {
   late final TextEditingController _litersCtrl;
   late final TextEditingController _unitPriceCtrl;
   late final TextEditingController _odometerCtrl;
-  late final TextEditingController _variantCtrl;
   late final TextEditingController _notesCtrl;
   late bool _isFullTank;
   bool _saving = false;
@@ -54,14 +46,6 @@ class _FuelLogFormScreenState extends ConsumerState<FuelLogFormScreen> {
   bool _editInitialised = false;
   String? _addDefaultsAppliedFor;
 
-  /// Whether the vehicle had a defaultFuelVariant when the form opened (for the
-  /// current vehicle selection). Used to decide whether to persist on save.
-  bool _vehicleHadDefaultVariant = false;
-
-  /// Controls visibility of the preset fuel-variant chips.
-  /// Shown by default when no variant is selected; hidden when one is chosen.
-  bool _variantOptionsVisible = false;
-
   bool get _isEdit => widget.existing != null;
 
   @override
@@ -75,7 +59,6 @@ class _FuelLogFormScreenState extends ConsumerState<FuelLogFormScreen> {
     );
     _unitPriceCtrl = TextEditingController();
     _odometerCtrl = TextEditingController();
-    _variantCtrl = TextEditingController(text: e?.fuelVariant ?? '');
     _notesCtrl = TextEditingController(text: e?.notes ?? '');
     _isFullTank = e?.isFullTank ?? true;
   }
@@ -86,7 +69,6 @@ class _FuelLogFormScreenState extends ConsumerState<FuelLogFormScreen> {
     _litersCtrl.dispose();
     _unitPriceCtrl.dispose();
     _odometerCtrl.dispose();
-    _variantCtrl.dispose();
     _notesCtrl.dispose();
     super.dispose();
   }
@@ -123,33 +105,12 @@ class _FuelLogFormScreenState extends ConsumerState<FuelLogFormScreen> {
     _editInitialised = true;
   }
 
-  /// Apply add-mode defaults once per selected vehicle: default fuel variant,
-  /// latest unit price, and latest odometer (placeholder).
+  /// Apply add-mode defaults once per selected vehicle: latest unit price and
+  /// latest odometer (placeholder).
   void _applyAddDefaults(Vehicle? vehicle, List<FuelLog>? logs) {
     if (_isEdit || vehicle == null || logs == null) return;
     if (_addDefaultsAppliedFor == vehicle.id) return;
     _addDefaultsAppliedFor = vehicle.id;
-
-    final hasExistingDefault =
-        vehicle.defaultFuelVariant != null &&
-        vehicle.defaultFuelVariant!.trim().isNotEmpty;
-
-    // Track whether this vehicle already had a default — used during save.
-    _vehicleHadDefaultVariant = hasExistingDefault;
-
-    if (_variantCtrl.text.trim().isEmpty && hasExistingDefault) {
-      _variantCtrl.text = vehicle.defaultFuelVariant!;
-    }
-
-    // Show chips immediately when there is no variant selected after defaults.
-    final hasVariantAfterDefaults = _variantCtrl.text.trim().isNotEmpty;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        setState(() {
-          _variantOptionsVisible = !hasVariantAfterDefaults;
-        });
-      }
-    });
 
     final latest = logs.isNotEmpty ? logs.first : null;
     if (latest != null) {
@@ -161,6 +122,58 @@ class _FuelLogFormScreenState extends ConsumerState<FuelLogFormScreen> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) setState(() => _latestOdometerKm = latest.odometer);
       });
+    }
+  }
+
+  Future<void> _delete() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Fuel Log'),
+        content: const Text(
+          'Delete this fuel log? This cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+
+    setState(() => _saving = true);
+    try {
+      final repo = ref.read(fuelRepositoryProvider);
+      await repo.deleteFuelLog(widget.existing!.id);
+
+      final vehicleIdForDelete = widget.existing!.vehicleId;
+      ref.invalidate(fuelLogsProvider(vehicleIdForDelete));
+      ref.invalidate(fuelStatsProvider(vehicleIdForDelete));
+      ref.invalidate(vehicleProvider(vehicleIdForDelete));
+      ref.invalidate(vehiclesProvider);
+      ref.invalidate(dashboardProvider);
+
+      if (mounted) {
+        Navigator.of(context).pop(true);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Fuel log deleted')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        final msg = e is ApiException ? e.message : 'Delete failed';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(msg)),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
     }
   }
 
@@ -181,7 +194,6 @@ class _FuelLogFormScreenState extends ConsumerState<FuelLogFormScreen> {
         double.parse(_odometerCtrl.text.trim()),
         unit,
       );
-      final variant = _variantCtrl.text.trim();
       final notes = _notesCtrl.text.trim().isEmpty
           ? null
           : _notesCtrl.text.trim();
@@ -194,7 +206,6 @@ class _FuelLogFormScreenState extends ConsumerState<FuelLogFormScreen> {
         'priceCents': priceCents,
         'odometer': odometerKm,
         'isFullTank': _isFullTank,
-        'fuelVariant': variant.isEmpty ? null : variant,
         'notes': notes,
       };
 
@@ -206,32 +217,19 @@ class _FuelLogFormScreenState extends ConsumerState<FuelLogFormScreen> {
         await repo.createFuelLog(vehicleIdForSave, data);
       }
 
-      // Persist the chosen variant as the vehicle's default when the vehicle
-      // did not previously have one (only on add; don't overwrite existing defaults).
-      if (!_isEdit &&
-          !_vehicleHadDefaultVariant &&
-          variant.isNotEmpty) {
-        try {
-          await ref
-              .read(vehiclesProvider.notifier)
-              .updateVehicle(vehicleIdForSave, {'defaultFuelVariant': variant});
-          // Invalidate the per-vehicle FutureProvider so the next form open
-          // auto-fills the newly-persisted variant.
-          ref.invalidate(vehicleProvider(vehicleIdForSave));
-        } catch (_) {
-          // Non-fatal: the fuel log was saved; silently skip variant persist.
-        }
-      }
-
       ref.invalidate(fuelLogsProvider(vehicleIdForSave));
       ref.invalidate(fuelStatsProvider(vehicleIdForSave));
+      ref.invalidate(vehicleProvider(vehicleIdForSave));
+      ref.invalidate(vehiclesProvider);
+      ref.invalidate(dashboardProvider);
 
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
       if (mounted) {
+        final msg = e is ApiException ? e.message : 'An unexpected error occurred';
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('Error: $e')));
+        ).showSnackBar(SnackBar(content: Text(msg)));
       }
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -245,25 +243,44 @@ class _FuelLogFormScreenState extends ConsumerState<FuelLogFormScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        centerTitle: true,
+        leadingWidth: 80,
         title: Text(_isEdit ? 'Edit Fuel Log' : 'Add Fuel Log'),
         leading: TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
+          style: TextButton.styleFrom(foregroundColor: AppColors.textPrimary),
+          child: const Text('Cancel', maxLines: 1),
         ),
-        leadingWidth: 72,
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 8),
             child: _saving
                 ? const Center(
                     child: SizedBox(
-                      width: 20,
-                      height: 20,
+                      width: 16,
+                      height: 16,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     ),
                   )
                 : TextButton(
                     onPressed: () => _save(_effectiveUnit),
+                    style: TextButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: AppColors.onPrimary,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 2,
+                      ),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      textStyle: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14,
+                      ),
+                    ),
                     child: const Text('Save'),
                   ),
           ),
@@ -333,9 +350,6 @@ class _FuelLogFormScreenState extends ConsumerState<FuelLogFormScreen> {
                     _selectedVehicleId = value;
                     _latestOdometerKm = null;
                     _addDefaultsAppliedFor = null;
-                    _vehicleHadDefaultVariant = false;
-                    _variantCtrl.clear();
-                    _variantOptionsVisible = true;
                   }),
             validator: (v) => v == null ? 'Select a vehicle' : null,
           ),
@@ -363,8 +377,6 @@ class _FuelLogFormScreenState extends ConsumerState<FuelLogFormScreen> {
             isDecimal: false,
           ),
           const SizedBox(height: 16),
-          _buildFuelVariantField(),
-          const SizedBox(height: 16),
           SwitchListTile(
             title: const Text('Full Tank'),
             value: _isFullTank,
@@ -380,70 +392,23 @@ class _FuelLogFormScreenState extends ConsumerState<FuelLogFormScreen> {
             ),
             maxLines: 3,
           ),
-          const SizedBox(height: 24),
-          FilledButton(
-            onPressed: _saving ? null : () => _save(unit),
-            child: const Text('Save'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Fuel variant field: labeled row with the text field (expanded) and a
-  /// "Change" button. Preset chips are shown/hidden via [_variantOptionsVisible].
-  Widget _buildFuelVariantField() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: TextFormField(
-                controller: _variantCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Fuel type *',
-                  hintText: 'e.g. 95 Octane',
-                  border: OutlineInputBorder(),
-                ),
-                validator: (v) =>
-                    (v == null || v.trim().isEmpty) ? 'Select a fuel type' : null,
-                onChanged: (_) => setState(() {}),
+          if (_isEdit) ...[
+            const SizedBox(height: 24),
+            OutlinedButton.icon(
+              onPressed: _saving ? null : _delete,
+              icon: const Icon(Icons.delete_outline, color: Colors.red),
+              label: const Text(
+                'Delete Fuel Log',
+                style: TextStyle(color: Colors.red),
               ),
-            ),
-            const SizedBox(width: 8),
-            Padding(
-              // Align vertically with the text field (OutlineInputBorder label
-              // adds ~8 px at the top).
-              padding: const EdgeInsets.only(top: 4),
-              child: OutlinedButton(
-                onPressed: () =>
-                    setState(() => _variantOptionsVisible = !_variantOptionsVisible),
-                child: Text(_variantOptionsVisible ? 'Hide' : 'Change'),
+              style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: Colors.red),
+                minimumSize: const Size.fromHeight(48),
               ),
             ),
           ],
-        ),
-        if (_variantOptionsVisible) ...[
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 4,
-            children: _variantPresets
-                .map(
-                  (p) => ActionChip(
-                    label: Text(p),
-                    onPressed: () => setState(() {
-                      _variantCtrl.text = p;
-                      _variantOptionsVisible = false;
-                    }),
-                  ),
-                )
-                .toList(),
-          ),
         ],
-      ],
+      ),
     );
   }
 
