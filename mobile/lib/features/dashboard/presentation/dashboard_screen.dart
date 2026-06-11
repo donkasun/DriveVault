@@ -9,6 +9,7 @@ import '../../../core/router/shell_tab_provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../../../shared/utils/formatting.dart';
+import '../../fuel/presentation/fuel_log_form_screen.dart';
 import '../domain/dashboard_data.dart';
 import 'dashboard_provider.dart';
 
@@ -64,23 +65,20 @@ class _Header extends StatelessWidget {
           children: [
             Text(
               _greeting(),
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Colors.black54,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: Colors.black54),
             ),
             Text(
               displayName,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
             ),
           ],
         ),
         photoUrl != null
-            ? CircleAvatar(
-                radius: 20,
-                backgroundImage: NetworkImage(photoUrl),
-              )
+            ? CircleAvatar(radius: 20, backgroundImage: NetworkImage(photoUrl))
             : CircleAvatar(
                 radius: 20,
                 backgroundColor: AppColors.primary,
@@ -204,11 +202,45 @@ class _LoadedContent extends StatelessWidget {
         const SizedBox(height: 20),
         _TotalCostCard(data: data),
         const SizedBox(height: 16),
+        const _QuickActions(),
+        const SizedBox(height: 16),
         _StatRow(data: data),
         if (data.upcomingRenewals.isNotEmpty) ...[
           const SizedBox(height: 24),
           _UpcomingRenewalsSection(renewals: data.upcomingRenewals),
         ],
+      ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Quick actions
+// ---------------------------------------------------------------------------
+
+class _QuickActions extends StatelessWidget {
+  const _QuickActions();
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: OutlinedButton.icon(
+            icon: const Icon(Icons.local_gas_station, size: 18),
+            label: const Text('Add Fuel Log'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.primary,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+            ),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                fullscreenDialog: true,
+                builder: (_) => const FuelLogFormScreen(),
+              ),
+            ),
+          ),
+        ),
       ],
     );
   }
@@ -227,8 +259,7 @@ class _TotalCostCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final progress =
-        (data.totalOwnershipCostCents / _maxCents).clamp(0.0, 1.0);
+    final progress = (data.totalOwnershipCostCents / _maxCents).clamp(0.0, 1.0);
 
     return Container(
       width: double.infinity,
@@ -276,9 +307,7 @@ class _TotalCostCard extends StatelessWidget {
           SizedBox(
             width: 72,
             height: 72,
-            child: CustomPaint(
-              painter: _RingPainter(progress: progress),
-            ),
+            child: CustomPaint(painter: _RingPainter(progress: progress)),
           ),
         ],
       ),
