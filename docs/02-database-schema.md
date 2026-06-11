@@ -68,7 +68,6 @@ Indexes: unique on `firebase_uid`, index on `email`.
 | photo_public_id | text | NULL (Cloudinary public_id, for replace/delete) |
 | vehicle_type | text | NULL ('car'\|'motorcycle'\|'pickup'\|'other') |
 | fuel_type | text | NULL ('petrol'\|'diesel'\|'electric'\|'hybrid'\|'other', fixed per vehicle) |
-| default_fuel_variant | text | NULL (free text, e.g. '95 Octane' — the usual variant) |
 | distance_unit | text | NULL ('km'\|'mi', display-only; NULL = inherit user default) |
 
 Indexes: `user_id`.
@@ -84,7 +83,6 @@ Indexes: `user_id`.
 | currency | char(3) | NOT NULL DEFAULT 'USD' |
 | odometer | int | NOT NULL (km) |
 | is_full_tank | boolean | NOT NULL DEFAULT true |
-| fuel_variant | text | NULL (free text; variant for THIS fill-up, defaults to vehicle.default_fuel_variant, editable) |
 | notes | text | NULL |
 
 Indexes: `vehicle_id`, `(vehicle_id, date)`.

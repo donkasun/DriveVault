@@ -80,14 +80,13 @@ Create a vehicle.
   "currentMileage": 48000,
   "vehicleType": "pickup",
   "fuelType": "petrol",
-  "defaultFuelVariant": "95 Octane",
   "distanceUnit": null,
   "photoUrl": null,
   "photoPublicId": null
 }
 ```
 Only `make` and `model` are required. `fuelType` (`petrol`\|`diesel`\|`electric`\|`hybrid`\|`other`)
-is optional and fixed per vehicle. `defaultFuelVariant` is free text. `distanceUnit`
+is optional and fixed per vehicle. `distanceUnit`
 (`"km"`\|`"mi"`\|`null`) overrides the user default per vehicle; `null` = inherit. **201** → `Vehicle`.
 
 ### `GET /api/v1/vehicles/{vehicleId}`
@@ -107,7 +106,7 @@ Deletes the vehicle **and all nested data** (cascade). **204** no content.
   "registrationNumber": "ABC-1234", "vin": "JTEBU5JR...",
   "purchaseDate": "2020-03-15", "purchasePriceCents": 3500000, "currency": "USD",
   "currentMileage": 48000, "vehicleType": "pickup",
-  "fuelType": "petrol", "defaultFuelVariant": "95 Octane", "distanceUnit": null,
+  "fuelType": "petrol", "distanceUnit": null,
   "photoUrl": null, "photoPublicId": null,
   "createdAt": "2026-06-08T10:00:00Z", "updatedAt": "2026-06-08T10:00:00Z"
 }
@@ -131,16 +130,21 @@ Query params (optional): `from=YYYY-MM-DD`, `to=YYYY-MM-DD`. **200** → `[ Fuel
   "currency": "USD",
   "odometer": 48200,
   "isFullTank": true,
-  "fuelVariant": "95 Octane",
   "notes": null
 }
 ```
-Required: `date`, `liters`, `priceCents`, `odometer`. `fuelVariant` is optional free text
-(client defaults it to the vehicle's `defaultFuelVariant`). `currency` is optional — if omitted,
+Required: `date`, `liters`, `priceCents`, `odometer`. `currency` is optional — if omitted,
 the backend fills it from the user's `currency` preference. **201** → `FuelLog`.
+
+**Odometer validation:** `odometer` must be strictly greater than the highest existing
+odometer for that vehicle's fuel logs. If not, returns **400**
+`{"detail": "Odometer must be greater than the latest reading (<n> km)"}`.
+A successful create also updates the vehicle's `currentMileage` to the new odometer value.
 
 ### `PATCH /api/v1/fuel-logs/{id}` · `DELETE /api/v1/fuel-logs/{id}`
 Update / delete a single log. **200** / **204**.
+On delete, the vehicle's `currentMileage` is recomputed to the highest odometer among
+remaining fuel logs for that vehicle (`null` if no logs remain).
 
 ### `GET /api/v1/vehicles/{vehicleId}/fuel-stats`
 Computed economy metrics (derived from full-tank entries).
