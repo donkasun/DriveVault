@@ -15,6 +15,23 @@ void main() {
     'createdAt': '2026-06-08T10:00:00Z',
   };
 
+  group('FuelLog liters parsing', () {
+    test('fromJson parses liters as a JSON number', () {
+      final log = FuelLog.fromJson(baseJson()..['liters'] = 25.0);
+      expect(log.liters, 25.0);
+    });
+
+    test('fromJson parses liters as a numeric string (Pydantic Decimal)', () {
+      final log = FuelLog.fromJson(baseJson()..['liters'] = '25.000');
+      expect(log.liters, 25.0);
+    });
+
+    test('fromJson parses liters string with no trailing zeros', () {
+      final log = FuelLog.fromJson(baseJson()..['liters'] = '45.5');
+      expect(log.liters, 45.5);
+    });
+  });
+
   group('FuelLog fuelVariant (F8)', () {
     test('fromJson maps fuelVariant', () {
       final log = FuelLog.fromJson(baseJson()..['fuelVariant'] = '95 Octane');

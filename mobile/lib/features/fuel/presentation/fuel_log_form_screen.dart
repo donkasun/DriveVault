@@ -46,6 +46,10 @@ class _FuelLogFormScreenState extends ConsumerState<FuelLogFormScreen> {
   /// Latest odometer (km) for the selected vehicle, shown as a placeholder.
   int? _latestOdometerKm;
 
+  /// The effective distance unit for the currently-selected vehicle/user combo.
+  /// Set each time _buildForm runs so the AppBar Save button can access it.
+  DistanceUnit _effectiveUnit = DistanceUnit.km;
+
   bool _editInitialised = false;
   String? _addDefaultsAppliedFor;
 
@@ -204,15 +208,21 @@ class _FuelLogFormScreenState extends ConsumerState<FuelLogFormScreen> {
         ),
         leadingWidth: 72,
         actions: [
-          if (_saving)
-            const Padding(
-              padding: EdgeInsets.all(16),
-              child: SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-            ),
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: _saving
+                ? const Center(
+                    child: SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  )
+                : TextButton(
+                    onPressed: () => _save(_effectiveUnit),
+                    child: const Text('Save'),
+                  ),
+          ),
         ],
       ),
       body: vehiclesAsync.when(
@@ -236,6 +246,13 @@ class _FuelLogFormScreenState extends ConsumerState<FuelLogFormScreen> {
       vehicleUnit: selected?.distanceUnit,
       userUnit: userUnit,
     );
+    // Keep _effectiveUnit in sync so the AppBar Save button can call _save.
+    if (_effectiveUnit != unit) {
+      // Use a post-frame callback to avoid setState during build.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() => _effectiveUnit = unit);
+      });
+    }
     _initEditControls(unit);
 
     // Watch the selected vehicle's logs to derive add-mode prefills.

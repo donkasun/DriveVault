@@ -29,7 +29,9 @@ class FuelLog {
     id: json['id'] as String,
     vehicleId: json['vehicleId'] as String,
     date: json['date'] as String,
-    liters: (json['liters'] as num).toDouble(),
+    liters: json['liters'] is num
+        ? (json['liters'] as num).toDouble()
+        : double.parse(json['liters'].toString()),
     priceCents: json['priceCents'] as int,
     currency: json['currency'] as String? ?? 'USD',
     odometer: json['odometer'] as int,
