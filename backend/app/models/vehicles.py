@@ -2,7 +2,17 @@
 
 import uuid
 
-from sqlalchemy import BigInteger, CheckConstraint, Date, ForeignKey, Index, Integer, Text, TIMESTAMP, func
+from sqlalchemy import (
+    BigInteger,
+    CheckConstraint,
+    Date,
+    ForeignKey,
+    Index,
+    Integer,
+    Text,
+    TIMESTAMP,
+    func,
+)
 from sqlalchemy.dialects.postgresql import CHAR, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -41,11 +51,39 @@ class Vehicle(Base):
     )
 
     user = relationship("User", back_populates="vehicles")
-    fuel_logs = relationship("FuelLog", back_populates="vehicle")
-    maintenance_records = relationship("MaintenanceRecord", back_populates="vehicle")
-    documents = relationship("Document", back_populates="vehicle")
-    schedules = relationship("MaintenanceSchedule", back_populates="vehicle")
-    reminders = relationship("Reminder", back_populates="vehicle")
+    # cascade + passive_deletes so deleting a vehicle relies on the DB-level
+    # ON DELETE CASCADE instead of the ORM nulling children's NOT NULL
+    # vehicle_id (which would raise IntegrityError → 500).
+    fuel_logs = relationship(
+        "FuelLog",
+        back_populates="vehicle",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+    maintenance_records = relationship(
+        "MaintenanceRecord",
+        back_populates="vehicle",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+    documents = relationship(
+        "Document",
+        back_populates="vehicle",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+    schedules = relationship(
+        "MaintenanceSchedule",
+        back_populates="vehicle",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+    reminders = relationship(
+        "Reminder",
+        back_populates="vehicle",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
 
     __table_args__ = (
         CheckConstraint("year >= 1900 AND year <= 2100", name="ck_vehicles_year_range"),

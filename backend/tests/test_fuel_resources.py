@@ -347,3 +347,18 @@ def test_f4_fuel_log_variant_and_currency_from_preference(
     )
     assert explicit.status_code == 201
     assert explicit.json()["currency"] == "GBP"
+
+
+@patch("app.deps.auth.verify_id_token")
+def test_delete_vehicle_with_children_cascades(mock_verify, fuel_client, db_session, users):
+    """Deleting a vehicle that has fuel logs must cascade (regression: was 500)."""
+    owner, _ = users
+    vehicle = _create_vehicle(db_session, owner)
+    _create_fuel_log(db_session, vehicle, date(2026, 6, 1), 48200)
+    _mock_owner(mock_verify)
+
+    response = fuel_client.delete(f"/api/v1/vehicles/{vehicle.id}", headers=_auth_headers())
+
+    assert response.status_code == 204
+    assert db_session.scalar(select(Vehicle).where(Vehicle.id == vehicle.id)) is None
+    assert db_session.scalar(select(FuelLog).where(FuelLog.vehicle_id == vehicle.id)) is None
