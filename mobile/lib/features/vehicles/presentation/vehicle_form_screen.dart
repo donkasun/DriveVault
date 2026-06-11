@@ -6,6 +6,8 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/widgets/bottom_sheet_picker_field.dart';
+import '../../profile/data/user_repository.dart';
 import '../data/upload_repository.dart';
 import '../data/vehicle_repository.dart';
 import '../domain/vehicle.dart';
@@ -16,6 +18,14 @@ const _vehicleTypes = ['car', 'pickup', 'van', 'truck', 'motorcycle', 'other'];
 
 /// Fuel types matching the backend enum (fixed per vehicle).
 const _fuelTypes = ['petrol', 'diesel', 'electric', 'hybrid', 'other'];
+
+/// Sentinel value representing "no fuel type selected" (null in state/API).
+const _kFuelTypeNone = '__none__';
+
+/// All fuel type options including the "Not specified" sentinel.
+const _fuelTypeOptions = [_kFuelTypeNone, ..._fuelTypes];
+
+const _distanceUnitOptions = ['km', 'mi'];
 
 class VehicleFormScreen extends ConsumerStatefulWidget {
   /// Pass a vehicle to enter edit mode; null = add mode.
@@ -48,6 +58,13 @@ class _VehicleFormScreenState extends ConsumerState<VehicleFormScreen> {
 
   bool get _isEditMode => widget.vehicle != null;
 
+  /// Maps the nullable [_fuelType] to the sentinel string used by the picker.
+  String get _fuelTypeDisplay => _fuelType ?? _kFuelTypeNone;
+
+  /// Maps a picker value (possibly the sentinel) back to a nullable fuel type.
+  void _setFuelType(String picked) =>
+      setState(() => _fuelType = picked == _kFuelTypeNone ? null : picked);
+
   @override
   void initState() {
     super.initState();
@@ -61,7 +78,7 @@ class _VehicleFormScreenState extends ConsumerState<VehicleFormScreen> {
     _mileageCtrl = TextEditingController(
       text: v?.currentMileage != null ? v!.currentMileage.toString() : '',
     );
-    _vehicleType = v?.vehicleType;
+    _vehicleType = v?.vehicleType ?? 'car';
     _fuelType = v?.fuelType;
     _distanceUnit = v?.distanceUnit;
     _photoUrl = v?.photoUrl;
@@ -155,6 +172,12 @@ class _VehicleFormScreenState extends ConsumerState<VehicleFormScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final userUnit =
+        ref.watch(meProvider).asData?.value.distanceUnit ?? 'km';
+    final distanceUnitDisplay =
+        _distanceUnit ?? widget.vehicle?.distanceUnit ?? userUnit;
+    final odometerUnitLabel = distanceUnitDisplay == 'mi' ? 'mi' : 'km';
+
     return Scaffold(
       appBar: AppBar(
         centerTitle: true,
@@ -269,22 +292,28 @@ class _VehicleFormScreenState extends ConsumerState<VehicleFormScreen> {
                 },
               ),
               const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                initialValue: _vehicleType,
-                decoration: const InputDecoration(
-                  labelText: 'Vehicle Type',
-                  border: OutlineInputBorder(),
-                ),
-                hint: const Text('Select type'),
-                items: _vehicleTypes
-                    .map(
-                      (type) => DropdownMenuItem(
-                        value: type,
-                        child: Text(type[0].toUpperCase() + type.substring(1)),
-                      ),
-                    )
-                    .toList(),
+              BottomSheetPickerField<String>(
+                label: 'Vehicle Type',
+                sheetTitle: 'Select vehicle type',
+                value: _vehicleType,
+                options: _vehicleTypes,
+                labelBuilder: (type) =>
+                    type[0].toUpperCase() + type.substring(1),
                 onChanged: (value) => setState(() => _vehicleType = value),
+              ),
+              const SizedBox(height: 24),
+
+              _SectionLabel('Odometer'),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _mileageCtrl,
+                decoration: InputDecoration(
+                  labelText: 'Current Mileage ($odometerUnitLabel)',
+                  hintText: 'e.g. 48000',
+                  border: const OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
               ),
               const SizedBox(height: 24),
 
@@ -303,63 +332,25 @@ class _VehicleFormScreenState extends ConsumerState<VehicleFormScreen> {
 
               _SectionLabel('Fuel & Units'),
               const SizedBox(height: 12),
-              DropdownButtonFormField<String?>(
-                initialValue: _fuelType,
-                decoration: const InputDecoration(
-                  labelText: 'Fuel Type',
-                  border: OutlineInputBorder(),
-                ),
-                hint: const Text('Select fuel type'),
-                items: [
-                  const DropdownMenuItem<String?>(
-                    value: null,
-                    child: Text('Not specified'),
-                  ),
-                  ..._fuelTypes.map(
-                    (type) => DropdownMenuItem<String?>(
-                      value: type,
-                      child: Text(type[0].toUpperCase() + type.substring(1)),
-                    ),
-                  ),
-                ],
-                onChanged: (value) => setState(() => _fuelType = value),
+              BottomSheetPickerField<String>(
+                label: 'Fuel Type',
+                sheetTitle: 'Select fuel type',
+                value: _fuelTypeDisplay,
+                options: _fuelTypeOptions,
+                labelBuilder: (type) => type == _kFuelTypeNone
+                    ? 'Not specified'
+                    : type[0].toUpperCase() + type.substring(1),
+                onChanged: _setFuelType,
               ),
               const SizedBox(height: 12),
-              DropdownButtonFormField<String?>(
-                initialValue: _distanceUnit,
-                decoration: const InputDecoration(
-                  labelText: 'Distance Unit',
-                  border: OutlineInputBorder(),
-                ),
-                items: const [
-                  DropdownMenuItem<String?>(
-                    value: null,
-                    child: Text('Inherit (account default)'),
-                  ),
-                  DropdownMenuItem<String?>(
-                    value: 'km',
-                    child: Text('Kilometres (km)'),
-                  ),
-                  DropdownMenuItem<String?>(
-                    value: 'mi',
-                    child: Text('Miles (mi)'),
-                  ),
-                ],
+              BottomSheetPickerField<String>(
+                label: 'Distance Unit',
+                sheetTitle: 'Select distance unit',
+                value: distanceUnitDisplay,
+                options: _distanceUnitOptions,
+                labelBuilder: (unit) =>
+                    unit == 'km' ? 'Kilometres (km)' : 'Miles (mi)',
                 onChanged: (value) => setState(() => _distanceUnit = value),
-              ),
-              const SizedBox(height: 24),
-
-              _SectionLabel('Odometer'),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _mileageCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Current Mileage (km)',
-                  hintText: 'e.g. 48000',
-                  border: OutlineInputBorder(),
-                ),
-                keyboardType: TextInputType.number,
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
               ),
               const SizedBox(height: 100),
             ],
@@ -404,77 +395,167 @@ class _PhotoArea extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: isUploading ? null : onTap,
-      child: Container(
-        height: 180,
-        width: double.infinity,
-        decoration: BoxDecoration(
-          color: Colors.grey.shade200,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.grey.shade300),
+      child: CustomPaint(
+        foregroundPainter: _DashedBorderPainter(
+          color: AppColors.textMuted,
+          radius: 16,
+          strokeWidth: 1.5,
         ),
-        clipBehavior: Clip.antiAlias,
-        child: isUploading
-            ? const Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
+        child: Container(
+          height: 180,
+          width: double.infinity,
+          decoration: BoxDecoration(
+            color: AppColors.primary.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: isUploading
+              ? const Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      CircularProgressIndicator(),
+                      SizedBox(height: 8),
+                      Text('Uploading...', style: TextStyle(color: Colors.grey)),
+                    ],
+                  ),
+                )
+              : photoUrl != null
+              ? Stack(
+                  fit: StackFit.expand,
                   children: [
-                    CircularProgressIndicator(),
-                    SizedBox(height: 8),
-                    Text('Uploading...', style: TextStyle(color: Colors.grey)),
+                    CachedNetworkImage(
+                      imageUrl: photoUrl!,
+                      fit: BoxFit.cover,
+                      placeholder: (context, url) =>
+                          const Center(child: CircularProgressIndicator()),
+                      errorWidget: (context, url, error) => const Icon(
+                        Icons.broken_image,
+                        size: 48,
+                        color: Colors.grey,
+                      ),
+                    ),
+                    Positioned(
+                      bottom: 8,
+                      right: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.black54,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Text(
+                          'Change photo',
+                          style: TextStyle(color: Colors.white, fontSize: 12),
+                        ),
+                      ),
+                    ),
+                  ],
+                )
+              : Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    SizedBox(
+                      width: 48,
+                      height: 40,
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          const Align(
+                            alignment: Alignment.center,
+                            child: Icon(
+                              Icons.photo_camera_outlined,
+                              size: 36,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                          Positioned(
+                            top: -2,
+                            left: 2,
+                            child: Container(
+                              width: 16,
+                              height: 16,
+                              decoration: const BoxDecoration(
+                                color: AppColors.textPrimary,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.add,
+                                size: 12,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    const Text(
+                      'Add vehicle photo',
+                      style: TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
                   ],
                 ),
-              )
-            : photoUrl != null
-            ? Stack(
-                fit: StackFit.expand,
-                children: [
-                  CachedNetworkImage(
-                    imageUrl: photoUrl!,
-                    fit: BoxFit.cover,
-                    placeholder: (context, url) =>
-                        const Center(child: CircularProgressIndicator()),
-                    errorWidget: (context, url, error) => const Icon(
-                      Icons.broken_image,
-                      size: 48,
-                      color: Colors.grey,
-                    ),
-                  ),
-                  Positioned(
-                    bottom: 8,
-                    right: 8,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.black54,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Text(
-                        'Change photo',
-                        style: TextStyle(color: Colors.white, fontSize: 12),
-                      ),
-                    ),
-                  ),
-                ],
-              )
-            : Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.add_a_photo_outlined,
-                    size: 40,
-                    color: Colors.grey.shade500,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Add vehicle photo',
-                    style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
-                  ),
-                ],
-              ),
+        ),
       ),
     );
+  }
+}
+
+class _DashedBorderPainter extends CustomPainter {
+  final Color color;
+  final double radius;
+  final double strokeWidth;
+
+  const _DashedBorderPainter({
+    required this.color,
+    required this.radius,
+    required this.strokeWidth,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rrect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(
+        strokeWidth / 2,
+        strokeWidth / 2,
+        size.width - strokeWidth,
+        size.height - strokeWidth,
+      ),
+      Radius.circular(radius),
+    );
+    final path = Path()..addRRect(rrect);
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth;
+
+    for (final metric in path.computeMetrics()) {
+      var distance = 0.0;
+      const dashLength = 6.0;
+      const gapLength = 4.0;
+      while (distance < metric.length) {
+        final end = distance + dashLength;
+        canvas.drawPath(
+          metric.extractPath(distance, end.clamp(0.0, metric.length)),
+          paint,
+        );
+        distance += dashLength + gapLength;
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _DashedBorderPainter oldDelegate) {
+    return color != oldDelegate.color ||
+        radius != oldDelegate.radius ||
+        strokeWidth != oldDelegate.strokeWidth;
   }
 }

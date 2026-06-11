@@ -234,7 +234,9 @@ class _QuickActions extends StatelessWidget {
             icon: const Icon(Icons.local_gas_station, size: 18),
             label: const Text('Add Fuel Log'),
             style: OutlinedButton.styleFrom(
+              backgroundColor: Colors.black87,
               foregroundColor: AppColors.primary,
+              side: BorderSide.none,
               padding: const EdgeInsets.symmetric(vertical: 14),
             ),
             onPressed: () => Navigator.of(context).push(

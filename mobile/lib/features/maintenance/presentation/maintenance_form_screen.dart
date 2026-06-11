@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/widgets/bottom_sheet_picker_field.dart';
 import '../data/maintenance_repository.dart';
 import '../domain/maintenance_record.dart';
 
@@ -20,8 +21,7 @@ class MaintenanceFormScreen extends ConsumerStatefulWidget {
       _MaintenanceFormScreenState();
 }
 
-class _MaintenanceFormScreenState
-    extends ConsumerState<MaintenanceFormScreen> {
+class _MaintenanceFormScreenState extends ConsumerState<MaintenanceFormScreen> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _dateCtrl;
   late final TextEditingController _serviceTypeCtrl;
@@ -33,31 +33,24 @@ class _MaintenanceFormScreenState
   String? _category;
   bool _saving = false;
 
-  static const _categories = [
-    'maintenance',
-    'repair',
-    'inspection',
-    'other',
-  ];
+  static const _categories = ['maintenance', 'repair', 'inspection', 'other'];
 
   @override
   void initState() {
     super.initState();
     final e = widget.existing;
-    _dateCtrl = TextEditingController(
-        text: e?.date ?? _today());
-    _serviceTypeCtrl =
-        TextEditingController(text: e?.serviceType ?? '');
+    _dateCtrl = TextEditingController(text: e?.date ?? _today());
+    _serviceTypeCtrl = TextEditingController(text: e?.serviceType ?? '');
     _odometerCtrl = TextEditingController(
-        text: e?.odometer != null ? e!.odometer.toString() : '');
+      text: e?.odometer != null ? e!.odometer.toString() : '',
+    );
     _costCtrl = TextEditingController(
-        text: e?.costCents != null
-            ? (e!.costCents! / 100).toStringAsFixed(2)
-            : '');
-    _currencyCtrl =
-        TextEditingController(text: e?.currency ?? 'USD');
-    _workshopCtrl =
-        TextEditingController(text: e?.workshop ?? '');
+      text: e?.costCents != null
+          ? (e!.costCents! / 100).toStringAsFixed(2)
+          : '',
+    );
+    _currencyCtrl = TextEditingController(text: e?.currency ?? 'USD');
+    _workshopCtrl = TextEditingController(text: e?.workshop ?? '');
     _notesCtrl = TextEditingController(text: e?.notes ?? '');
     _category = e?.category;
   }
@@ -114,8 +107,7 @@ class _MaintenanceFormScreenState
             : _currencyCtrl.text.trim(),
         if (_workshopCtrl.text.trim().isNotEmpty)
           'workshop': _workshopCtrl.text.trim(),
-        if (_notesCtrl.text.trim().isNotEmpty)
-          'notes': _notesCtrl.text.trim(),
+        if (_notesCtrl.text.trim().isNotEmpty) 'notes': _notesCtrl.text.trim(),
       };
 
       final repo = ref.read(maintenanceRepositoryProvider);
@@ -129,9 +121,9 @@ class _MaintenanceFormScreenState
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
       }
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -201,8 +193,7 @@ class _MaintenanceFormScreenState
                 border: OutlineInputBorder(),
                 suffixIcon: Icon(Icons.calendar_today),
               ),
-              validator: (v) =>
-                  (v == null || v.isEmpty) ? 'Required' : null,
+              validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
             ),
             const SizedBox(height: 16),
             // Service type
@@ -213,8 +204,7 @@ class _MaintenanceFormScreenState
                 hintText: 'e.g. Oil Change',
                 border: OutlineInputBorder(),
               ),
-              validator: (v) =>
-                  (v == null || v.isEmpty) ? 'Required' : null,
+              validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
             ),
             const SizedBox(height: 16),
             // Odometer
@@ -233,16 +223,13 @@ class _MaintenanceFormScreenState
               },
             ),
             const SizedBox(height: 16),
-            // Category dropdown
-            DropdownButtonFormField<String>(
-              initialValue: _category,
-              decoration: const InputDecoration(
-                labelText: 'Category',
-                border: OutlineInputBorder(),
-              ),
-              items: _categories
-                  .map((c) => DropdownMenuItem(value: c, child: Text(c)))
-                  .toList(),
+            // Category picker
+            BottomSheetPickerField<String>(
+              label: 'Category',
+              sheetTitle: 'Select category',
+              value: _category,
+              options: _categories,
+              labelBuilder: (c) => c[0].toUpperCase() + c.substring(1),
               onChanged: (v) => setState(() => _category = v),
             ),
             const SizedBox(height: 16),
@@ -254,12 +241,11 @@ class _MaintenanceFormScreenState
                 hintText: '65.00',
                 border: OutlineInputBorder(),
               ),
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
               validator: (v) {
-                if (v != null &&
-                    v.isNotEmpty &&
-                    double.tryParse(v) == null) {
+                if (v != null && v.isNotEmpty && double.tryParse(v) == null) {
                   return 'Invalid number';
                 }
                 return null;

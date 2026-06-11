@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/api_exceptions.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/utils/distance_unit.dart';
+import '../../../shared/widgets/bottom_sheet_picker_field.dart';
 import '../../dashboard/presentation/dashboard_provider.dart';
 import '../../profile/data/user_repository.dart';
 import '../../vehicles/data/vehicle_repository.dart';
@@ -130,9 +131,7 @@ class _FuelLogFormScreenState extends ConsumerState<FuelLogFormScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Delete Fuel Log'),
-        content: const Text(
-          'Delete this fuel log? This cannot be undone.',
-        ),
+        content: const Text('Delete this fuel log? This cannot be undone.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
@@ -161,16 +160,16 @@ class _FuelLogFormScreenState extends ConsumerState<FuelLogFormScreen> {
 
       if (mounted) {
         Navigator.of(context).pop(true);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Fuel log deleted')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Fuel log deleted')));
       }
     } catch (e) {
       if (mounted) {
         final msg = e is ApiException ? e.message : 'Delete failed';
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(msg)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(msg)));
       }
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -226,7 +225,9 @@ class _FuelLogFormScreenState extends ConsumerState<FuelLogFormScreen> {
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
       if (mounted) {
-        final msg = e is ApiException ? e.message : 'An unexpected error occurred';
+        final msg = e is ApiException
+            ? e.message
+            : 'An unexpected error occurred';
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text(msg)));
@@ -332,35 +333,60 @@ class _FuelLogFormScreenState extends ConsumerState<FuelLogFormScreen> {
         padding: const EdgeInsets.all(16),
         children: [
           // Vehicle picker — editable when adding, locked when editing a log.
-          DropdownButtonFormField<String>(
-            initialValue: _selectedVehicleId,
-            decoration: const InputDecoration(
-              labelText: 'Vehicle *',
-              border: OutlineInputBorder(),
-            ),
-            items: vehicles
-                .map(
-                  (v) =>
-                      DropdownMenuItem(value: v.id, child: Text(v.displayName)),
-                )
-                .toList(),
-            onChanged: _isEdit
-                ? null
-                : (value) => setState(() {
-                    _selectedVehicleId = value;
-                    _latestOdometerKm = null;
-                    _addDefaultsAppliedFor = null;
-                  }),
+          BottomSheetPickerField<String>(
+            label: 'Vehicle *',
+            sheetTitle: 'Select vehicle',
+            value: _selectedVehicleId,
+            options: vehicles.map((v) => v.id).toList(),
+            labelBuilder: (id) =>
+                vehicles.firstWhere((v) => v.id == id).displayName,
+            enabled: !_isEdit,
+            onChanged: (value) => setState(() {
+              _selectedVehicleId = value;
+              _latestOdometerKm = null;
+              _addDefaultsAppliedFor = null;
+            }),
             validator: (v) => v == null ? 'Select a vehicle' : null,
           ),
           const SizedBox(height: 16),
           _buildDateField(),
           const SizedBox(height: 16),
-          _buildNumberField(
-            controller: _litersCtrl,
-            label: 'Liters *',
-            hint: '45.5',
-            isDecimal: true,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: _buildNumberField(
+                  controller: _litersCtrl,
+                  label: 'Liters *',
+                  hint: '45.5',
+                  isDecimal: true,
+                ),
+              ),
+              const SizedBox(width: 12),
+              SizedBox(
+                width: 120,
+                child: InputDecorator(
+                  decoration: const InputDecoration(
+                    labelText: 'Full Tank',
+                    border: OutlineInputBorder(),
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                  ),
+                  child: Align(
+                    alignment: Alignment.center,
+                    child: Switch(
+                      value: _isFullTank,
+                      onChanged: (v) => setState(() => _isFullTank = v),
+                      trackOutlineColor:
+                          const WidgetStatePropertyAll(Colors.black87),
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 16),
           _buildNumberField(
@@ -375,13 +401,6 @@ class _FuelLogFormScreenState extends ConsumerState<FuelLogFormScreen> {
             label: 'Odometer (${unit.label}) *',
             hint: odometerHint,
             isDecimal: false,
-          ),
-          const SizedBox(height: 16),
-          SwitchListTile(
-            title: const Text('Full Tank'),
-            value: _isFullTank,
-            onChanged: (v) => setState(() => _isFullTank = v),
-            trackOutlineColor: WidgetStatePropertyAll(Colors.black87),
           ),
           const SizedBox(height: 16),
           TextFormField(

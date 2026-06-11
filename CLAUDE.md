@@ -90,13 +90,17 @@ When unsure, stop and ask. A small clarifying question is cheaper than a wrong i
 - Use isolated git worktrees under `.worktrees/` for parallel Phase 1 task branches (e.g. `task/backend-models`, `task/mobile-auth`).
 - When pointed at a plan in `docs/superpowers/plans/`, implement that plan rather than improvising.
 - Configure project MCP for Claude Code via repo-root `.mcp.json`; Cursor MCP plugins are separate and not shared automatically.
-- **Model delegation (cost discipline):** keep the main session (Opus) for planning, contract/schema decisions, and review — and offload the actual work to subagents:
+- **Model delegation (pay special attention to cost):** cost discipline is a first-class concern on every task. Keep the main session (Opus) for planning, contract/schema decisions, and review — and offload the actual work to subagents, choosing the model by task complexity:
   - **Coding/implementation tasks → Sonnet subagents** (e.g. writing a router/service, building a screen, implementing a well-specified task from `07-fuel-prefs-tasks.md`). Give the subagent the exact task + the relevant doc sections.
   - **Small mechanical tasks → Haiku subagents** (file moves/renames/deletes, `grep`/search/locate, simple find-and-replace, listing/counting).
-  - Use judgement: anything ambiguous, cross-cutting, or contract-affecting stays in the main session; only dispatch once the task is well-defined.
+  - **Never use Fable** for any task — it is not approved for this project.
+  - Use judgement: anything ambiguous, cross-cutting, or contract-affecting stays in the main session; only dispatch once the task is well-defined. Default to the cheapest model that can do the job correctly.
 - **Test scope:** run only the tests relevant to the feature(s) being changed — not the full battery — for isolated changes (e.g. `flutter test test/features/fuel`, or the specific backend test module). Reserve a full-suite run for broad/cross-cutting changes or a final pre-merge check. Subagents fixing one feature should likewise run just that feature's tests + a scoped `analyze`.
 - Mobile form screens use a consistent AppBar: centered title, Cancel text button on the left, primary pill Save on the right (`horizontal: 12`, `vertical: 2`).
 - Keep delete/destructive resource actions on detail/view screens, not on edit forms; destructive profile actions (e.g. sign out) use red styling with a confirmation bottom sheet.
+- Currency pickers use a bottom-sheet field (`BottomSheetPickerField`): rows show symbol + name, selection stores the ISO code, and the closed field shows the currency name only.
+- On fuel log forms, place the Full tank toggle on the same row as the Liters field.
+- Add vehicle form: odometer section above registration; distance-unit picker offers mile/km only and defaults to the user's preference; vehicle type defaults to Car; photo upload uses a light yellow background.
 
 ## Learned Workspace Facts
 

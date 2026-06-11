@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/widgets/bottom_sheet_picker_field.dart';
 import '../data/document_repository.dart';
 import '../data/upload_repository.dart';
 
@@ -18,24 +19,18 @@ class DocumentUploadScreen extends ConsumerStatefulWidget {
       _DocumentUploadScreenState();
 }
 
-class _DocumentUploadScreenState
-    extends ConsumerState<DocumentUploadScreen> {
+class _DocumentUploadScreenState extends ConsumerState<DocumentUploadScreen> {
   final _formKey = GlobalKey<FormState>();
   final _titleCtrl = TextEditingController();
   final _issueDateCtrl = TextEditingController();
   final _expiryDateCtrl = TextEditingController();
-  String _docType = 'insurance';
+  String? _docType = 'insurance';
   Uint8List? _fileBytes;
   String? _fileName;
   String? _mimeType;
   bool _uploading = false;
 
-  static const _docTypes = [
-    'insurance',
-    'registration',
-    'service',
-    'other',
-  ];
+  static const _docTypes = ['insurance', 'registration', 'service', 'other'];
 
   @override
   void dispose() {
@@ -75,9 +70,9 @@ class _DocumentUploadScreenState
   Future<void> _upload() async {
     if (!_formKey.currentState!.validate()) return;
     if (_fileBytes == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a file')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Please select a file')));
       return;
     }
 
@@ -89,7 +84,7 @@ class _DocumentUploadScreenState
 
       final docRepo = ref.read(documentRepositoryProvider);
       await docRepo.createDocument(widget.vehicleId, {
-        'docType': _docType,
+        'docType': _docType!,
         'title': _titleCtrl.text.trim(),
         'storageUrl': result.secureUrl,
         'storagePublicId': result.publicId,
@@ -105,9 +100,9 @@ class _DocumentUploadScreenState
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Upload failed: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Upload failed: $e')));
       }
     } finally {
       if (mounted) setState(() => _uploading = false);
@@ -173,17 +168,16 @@ class _DocumentUploadScreenState
               onPressed: _pickFile,
             ),
             const SizedBox(height: 16),
-            // Doc type dropdown
-            DropdownButtonFormField<String>(
-              initialValue: _docType,
-              decoration: const InputDecoration(
-                labelText: 'Document Type *',
-                border: OutlineInputBorder(),
-              ),
-              items: _docTypes
-                  .map((t) => DropdownMenuItem(value: t, child: Text(t)))
-                  .toList(),
-              onChanged: (v) => setState(() => _docType = v ?? 'insurance'),
+            // Doc type picker
+            BottomSheetPickerField<String>(
+              label: 'Document Type *',
+              sheetTitle: 'Select document type',
+              value: _docType,
+              options: _docTypes,
+              labelBuilder: (t) => t[0].toUpperCase() + t.substring(1),
+              onChanged: (v) => setState(() => _docType = v),
+              validator: (v) =>
+                  v == null ? 'Please select a document type' : null,
             ),
             const SizedBox(height: 16),
             // Title
@@ -193,8 +187,7 @@ class _DocumentUploadScreenState
                 labelText: 'Title *',
                 border: OutlineInputBorder(),
               ),
-              validator: (v) =>
-                  (v == null || v.isEmpty) ? 'Required' : null,
+              validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
             ),
             const SizedBox(height: 16),
             // Issue date
