@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../../core/theme/app_theme.dart';
 import '../data/document_repository.dart';
 import '../data/upload_repository.dart';
 
@@ -117,26 +118,47 @@ class _DocumentUploadScreenState
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Upload Document'),
+        centerTitle: true,
+        leadingWidth: 80,
+        title: const Text('Add Document'),
         leading: TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
+          style: TextButton.styleFrom(foregroundColor: AppColors.textPrimary),
+          child: const Text('Cancel', maxLines: 1),
         ),
-        leadingWidth: 72,
         actions: [
-          if (_uploading)
-            const Padding(
-              padding: EdgeInsets.all(16),
-              child: SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2)),
-            )
-          else
-            TextButton(
-              onPressed: _upload,
-              child: const Text('Upload & Save'),
-            ),
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: _uploading
+                ? const Center(
+                    child: SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  )
+                : TextButton(
+                    onPressed: _upload,
+                    style: TextButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: AppColors.onPrimary,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 2,
+                      ),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      textStyle: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14,
+                      ),
+                    ),
+                    child: const Text('Save'),
+                  ),
+          ),
         ],
       ),
       body: Form(

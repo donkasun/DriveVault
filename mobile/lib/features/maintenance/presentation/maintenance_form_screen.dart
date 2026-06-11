@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/theme/app_theme.dart';
 import '../data/maintenance_repository.dart';
 import '../domain/maintenance_record.dart';
 
@@ -142,26 +143,47 @@ class _MaintenanceFormScreenState
     final isEdit = widget.existing != null;
     return Scaffold(
       appBar: AppBar(
+        centerTitle: true,
+        leadingWidth: 80,
         title: Text(isEdit ? 'Edit Service Record' : 'Add Service Record'),
         leading: TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
+          style: TextButton.styleFrom(foregroundColor: AppColors.textPrimary),
+          child: const Text('Cancel', maxLines: 1),
         ),
-        leadingWidth: 72,
         actions: [
-          if (_saving)
-            const Padding(
-              padding: EdgeInsets.all(16),
-              child: SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2)),
-            )
-          else
-            TextButton(
-              onPressed: _save,
-              child: const Text('Save'),
-            ),
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: _saving
+                ? const Center(
+                    child: SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  )
+                : TextButton(
+                    onPressed: _save,
+                    style: TextButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: AppColors.onPrimary,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 2,
+                      ),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      textStyle: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14,
+                      ),
+                    ),
+                    child: const Text('Save'),
+                  ),
+          ),
         ],
       ),
       body: Form(
