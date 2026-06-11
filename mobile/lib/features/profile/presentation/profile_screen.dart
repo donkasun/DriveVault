@@ -2,11 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:drivevault/features/auth/data/auth_repository.dart';
 
+import '../../../core/theme/app_theme.dart';
+import '../../../shared/widgets/currency_selector.dart';
 import '../data/user_repository.dart';
-
-/// Common 3-letter currency codes offered in the picker. Single currency
-/// per user (Doc 3) — applied to all money fields.
-const _currencies = ['USD', 'EUR', 'GBP', 'LKR', 'INR', 'AUD', 'CAD', 'JPY'];
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -55,6 +53,57 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody> {
     }
   }
 
+  Future<void> _confirmSignOut() async {
+    final confirmed = await showModalBottomSheet<bool>(
+      context: context,
+      useRootNavigator: true,
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text(
+                'Sign out?',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'You will need to sign in again to access your vehicles and data.',
+                style: TextStyle(color: AppColors.textMuted),
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: () => Navigator.of(ctx, rootNavigator: true).pop(true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.danger,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                ),
+                child: const Text('Sign Out'),
+              ),
+              const SizedBox(height: 8),
+              TextButton(
+                onPressed: () => Navigator.of(ctx, rootNavigator: true).pop(false),
+                child: const Text('Cancel'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      await ref.read(authRepositoryProvider).signOut();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     // Safe: parent only builds this once meProvider has data.
@@ -75,18 +124,10 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody> {
 
         const _SectionLabel('Preferences'),
         const SizedBox(height: 8),
-        DropdownButtonFormField<String>(
-          initialValue: _currencies.contains(user.currency)
-              ? user.currency
-              : null,
-          decoration: const InputDecoration(
-            labelText: 'Currency',
-            border: OutlineInputBorder(),
-          ),
-          items: _currencies
-              .map((c) => DropdownMenuItem(value: c, child: Text(c)))
-              .toList(),
-          onChanged: _saving ? null : (value) => _update(currency: value),
+        CurrencySelector(
+          value: user.currency,
+          enabled: !_saving,
+          onChanged: (value) => _update(currency: value),
         ),
         const SizedBox(height: 16),
         InputDecorator(
@@ -113,7 +154,12 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody> {
         const Divider(height: 32),
 
         ElevatedButton(
-          onPressed: () => ref.read(authRepositoryProvider).signOut(),
+          onPressed: _confirmSignOut,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.danger,
+            foregroundColor: Colors.white,
+            elevation: 0,
+          ),
           child: const Text('Sign Out'),
         ),
       ],

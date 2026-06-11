@@ -19,5 +19,11 @@ void main() {
       expect(out, contains('ZZZ'));
       expect(out, contains('1,000.00'));
     });
+
+    test('LKR inserts space between Rs and the amount', () {
+      expect(formatCents(0, currency: 'LKR'), 'Rs 0.00');
+      expect(formatCents(12345, currency: 'LKR'), 'Rs 123.45');
+      expect(formatCents(-12345, currency: 'LKR'), '-Rs 123.45');
+    });
   });
 }

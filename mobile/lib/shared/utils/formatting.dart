@@ -6,14 +6,26 @@ import 'package:intl/intl.dart';
 String formatCents(int cents, {String currency = 'USD'}) {
   final amount = cents / 100.0;
   try {
-    return NumberFormat.simpleCurrency(
+    final formatted = NumberFormat.simpleCurrency(
       locale: 'en_US',
       name: currency,
     ).format(amount);
+    return _ensureSymbolSpacing(formatted);
   } catch (_) {
     // Unknown currency code — fall back to the code as a prefix.
     return '$currency ${NumberFormat('#,##0.00', 'en_US').format(amount)}';
   }
+}
+
+/// Inserts a space between multi-letter currency symbols and the amount.
+/// e.g. intl formats LKR as "Rs0.00" — we want "Rs 0.00".
+String _ensureSymbolSpacing(String formatted) {
+  final match = RegExp(r'^(-?)([A-Za-z]{2,})(\d)').firstMatch(formatted);
+  if (match == null) return formatted;
+  final sign = match.group(1) ?? '';
+  final symbol = match.group(2)!;
+  final rest = formatted.substring(sign.length + symbol.length);
+  return '$sign$symbol $rest';
 }
 
 /// Returns a color based on how many days remain until [expiryDateStr].
