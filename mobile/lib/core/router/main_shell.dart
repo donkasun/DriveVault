@@ -20,25 +20,30 @@ class MainShell extends ConsumerWidget {
       }
     });
 
+    // Hide the floating tab bar while the keyboard is open so it doesn't sit
+    // on top of the keyboard / cover form fields.
+    final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
+
     return Scaffold(
       extendBody: true,
       body: Stack(
         children: [
           navigationShell,
-          Positioned(
-            left: 24,
-            right: 24,
-            bottom: 24,
-            child: _FloatingTabBar(
-              currentIndex: navigationShell.currentIndex,
-              onTap: (index) {
-                navigationShell.goBranch(
-                  index,
-                  initialLocation: index == navigationShell.currentIndex,
-                );
-              },
+          if (!keyboardOpen)
+            Positioned(
+              left: 24,
+              right: 24,
+              bottom: 24,
+              child: _FloatingTabBar(
+                currentIndex: navigationShell.currentIndex,
+                onTap: (index) {
+                  navigationShell.goBranch(
+                    index,
+                    initialLocation: index == navigationShell.currentIndex,
+                  );
+                },
+              ),
             ),
-          ),
         ],
       ),
     );
@@ -85,15 +90,16 @@ class _TabBarContentState extends State<_TabBarContent> {
   static const _iconAssets = [
     'assets/icons/garage.svg',
     'assets/icons/dashboard.svg',
+    'assets/icons/expenses.svg',
     'assets/icons/settings.svg',
   ];
-  static const _labels = ['Garage', 'Home', 'Settings'];
+  static const _labels = ['Garage', 'Home', 'Expenses', 'Settings'];
 
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final slotWidth = constraints.maxWidth / 3;
+        final slotWidth = constraints.maxWidth / _labels.length;
         final pillWidth = slotWidth - 16;
         final pillLeft = widget.currentIndex * slotWidth + 8;
 
@@ -117,7 +123,7 @@ class _TabBarContentState extends State<_TabBarContent> {
             // Tab items rendered above the pill
             Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: List.generate(3, (index) {
+              children: List.generate(_labels.length, (index) {
                 final isSelected = index == widget.currentIndex;
                 return Expanded(
                   child: GestureDetector(

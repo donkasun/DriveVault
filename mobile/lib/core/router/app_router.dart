@@ -13,6 +13,7 @@ import '../../features/dashboard/presentation/dashboard_screen.dart';
 import '../../features/vehicles/presentation/garage_screen.dart';
 import '../../features/vehicles/presentation/vehicle_detail_screen.dart';
 import '../../features/vehicles/presentation/vehicle_form_screen.dart';
+import '../../features/expenses/presentation/expense_history_screen.dart';
 import '../../features/profile/presentation/profile_screen.dart';
 import 'auth_redirect.dart';
 import 'main_shell.dart';
@@ -119,7 +120,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               ),
             ],
           ),
-          // Branch 2 — Profile / Settings (right tab)
+          // Branch 2 — Expenses
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/expenses',
+                builder: (context, state) => const ExpenseHistoryScreen(),
+              ),
+            ],
+          ),
+          // Branch 3 — Profile / Settings (right tab)
           StatefulShellBranch(
             routes: [
               GoRoute(
