@@ -94,6 +94,7 @@ When unsure, stop and ask. A small clarifying question is cheaper than a wrong i
   - **Coding/implementation tasks → Sonnet subagents** (e.g. writing a router/service, building a screen, implementing a well-specified task from `07-fuel-prefs-tasks.md`). Give the subagent the exact task + the relevant doc sections.
   - **Small mechanical tasks → Haiku subagents** (file moves/renames/deletes, `grep`/search/locate, simple find-and-replace, listing/counting).
   - Use judgement: anything ambiguous, cross-cutting, or contract-affecting stays in the main session; only dispatch once the task is well-defined.
+- **Test scope:** run only the tests relevant to the feature(s) being changed — not the full battery — for isolated changes (e.g. `flutter test test/features/fuel`, or the specific backend test module). Reserve a full-suite run for broad/cross-cutting changes or a final pre-merge check. Subagents fixing one feature should likewise run just that feature's tests + a scoped `analyze`.
 
 ## Learned Workspace Facts
 
