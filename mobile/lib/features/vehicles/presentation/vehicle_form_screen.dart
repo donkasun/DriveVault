@@ -11,14 +11,10 @@ import '../domain/vehicle.dart';
 import 'vehicles_provider.dart';
 
 /// Possible vehicle types matching the backend enum.
-const _vehicleTypes = [
-  'car',
-  'pickup',
-  'van',
-  'truck',
-  'motorcycle',
-  'other',
-];
+const _vehicleTypes = ['car', 'pickup', 'van', 'truck', 'motorcycle', 'other'];
+
+/// Fuel types matching the backend enum (fixed per vehicle).
+const _fuelTypes = ['petrol', 'diesel', 'electric', 'hybrid', 'other'];
 
 class VehicleFormScreen extends ConsumerStatefulWidget {
   /// Pass a vehicle to enter edit mode; null = add mode.
@@ -38,8 +34,13 @@ class _VehicleFormScreenState extends ConsumerState<VehicleFormScreen> {
   late final TextEditingController _yearCtrl;
   late final TextEditingController _regCtrl;
   late final TextEditingController _mileageCtrl;
+  late final TextEditingController _variantCtrl;
 
   String? _vehicleType;
+  String? _fuelType;
+
+  /// Per-vehicle distance-unit override: null = inherit user default.
+  String? _distanceUnit;
   String? _photoUrl;
   String? _photoPublicId;
   bool _isUploading = false;
@@ -61,6 +62,9 @@ class _VehicleFormScreenState extends ConsumerState<VehicleFormScreen> {
       text: v?.currentMileage != null ? v!.currentMileage.toString() : '',
     );
     _vehicleType = v?.vehicleType;
+    _fuelType = v?.fuelType;
+    _distanceUnit = v?.distanceUnit;
+    _variantCtrl = TextEditingController(text: v?.defaultFuelVariant ?? '');
     _photoUrl = v?.photoUrl;
     _photoPublicId = v?.photoPublicId;
   }
@@ -72,6 +76,7 @@ class _VehicleFormScreenState extends ConsumerState<VehicleFormScreen> {
     _yearCtrl.dispose();
     _regCtrl.dispose();
     _mileageCtrl.dispose();
+    _variantCtrl.dispose();
     super.dispose();
   }
 
@@ -96,9 +101,9 @@ class _VehicleFormScreenState extends ConsumerState<VehicleFormScreen> {
       });
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Upload failed: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Upload failed: $e')));
       }
     } finally {
       if (mounted) setState(() => _isUploading = false);
@@ -121,6 +126,12 @@ class _VehicleFormScreenState extends ConsumerState<VehicleFormScreen> {
     final mileage = int.tryParse(_mileageCtrl.text.trim());
     if (mileage != null) data['currentMileage'] = mileage;
     if (_vehicleType != null) data['vehicleType'] = _vehicleType;
+    // Fuel & unit fields — sent explicitly (incl. null) so edits can clear them.
+    // distanceUnit null = inherit the user's account-level default.
+    data['fuelType'] = _fuelType;
+    final variant = _variantCtrl.text.trim();
+    data['defaultFuelVariant'] = variant.isEmpty ? null : variant;
+    data['distanceUnit'] = _distanceUnit;
     if (_photoUrl != null) data['photoUrl'] = _photoUrl;
     if (_photoPublicId != null) data['photoPublicId'] = _photoPublicId;
 
@@ -135,9 +146,9 @@ class _VehicleFormScreenState extends ConsumerState<VehicleFormScreen> {
       if (mounted) context.pop();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
       }
     } finally {
       if (mounted) setState(() => _isSaving = false);
@@ -174,9 +185,9 @@ class _VehicleFormScreenState extends ConsumerState<VehicleFormScreen> {
         if (mounted) context.go('/garage');
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Delete failed: $e')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Delete failed: $e')));
         }
       }
     }
@@ -191,9 +202,7 @@ class _VehicleFormScreenState extends ConsumerState<VehicleFormScreen> {
         title: Text(_isEditMode ? 'Edit Vehicle' : 'Add Vehicle'),
         leading: TextButton(
           onPressed: () => context.pop(),
-          style: TextButton.styleFrom(
-            foregroundColor: AppColors.textPrimary,
-          ),
+          style: TextButton.styleFrom(foregroundColor: AppColors.textPrimary),
           child: const Text('Cancel', maxLines: 1),
         ),
         actions: [
@@ -219,7 +228,9 @@ class _VehicleFormScreenState extends ConsumerState<VehicleFormScreen> {
                       backgroundColor: AppColors.primary,
                       foregroundColor: AppColors.onPrimary,
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 4),
+                        horizontal: 12,
+                        vertical: 4,
+                      ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(20),
                       ),
@@ -313,9 +324,7 @@ class _VehicleFormScreenState extends ConsumerState<VehicleFormScreen> {
                     .map(
                       (type) => DropdownMenuItem(
                         value: type,
-                        child: Text(
-                          type[0].toUpperCase() + type.substring(1),
-                        ),
+                        child: Text(type[0].toUpperCase() + type.substring(1)),
                       ),
                     )
                     .toList(),
@@ -333,6 +342,63 @@ class _VehicleFormScreenState extends ConsumerState<VehicleFormScreen> {
                   border: OutlineInputBorder(),
                 ),
                 textCapitalization: TextCapitalization.characters,
+              ),
+              const SizedBox(height: 24),
+
+              _SectionLabel('Fuel & Units'),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String?>(
+                initialValue: _fuelType,
+                decoration: const InputDecoration(
+                  labelText: 'Fuel Type',
+                  border: OutlineInputBorder(),
+                ),
+                hint: const Text('Select fuel type'),
+                items: [
+                  const DropdownMenuItem<String?>(
+                    value: null,
+                    child: Text('Not specified'),
+                  ),
+                  ..._fuelTypes.map(
+                    (type) => DropdownMenuItem<String?>(
+                      value: type,
+                      child: Text(type[0].toUpperCase() + type.substring(1)),
+                    ),
+                  ),
+                ],
+                onChanged: (value) => setState(() => _fuelType = value),
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _variantCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Default Fuel Variant',
+                  hintText: 'e.g. 95 Octane',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String?>(
+                initialValue: _distanceUnit,
+                decoration: const InputDecoration(
+                  labelText: 'Distance Unit',
+                  border: OutlineInputBorder(),
+                ),
+                items: const [
+                  DropdownMenuItem<String?>(
+                    value: null,
+                    child: Text('Inherit (account default)'),
+                  ),
+                  DropdownMenuItem<String?>(
+                    value: 'km',
+                    child: Text('Kilometres (km)'),
+                  ),
+                  DropdownMenuItem<String?>(
+                    value: 'mi',
+                    child: Text('Miles (mi)'),
+                  ),
+                ],
+                onChanged: (value) => setState(() => _distanceUnit = value),
               ),
               const SizedBox(height: 24),
 
@@ -412,59 +478,55 @@ class _PhotoArea extends StatelessWidget {
                 ),
               )
             : photoUrl != null
-                ? Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      CachedNetworkImage(
-                        imageUrl: photoUrl!,
-                        fit: BoxFit.cover,
-                        placeholder: (context, url) => const Center(
-                          child: CircularProgressIndicator(),
-                        ),
-                        errorWidget: (context, url, error) => const Icon(
-                          Icons.broken_image,
-                          size: 48,
-                          color: Colors.grey,
-                        ),
-                      ),
-                      Positioned(
-                        bottom: 8,
-                        right: 8,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.black54,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Text(
-                            'Change photo',
-                            style: TextStyle(color: Colors.white, fontSize: 12),
-                          ),
-                        ),
-                      ),
-                    ],
-                  )
-                : Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.add_a_photo_outlined,
-                        size: 40,
-                        color: Colors.grey.shade500,
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Add vehicle photo',
-                        style: TextStyle(
-                          color: Colors.grey.shade600,
-                          fontSize: 14,
-                        ),
-                      ),
-                    ],
+            ? Stack(
+                fit: StackFit.expand,
+                children: [
+                  CachedNetworkImage(
+                    imageUrl: photoUrl!,
+                    fit: BoxFit.cover,
+                    placeholder: (context, url) =>
+                        const Center(child: CircularProgressIndicator()),
+                    errorWidget: (context, url, error) => const Icon(
+                      Icons.broken_image,
+                      size: 48,
+                      color: Colors.grey,
+                    ),
                   ),
+                  Positioned(
+                    bottom: 8,
+                    right: 8,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.black54,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Text(
+                        'Change photo',
+                        style: TextStyle(color: Colors.white, fontSize: 12),
+                      ),
+                    ),
+                  ),
+                ],
+              )
+            : Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.add_a_photo_outlined,
+                    size: 40,
+                    color: Colors.grey.shade500,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Add vehicle photo',
+                    style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+                  ),
+                ],
+              ),
       ),
     );
   }

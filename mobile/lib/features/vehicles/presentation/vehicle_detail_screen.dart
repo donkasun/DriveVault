@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/utils/distance_unit.dart';
 import '../../documents/data/document_repository.dart';
 import '../../documents/domain/document.dart';
 import '../../documents/presentation/document_upload_screen.dart';
@@ -46,14 +47,14 @@ class _VehicleDetailBody extends ConsumerWidget {
 
   const _VehicleDetailBody({required this.vehicle});
 
-  Future<void> _confirmDelete(
-      BuildContext context, WidgetRef ref) async {
+  Future<void> _confirmDelete(BuildContext context, WidgetRef ref) async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Delete Vehicle'),
         content: Text(
-            'Delete "${vehicle.make} ${vehicle.model}"? All data will be lost.'),
+          'Delete "${vehicle.make} ${vehicle.model}"? All data will be lost.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
@@ -61,8 +62,7 @@ class _VehicleDetailBody extends ConsumerWidget {
           ),
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Delete',
-                style: TextStyle(color: Colors.red)),
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
@@ -75,9 +75,9 @@ class _VehicleDetailBody extends ConsumerWidget {
       if (context.mounted) context.go('/garage');
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
       }
     }
   }
@@ -85,9 +85,9 @@ class _VehicleDetailBody extends ConsumerWidget {
   void _openEditVehicle(BuildContext context, WidgetRef ref) {
     // Edit vehicle modal — placeholder for now; full vehicle form
     // is a separate task. Show a snackbar indicating intent.
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Edit vehicle — coming soon')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Edit vehicle — coming soon')));
   }
 
   @override
@@ -102,6 +102,7 @@ class _VehicleDetailBody extends ConsumerWidget {
           ),
           SliverList(
             delegate: SliverChildListDelegate([
+              _VehicleInfoCard(vehicle: vehicle),
               _FuelSection(vehicleId: vehicle.id),
               _MaintenanceSection(vehicleId: vehicle.id),
               _DocumentsSection(vehicleId: vehicle.id),
@@ -171,10 +172,7 @@ class _HeroAppBar extends ConsumerWidget {
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.transparent,
-                    Colors.black.withAlpha(200),
-                  ],
+                  colors: [Colors.transparent, Colors.black.withAlpha(200)],
                 ),
               ),
             ),
@@ -200,7 +198,9 @@ class _HeroAppBar extends ConsumerWidget {
                     Text(
                       vehicle.registrationNumber!,
                       style: const TextStyle(
-                          color: Colors.white70, fontSize: 13),
+                        color: Colors.white70,
+                        fontSize: 13,
+                      ),
                     ),
                   ],
                   const SizedBox(height: 12),
@@ -218,8 +218,12 @@ class _HeroAppBar extends ConsumerWidget {
                       docs: '—',
                     ),
                     data: (stats) {
+                      final unit = effectiveUnit(
+                        vehicleUnit: vehicle.distanceUnit,
+                        userUnit: 'km',
+                      );
                       final mileage = vehicle.currentMileage != null
-                          ? '${vehicle.currentMileage} km'
+                          ? formatDistance(vehicle.currentMileage!, unit)
                           : '—';
                       final economy = stats.avgConsumptionLPer100Km != null
                           ? '${stats.avgConsumptionLPer100Km!.toStringAsFixed(1)} L/100'
@@ -285,14 +289,94 @@ class _StatChip extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label,
-            style: const TextStyle(color: Colors.white54, fontSize: 10)),
-        Text(value,
-            style: const TextStyle(
-                color: Colors.white,
-                fontSize: 13,
-                fontWeight: FontWeight.w600)),
+        Text(
+          label,
+          style: const TextStyle(color: Colors.white54, fontSize: 10),
+        ),
+        Text(
+          value,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
       ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Vehicle info card (fuel type, default variant, distance unit)
+// ---------------------------------------------------------------------------
+
+class _VehicleInfoCard extends StatelessWidget {
+  final Vehicle vehicle;
+
+  const _VehicleInfoCard({required this.vehicle});
+
+  @override
+  Widget build(BuildContext context) {
+    // Only show this card when the vehicle has explicit fuel/unit data;
+    // otherwise keep the detail layout unchanged.
+    final hasData =
+        vehicle.fuelType != null ||
+        vehicle.defaultFuelVariant != null ||
+        vehicle.distanceUnit != null;
+    if (!hasData) return const SizedBox.shrink();
+
+    final rows = <Widget>[
+      if (vehicle.fuelType != null)
+        _InfoRow(
+          label: 'Fuel type',
+          value:
+              vehicle.fuelType![0].toUpperCase() +
+              vehicle.fuelType!.substring(1),
+        ),
+      if (vehicle.defaultFuelVariant != null)
+        _InfoRow(label: 'Default variant', value: vehicle.defaultFuelVariant!),
+      if (vehicle.distanceUnit != null)
+        _InfoRow(
+          label: 'Distance unit',
+          value: vehicle.distanceUnit == 'mi'
+              ? 'Miles (mi)'
+              : 'Kilometres (km)',
+        ),
+    ];
+
+    return Card(
+      margin: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: rows,
+        ),
+      ),
+    );
+  }
+}
+
+class _InfoRow extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _InfoRow({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: const TextStyle(color: Colors.grey, fontSize: 13)),
+          Text(
+            value,
+            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -318,17 +402,17 @@ class _SectionHeader extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
       child: Row(
         children: [
-          Text(title,
-              style: Theme.of(context)
-                  .textTheme
-                  .titleMedium
-                  ?.copyWith(fontWeight: FontWeight.bold)),
+          Text(
+            title,
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+          ),
           const Spacer(),
           TextButton.icon(
             icon: const Text('＋', style: TextStyle(fontSize: 16)),
             label: Text(buttonLabel),
-            style: TextButton.styleFrom(
-                foregroundColor: AppColors.primary),
+            style: TextButton.styleFrom(foregroundColor: AppColors.primary),
             onPressed: onAdd,
           ),
         ],
@@ -377,8 +461,7 @@ class _FuelSection extends ConsumerWidget {
         ),
         // Logs list
         logsAsync.when(
-          loading: () =>
-              const Center(child: CircularProgressIndicator()),
+          loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, _) => Padding(
             padding: const EdgeInsets.all(16),
             child: Text('Error: $e'),
@@ -387,12 +470,13 @@ class _FuelSection extends ConsumerWidget {
             if (logs.isEmpty) {
               return const Padding(
                 padding: EdgeInsets.all(16),
-                child: Text('No fuel logs yet.',
-                    style: TextStyle(color: Colors.grey)),
+                child: Text(
+                  'No fuel logs yet.',
+                  style: TextStyle(color: Colors.grey),
+                ),
               );
             }
-            final sorted = [...logs]
-              ..sort((a, b) => b.date.compareTo(a.date));
+            final sorted = [...logs]..sort((a, b) => b.date.compareTo(a.date));
             return ListView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
@@ -441,8 +525,7 @@ class _FuelStatsCard extends StatelessWidget {
             ),
             _StatItem(
               label: 'Total Spent',
-              value:
-                  '\$${(stats.totalSpentCents / 100).toStringAsFixed(2)}',
+              value: '\$${(stats.totalSpentCents / 100).toStringAsFixed(2)}',
             ),
           ],
         ),
@@ -461,12 +544,12 @@ class _StatItem extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Text(value,
-            style: const TextStyle(
-                fontSize: 18, fontWeight: FontWeight.bold)),
+        Text(
+          value,
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        ),
         const SizedBox(height: 2),
-        Text(label,
-            style: const TextStyle(fontSize: 11, color: Colors.grey)),
+        Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey)),
       ],
     );
   }
@@ -494,8 +577,7 @@ class _FuelLogTile extends ConsumerWidget {
       ),
       trailing: log.isFullTank
           ? const Chip(
-              label: Text('Full',
-                  style: TextStyle(fontSize: 11)),
+              label: Text('Full', style: TextStyle(fontSize: 11)),
               padding: EdgeInsets.zero,
             )
           : null,
@@ -503,10 +585,8 @@ class _FuelLogTile extends ConsumerWidget {
         await Navigator.of(context).push(
           MaterialPageRoute(
             fullscreenDialog: true,
-            builder: (_) => FuelLogFormScreen(
-              vehicleId: vehicleId,
-              existing: log,
-            ),
+            builder: (_) =>
+                FuelLogFormScreen(vehicleId: vehicleId, existing: log),
           ),
         );
         onRefresh();
@@ -538,15 +618,13 @@ class _MaintenanceSection extends ConsumerWidget {
             await Navigator.of(context).push(
               MaterialPageRoute(
                 fullscreenDialog: true,
-                builder: (_) =>
-                    MaintenanceFormScreen(vehicleId: vehicleId),
+                builder: (_) => MaintenanceFormScreen(vehicleId: vehicleId),
               ),
             );
           },
         ),
         recordsAsync.when(
-          loading: () =>
-              const Center(child: CircularProgressIndicator()),
+          loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, _) => Padding(
             padding: const EdgeInsets.all(16),
             child: Text('Error: $e'),
@@ -555,8 +633,10 @@ class _MaintenanceSection extends ConsumerWidget {
             if (records.isEmpty) {
               return const Padding(
                 padding: EdgeInsets.all(16),
-                child: Text('No maintenance records yet.',
-                    style: TextStyle(color: Colors.grey)),
+                child: Text(
+                  'No maintenance records yet.',
+                  style: TextStyle(color: Colors.grey),
+                ),
               );
             }
             final sorted = [...records]
@@ -604,10 +684,8 @@ class _MaintenanceTile extends ConsumerWidget {
         await Navigator.of(context).push(
           MaterialPageRoute(
             fullscreenDialog: true,
-            builder: (_) => MaintenanceFormScreen(
-              vehicleId: vehicleId,
-              existing: record,
-            ),
+            builder: (_) =>
+                MaintenanceFormScreen(vehicleId: vehicleId, existing: record),
           ),
         );
         onRefresh();
@@ -639,15 +717,13 @@ class _DocumentsSection extends ConsumerWidget {
             await Navigator.of(context).push(
               MaterialPageRoute(
                 fullscreenDialog: true,
-                builder: (_) =>
-                    DocumentUploadScreen(vehicleId: vehicleId),
+                builder: (_) => DocumentUploadScreen(vehicleId: vehicleId),
               ),
             );
           },
         ),
         groupedAsync.when(
-          loading: () =>
-              const Center(child: CircularProgressIndicator()),
+          loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, _) => Padding(
             padding: const EdgeInsets.all(16),
             child: Text('Error: $e'),
@@ -656,8 +732,10 @@ class _DocumentsSection extends ConsumerWidget {
             if (grouped.isEmpty) {
               return const Padding(
                 padding: EdgeInsets.all(16),
-                child: Text('No documents yet.',
-                    style: TextStyle(color: Colors.grey)),
+                child: Text(
+                  'No documents yet.',
+                  style: TextStyle(color: Colors.grey),
+                ),
               );
             }
             return Column(
@@ -713,8 +791,7 @@ class _DocumentTile extends ConsumerWidget {
       subtitle: Text(doc.docType),
       trailing: days != null
           ? Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
                 color: _expiryColor().withAlpha(30),
                 border: Border.all(color: _expiryColor()),
@@ -724,12 +801,13 @@ class _DocumentTile extends ConsumerWidget {
                 days < 0
                     ? 'Expired'
                     : days == 0
-                        ? 'Today'
-                        : '${days}d',
+                    ? 'Today'
+                    : '${days}d',
                 style: TextStyle(
-                    color: _expiryColor(),
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600),
+                  color: _expiryColor(),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             )
           : null,
