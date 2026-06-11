@@ -132,4 +132,31 @@ void main() {
       expect(formatDistance(1000000, DistanceUnit.km), '1,000,000 km');
     });
   });
+
+  // -------------------------------------------------------------------------
+  // formatEconomy – L/100km → km/L or mpg
+  // -------------------------------------------------------------------------
+  group('formatEconomy', () {
+    test('km unit: 8.0 L/100km → "12.5 km/L"', () {
+      expect(formatEconomy(8.0, DistanceUnit.km), '12.5 km/L');
+    });
+
+    test('mi unit: 8.0 L/100km → "29.4 mpg" (235.215/8)', () {
+      expect(formatEconomy(8.0, DistanceUnit.mi), '29.4 mpg');
+    });
+
+    test('null → "—"', () {
+      expect(formatEconomy(null, DistanceUnit.km), '—');
+      expect(formatEconomy(null, DistanceUnit.mi), '—');
+    });
+
+    test('0 → "—"', () {
+      expect(formatEconomy(0, DistanceUnit.km), '—');
+      expect(formatEconomy(0, DistanceUnit.mi), '—');
+    });
+
+    test('negative → "—"', () {
+      expect(formatEconomy(-1.0, DistanceUnit.km), '—');
+    });
+  });
 }

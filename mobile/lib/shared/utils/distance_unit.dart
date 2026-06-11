@@ -89,3 +89,18 @@ String formatDistance(int km, DistanceUnit unit) {
   final displayValue = kmToDisplay(km, unit);
   return '${_intFmt.format(displayValue.round())} ${unit.label}';
 }
+
+/// Formats fuel economy as distance-per-unit-of-fuel, respecting [unit].
+/// Input is the backend's avg consumption in L/100km.
+///   km → "X.X km/L"  (100 / lPer100km)
+///   mi → "X.X mpg"    (235.215 / lPer100km, US gallon)
+/// Returns "—" when [lPer100km] is null or <= 0.
+///
+/// Note: mpg uses the US gallon conversion factor (235.215).
+String formatEconomy(double? lPer100km, DistanceUnit unit) {
+  if (lPer100km == null || lPer100km <= 0) return '—';
+  return switch (unit) {
+    DistanceUnit.km => '${(100 / lPer100km).toStringAsFixed(1)} km/L',
+    DistanceUnit.mi => '${(235.215 / lPer100km).toStringAsFixed(1)} mpg',
+  };
+}
