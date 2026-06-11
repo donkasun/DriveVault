@@ -95,6 +95,8 @@ When unsure, stop and ask. A small clarifying question is cheaper than a wrong i
   - **Small mechanical tasks → Haiku subagents** (file moves/renames/deletes, `grep`/search/locate, simple find-and-replace, listing/counting).
   - Use judgement: anything ambiguous, cross-cutting, or contract-affecting stays in the main session; only dispatch once the task is well-defined.
 - **Test scope:** run only the tests relevant to the feature(s) being changed — not the full battery — for isolated changes (e.g. `flutter test test/features/fuel`, or the specific backend test module). Reserve a full-suite run for broad/cross-cutting changes or a final pre-merge check. Subagents fixing one feature should likewise run just that feature's tests + a scoped `analyze`.
+- Mobile form screens use a consistent AppBar: centered title, Cancel text button on the left, primary pill Save on the right (`horizontal: 12`, `vertical: 2`).
+- Keep delete/destructive resource actions on detail/view screens, not on edit forms; destructive profile actions (e.g. sign out) use red styling with a confirmation bottom sheet.
 
 ## Learned Workspace Facts
 
@@ -107,3 +109,4 @@ When unsure, stop and ask. A small clarifying question is cheaper than a wrong i
 - UI design references live in `docs/design-references/` (`mockup-screens.html`, `DESIGN-LANGUAGE.md`, `ref-0N-*.png` screenshots).
 - Local backend Docker Postgres may bind to host port 5433 when macOS Postgres already occupies 5432.
 - Email verification gate is task C2d; implementation plan at `docs/superpowers/plans/2026-06-09-email-verification-gate.md`.
+- `MainShell` stacks a floating tab bar above tab navigators; bottom sheets/modals that must cover the tab bar need `useRootNavigator: true`.
