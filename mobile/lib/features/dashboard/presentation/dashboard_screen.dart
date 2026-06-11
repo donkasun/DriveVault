@@ -10,6 +10,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../../../shared/utils/formatting.dart';
 import '../../fuel/presentation/fuel_log_form_screen.dart';
+import '../../profile/data/user_repository.dart';
 import '../domain/dashboard_data.dart';
 import 'dashboard_provider.dart';
 
@@ -19,6 +20,8 @@ class DashboardScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final dashboardAsync = ref.watch(dashboardProvider);
+    // Account-wide currency preference (defaults to USD until /me loads).
+    final currency = ref.watch(meProvider).asData?.value.currency ?? 'USD';
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -31,7 +34,7 @@ class DashboardScreen extends ConsumerWidget {
           ),
           data: (data) => data.vehicleCount == 0
               ? const _EmptyState()
-              : _LoadedContent(data: data),
+              : _LoadedContent(data: data, currency: currency),
         ),
       ),
     );
@@ -190,8 +193,9 @@ class _EmptyState extends ConsumerWidget {
 
 class _LoadedContent extends StatelessWidget {
   final DashboardData data;
+  final String currency;
 
-  const _LoadedContent({required this.data});
+  const _LoadedContent({required this.data, required this.currency});
 
   @override
   Widget build(BuildContext context) {
@@ -200,11 +204,11 @@ class _LoadedContent extends StatelessWidget {
       children: [
         const _Header(),
         const SizedBox(height: 20),
-        _TotalCostCard(data: data),
+        _TotalCostCard(data: data, currency: currency),
         const SizedBox(height: 16),
         const _QuickActions(),
         const SizedBox(height: 16),
-        _StatRow(data: data),
+        _StatRow(data: data, currency: currency),
         if (data.upcomingRenewals.isNotEmpty) ...[
           const SizedBox(height: 24),
           _UpcomingRenewalsSection(renewals: data.upcomingRenewals),
@@ -254,8 +258,9 @@ class _TotalCostCard extends StatelessWidget {
   static const int _maxCents = 1000000; // $10,000
 
   final DashboardData data;
+  final String currency;
 
-  const _TotalCostCard({required this.data});
+  const _TotalCostCard({required this.data, required this.currency});
 
   @override
   Widget build(BuildContext context) {
@@ -283,7 +288,7 @@ class _TotalCostCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  formatCents(data.totalOwnershipCostCents),
+                  formatCents(data.totalOwnershipCostCents, currency: currency),
                   style: const TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.bold,
@@ -369,8 +374,9 @@ class _RingPainter extends CustomPainter {
 
 class _StatRow extends StatelessWidget {
   final DashboardData data;
+  final String currency;
 
-  const _StatRow({required this.data});
+  const _StatRow({required this.data, required this.currency});
 
   @override
   Widget build(BuildContext context) {
@@ -379,7 +385,7 @@ class _StatRow extends StatelessWidget {
         Expanded(
           child: _StatCard(
             label: 'Fuel · This Month',
-            value: formatCents(data.monthlyFuelSpendCents),
+            value: formatCents(data.monthlyFuelSpendCents, currency: currency),
             icon: Icons.local_gas_station,
           ),
         ),
@@ -387,7 +393,10 @@ class _StatRow extends StatelessWidget {
         Expanded(
           child: _StatCard(
             label: 'Maintenance',
-            value: formatCents(data.costBreakdown.maintenanceCents),
+            value: formatCents(
+              data.costBreakdown.maintenanceCents,
+              currency: currency,
+            ),
             icon: Icons.build_outlined,
           ),
         ),

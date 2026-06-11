@@ -8,6 +8,15 @@ import 'package:go_router/go_router.dart';
 import 'package:drivevault/features/dashboard/data/dashboard_repository.dart';
 import 'package:drivevault/features/dashboard/domain/dashboard_data.dart';
 import 'package:drivevault/features/dashboard/presentation/dashboard_screen.dart';
+import 'package:drivevault/features/profile/data/user_repository.dart';
+import 'package:drivevault/features/profile/domain/user.dart';
+
+final _stubUser = AppUser(
+  id: 'u-1',
+  firebaseUid: 'fb-1',
+  email: 'me@example.com',
+  createdAt: DateTime(2026, 1, 1),
+);
 
 class _FakeDashboardRepository implements DashboardRepository {
   final Future<DashboardData> Function() _fetch;
@@ -39,7 +48,10 @@ DashboardData _loadedData({int vehicleCount = 2}) {
 
 Widget _wrapSimple(Widget child, DashboardRepository repo) {
   return ProviderScope(
-    overrides: [dashboardRepositoryProvider.overrideWithValue(repo)],
+    overrides: [
+      dashboardRepositoryProvider.overrideWithValue(repo),
+      meProvider.overrideWith((ref) async => _stubUser),
+    ],
     child: MaterialApp(home: child),
   );
 }
@@ -57,14 +69,19 @@ Widget _wrapWithRouter(Widget child, DashboardRepository repo) {
   );
 
   return ProviderScope(
-    overrides: [dashboardRepositoryProvider.overrideWithValue(repo)],
+    overrides: [
+      dashboardRepositoryProvider.overrideWithValue(repo),
+      meProvider.overrideWith((ref) async => _stubUser),
+    ],
     child: MaterialApp.router(routerConfig: router),
   );
 }
 
 void main() {
   group('DashboardScreen states', () {
-    testWidgets('shows CircularProgressIndicator while loading', (tester) async {
+    testWidgets('shows CircularProgressIndicator while loading', (
+      tester,
+    ) async {
       // Use a completer that never resolves so the provider stays in loading.
       final neverCompletes = Completer<DashboardData>();
 
@@ -97,8 +114,9 @@ void main() {
       expect(find.text('Add your first vehicle'), findsOneWidget);
     });
 
-    testWidgets('shows Total Ownership Cost text when vehicleCount > 0',
-        (tester) async {
+    testWidgets('shows Total Ownership Cost text when vehicleCount > 0', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         _wrapSimple(
           const DashboardScreen(),

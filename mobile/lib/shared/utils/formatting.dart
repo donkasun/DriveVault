@@ -1,11 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
-/// Format integer cents to a currency string.
-/// e.g. 412000 → "$4,120.00"
+/// Format integer cents to a currency string using the given ISO currency code.
+/// e.g. formatCents(412000) → "$4,120.00", formatCents(412000, currency: 'EUR') → "€4,120.00"
 String formatCents(int cents, {String currency = 'USD'}) {
-  final dollars = cents / 100.0;
-  return NumberFormat.currency(locale: 'en_US', symbol: r'$').format(dollars);
+  final amount = cents / 100.0;
+  try {
+    return NumberFormat.simpleCurrency(
+      locale: 'en_US',
+      name: currency,
+    ).format(amount);
+  } catch (_) {
+    // Unknown currency code — fall back to the code as a prefix.
+    return '$currency ${NumberFormat('#,##0.00', 'en_US').format(amount)}';
+  }
 }
 
 /// Returns a color based on how many days remain until [expiryDateStr].

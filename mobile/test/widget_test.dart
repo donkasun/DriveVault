@@ -7,6 +7,8 @@ import 'package:drivevault/features/auth/data/auth_repository.dart';
 import 'package:drivevault/features/dashboard/presentation/dashboard_screen.dart';
 import 'package:drivevault/features/dashboard/presentation/dashboard_provider.dart';
 import 'package:drivevault/features/dashboard/domain/dashboard_data.dart';
+import 'package:drivevault/features/profile/data/user_repository.dart';
+import 'package:drivevault/features/profile/domain/user.dart';
 
 class FakeUser extends Fake implements User {
   @override
@@ -105,6 +107,14 @@ void main() {
             (ref) => Stream.value(fakeUser),
           ),
           dashboardProvider.overrideWith(() => _StubDashboardNotifier()),
+          meProvider.overrideWith(
+            (ref) async => AppUser(
+              id: 'u-1',
+              firebaseUid: 'fb-1',
+              email: 'test@example.com',
+              createdAt: DateTime(2026, 1, 1),
+            ),
+          ),
         ],
         child: const DriveVaultApp(),
       ),
@@ -139,6 +149,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Verify your email'), findsOneWidget);
-    expect(find.widgetWithText(ElevatedButton, "I've verified"), findsOneWidget);
+    expect(
+      find.widgetWithText(ElevatedButton, "I've verified"),
+      findsOneWidget,
+    );
   });
 }
