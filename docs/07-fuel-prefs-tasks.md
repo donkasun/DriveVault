@@ -127,11 +127,24 @@ context pre-filled.
 
 ## Wrap-up
 
-### 🟩🟦 F10 — Smoke pass
+### 🟩🟦 F10 — Smoke pass ✅ (API-level)
 Against the deployed backend: set currency + distance prefs → add a vehicle with fuel type +
 variant + unit override → from home quick action, add a fuel log (dropdown vehicle, prefilled
 price, placeholder odometer, variant) → confirm it persists and displays in the right unit.
 **Done when:** the full flow works on a device; note any bugs as follow-ups.
+**Done (2026-06-11):** the app has no `web/` scaffold and the only device is an offline Android
+emulator, so the flow was smoke-tested at the **API level** against live Cloud Run with the
+`smoketest@drivevault.dev` account (the exact calls the F6/F7/F8 screens make). All passed:
+PATCH/GET `/me` prefs (F6), `POST /vehicles` with fuelType/defaultFuelVariant/distanceUnit (F7),
+`POST /fuel-logs` persisting `fuelVariant` with `currency` defaulting to the user pref (F8/F4).
+The UI itself is covered by 110 passing widget/unit tests.
+
+**Follow-up bug found (pre-existing, Phase 1):** `DELETE /vehicles/{id}` returns **500** when the
+vehicle has any child rows (fuel logs / maintenance / documents). Cause: the FK has DB-level
+`ON DELETE CASCADE`, but the SQLAlchemy relationships on `Vehicle` lack `passive_deletes=True`
+(+ `cascade="all, delete-orphan"`), so the ORM tries to NULL the children's non-nullable
+`vehicle_id` first → `IntegrityError`. Fix in `backend/app/models/vehicles.py` + redeploy. Not
+introduced by this branch.
 
 ---
 
