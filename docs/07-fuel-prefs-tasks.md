@@ -139,12 +139,14 @@ PATCH/GET `/me` prefs (F6), `POST /vehicles` with fuelType/defaultFuelVariant/di
 `POST /fuel-logs` persisting `fuelVariant` with `currency` defaulting to the user pref (F8/F4).
 The UI itself is covered by 110 passing widget/unit tests.
 
-**Follow-up bug found (pre-existing, Phase 1):** `DELETE /vehicles/{id}` returns **500** when the
-vehicle has any child rows (fuel logs / maintenance / documents). Cause: the FK has DB-level
-`ON DELETE CASCADE`, but the SQLAlchemy relationships on `Vehicle` lack `passive_deletes=True`
-(+ `cascade="all, delete-orphan"`), so the ORM tries to NULL the children's non-nullable
-`vehicle_id` first → `IntegrityError`. Fix in `backend/app/models/vehicles.py` + redeploy. Not
-introduced by this branch.
+**Follow-up bug found + FIXED (pre-existing, Phase 1):** `DELETE /vehicles/{id}` returned **500**
+when the vehicle had any child rows (fuel logs / maintenance / documents). Cause: the FK has
+DB-level `ON DELETE CASCADE`, but the SQLAlchemy relationships on `Vehicle` lacked
+`passive_deletes=True` (+ `cascade="all, delete-orphan"`), so the ORM tried to NULL the children's
+non-nullable `vehicle_id` first → `IntegrityError`. **Fixed** in `backend/app/models/vehicles.py`
+(commit `241fb70`) with a regression test; redeployed (Cloud Run revision
+`drivevault-backend-00004-wlv`) and verified live — deleting a vehicle that has a fuel log now
+returns 204 and cascades.
 
 ---
 
