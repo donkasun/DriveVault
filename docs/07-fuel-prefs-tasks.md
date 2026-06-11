@@ -95,18 +95,18 @@ A shared helper that converts/display-formats odometer values using the effectiv
 (vehicle `distanceUnit` ?? user `distanceUnit`). Storage/wire stays km — convert at the edge.
 **Done when:** unit tests cover km↔mi conversion and the vehicle-override-falls-back-to-user rule.
 
-### 🟩 F6 — Settings: currency + distance preference
+### 🟩 F6 — Settings: currency + distance preference ✅
 Settings screen controls for `currency` and `distanceUnit`, persisting via `PATCH /me`; reflect
 the values from `GET /me`.
 **Done when:** changing either preference persists across app restart and updates displayed units.
 
-### 🟩 F7 — Vehicle form + detail: fuel & unit fields
+### 🟩 F7 — Vehicle form + detail: fuel & unit fields ✅
 Add `fuelType` (picker), `defaultFuelVariant` (free text), and per-vehicle `distanceUnit`
 override (km/mi/inherit) to the vehicle form; surface the override on the detail page.
 **Done when:** creating/editing a vehicle persists the three fields; detail shows the effective
 unit; leaving the override blank inherits the user default.
 
-### 🟩 F8 — Fuel record rework
+### 🟩 F8 — Fuel record rework ✅
 Rework the add/edit fuel-log screen so it:
 - has a **vehicle dropdown** (pre-selected when opened with a vehicle),
 - shows the **latest odometer** reading as the odometer placeholder,
@@ -118,7 +118,7 @@ Rework the add/edit fuel-log screen so it:
 vehicle pre-selected; placeholders/prefill populate from the latest log; a saved log carries the
 selected vehicle, variant, and km-normalized odometer.
 
-### 🟩 F9 — Home quick actions
+### 🟩 F9 — Home quick actions ✅
 Quick-action shortcut(s) on the home/dashboard (e.g. "Add Fuel Log") that open F8 with vehicle
 context pre-filled.
 **Done when:** tapping the shortcut opens the fuel-record screen ready to save with minimal taps.
