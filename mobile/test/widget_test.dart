@@ -4,6 +4,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:drivevault/main.dart';
 import 'package:drivevault/features/auth/data/auth_repository.dart';
+import 'package:drivevault/features/dashboard/presentation/dashboard_screen.dart';
+import 'package:drivevault/features/dashboard/presentation/dashboard_provider.dart';
+import 'package:drivevault/features/dashboard/domain/dashboard_data.dart';
 
 class FakeUser extends Fake implements User {
   @override
@@ -32,6 +35,24 @@ class FakeUnverifiedPasswordUser extends Fake implements User {
 class _FakePasswordProvider extends Fake implements UserInfo {
   @override
   String get providerId => 'password';
+}
+
+/// A stub notifier that returns empty DashboardData without hitting the network.
+class _StubDashboardNotifier extends DashboardNotifier {
+  @override
+  Future<DashboardData> build() async {
+    return const DashboardData(
+      vehicleCount: 0,
+      monthlyFuelSpendCents: 0,
+      totalOwnershipCostCents: 0,
+      costBreakdown: CostBreakdown(
+        fuelCents: 0,
+        maintenanceCents: 0,
+        purchaseCents: 0,
+      ),
+      upcomingRenewals: [],
+    );
+  }
 }
 
 void main() {
@@ -75,12 +96,15 @@ void main() {
     WidgetTester tester,
   ) async {
     final fakeUser = FakeUser();
+
+    // Stub dashboardProvider so it returns immediately without a network call.
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
           authStateChangesProvider.overrideWith(
             (ref) => Stream.value(fakeUser),
           ),
+          dashboardProvider.overrideWith(() => _StubDashboardNotifier()),
         ],
         child: const DriveVaultApp(),
       ),
@@ -88,11 +112,10 @@ void main() {
     await tester.pump(); // Start navigation/redirects
     await tester.pumpAndSettle(); // Wait for transitions to finish
 
-    // Should find the dashboard/home screen text
-    expect(
-      find.text('Dashboard coming soon — Phase 1 scaffold.'),
-      findsOneWidget,
-    );
+    // The shell should have routed to DashboardScreen (home tab).
+    expect(find.byType(DashboardScreen), findsOneWidget);
+    // The empty-state is shown because vehicleCount == 0.
+    expect(find.text('No vehicles yet'), findsOneWidget);
   });
 
   testWidgets('App boots to VerifyEmailScreen when signed in but unverified', (
