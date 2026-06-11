@@ -41,7 +41,6 @@ class Vehicle(Base):
     photo_public_id: Mapped[str | None] = mapped_column(Text, nullable=True)
     vehicle_type: Mapped[str | None] = mapped_column(Text, nullable=True)
     fuel_type: Mapped[str | None] = mapped_column(Text, nullable=True)
-    default_fuel_variant: Mapped[str | None] = mapped_column(Text, nullable=True)
     distance_unit: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[object] = mapped_column(  # type: ignore[assignment]
         TIMESTAMP(timezone=True), server_default=func.now(), nullable=False

@@ -6,7 +6,7 @@ from decimal import Decimal
 from uuid import UUID
 
 from fastapi import HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.models.fuel_logs import FuelLog
@@ -33,13 +33,32 @@ def list_fuel_logs(
     return list(db.scalars(query))
 
 
+def _sync_current_mileage(db: Session, vehicle: Vehicle) -> None:
+    """Set vehicle.current_mileage to MAX(odometer) of its fuel logs, or None if empty."""
+    max_odometer = db.scalar(
+        select(func.max(FuelLog.odometer)).where(FuelLog.vehicle_id == vehicle.id)
+    )
+    vehicle.current_mileage = max_odometer
+    db.add(vehicle)
+
+
 def create_fuel_log(db: Session, user: User, vehicle_id: UUID, payload: FuelLogCreate) -> FuelLog:
-    get_vehicle_for_user(db, user, vehicle_id)
+    vehicle = get_vehicle_for_user(db, user, vehicle_id)
+    existing_max = db.scalar(
+        select(func.max(FuelLog.odometer)).where(FuelLog.vehicle_id == vehicle_id)
+    )
+    if existing_max is not None and payload.odometer <= existing_max:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Odometer must be greater than the latest reading ({existing_max} km)",
+        )
     data = payload.model_dump()
     if data.get("currency") is None:
         data["currency"] = user.currency
     fuel_log = FuelLog(vehicle_id=vehicle_id, **data)
     db.add(fuel_log)
+    db.flush()
+    _sync_current_mileage(db, vehicle)
     db.commit()
     db.refresh(fuel_log)
     return fuel_log
@@ -74,7 +93,10 @@ def update_fuel_log(db: Session, user: User, fuel_log_id: UUID, payload: FuelLog
 
 def delete_fuel_log(db: Session, user: User, fuel_log_id: UUID) -> None:
     fuel_log = get_fuel_log_for_user(db, user, fuel_log_id)
+    vehicle = get_vehicle_for_user(db, user, fuel_log.vehicle_id)
     db.delete(fuel_log)
+    db.flush()
+    _sync_current_mileage(db, vehicle)
     db.commit()
 
 

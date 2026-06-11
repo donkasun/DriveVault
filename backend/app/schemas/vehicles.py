@@ -23,7 +23,6 @@ class VehicleBase(BaseModel):
     current_mileage: int | None = Field(default=None, alias="currentMileage")
     vehicle_type: str | None = Field(default=None, alias="vehicleType")
     fuel_type: str | None = Field(default=None, alias="fuelType")
-    default_fuel_variant: str | None = Field(default=None, alias="defaultFuelVariant")
     distance_unit: str | None = Field(default=None, alias="distanceUnit")
     photo_url: str | None = Field(default=None, alias="photoUrl")
     photo_public_id: str | None = Field(default=None, alias="photoPublicId")
@@ -73,9 +72,6 @@ class VehicleRead(BaseModel):
     ]
     vehicle_type: Annotated[str | None, Field(default=None, serialization_alias="vehicleType")]
     fuel_type: Annotated[str | None, Field(default=None, serialization_alias="fuelType")]
-    default_fuel_variant: Annotated[
-        str | None, Field(default=None, serialization_alias="defaultFuelVariant")
-    ]
     distance_unit: Annotated[str | None, Field(default=None, serialization_alias="distanceUnit")]
     photo_url: Annotated[str | None, Field(default=None, serialization_alias="photoUrl")]
     photo_public_id: Annotated[str | None, Field(default=None, serialization_alias="photoPublicId")]

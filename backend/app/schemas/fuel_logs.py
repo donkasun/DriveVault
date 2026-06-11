@@ -18,7 +18,6 @@ class FuelLogBase(BaseModel):
     currency: str | None = None
     odometer: int | None = None
     is_full_tank: bool = Field(default=True, alias="isFullTank")
-    fuel_variant: str | None = Field(default=None, alias="fuelVariant")
     notes: str | None = None
 
 
@@ -44,7 +43,6 @@ class FuelLogRead(BaseModel):
     currency: str
     odometer: int
     is_full_tank: Annotated[bool, Field(serialization_alias="isFullTank")]
-    fuel_variant: Annotated[str | None, Field(serialization_alias="fuelVariant")] = None
     notes: str | None = None
     created_at: Annotated[datetime, Field(serialization_alias="createdAt")]
     updated_at: Annotated[datetime, Field(serialization_alias="updatedAt")]

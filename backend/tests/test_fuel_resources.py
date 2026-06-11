@@ -249,26 +249,23 @@ def test_f3_vehicle_create_and_patch_fuel_and_unit_fields(
             "make": "Toyota",
             "model": "Hilux",
             "fuelType": "petrol",
-            "defaultFuelVariant": "95 Octane",
             "distanceUnit": "mi",
         },
     )
     assert create_response.status_code == 201
     body = create_response.json()
     assert body["fuelType"] == "petrol"
-    assert body["defaultFuelVariant"] == "95 Octane"
     assert body["distanceUnit"] == "mi"
 
     vehicle_id = body["id"]
     patch_response = fuel_client.patch(
         f"/api/v1/vehicles/{vehicle_id}",
         headers=_auth_headers(),
-        json={"fuelType": "diesel", "defaultFuelVariant": "Premium", "distanceUnit": "km"},
+        json={"fuelType": "diesel", "distanceUnit": "km"},
     )
     assert patch_response.status_code == 200
     patched = patch_response.json()
     assert patched["fuelType"] == "diesel"
-    assert patched["defaultFuelVariant"] == "Premium"
     assert patched["distanceUnit"] == "km"
 
 
@@ -285,9 +282,8 @@ def test_f3_vehicle_distance_unit_null_accepted(mock_verify, fuel_client, db_ses
     assert response.status_code == 201
     body = response.json()
     assert body["distanceUnit"] is None
-    # fuel fields omitted → null (inherit / unset)
+    # fuel type omitted → null (inherit / unset)
     assert body["fuelType"] is None
-    assert body["defaultFuelVariant"] is None
 
 
 @patch("app.deps.auth.verify_id_token")
@@ -303,20 +299,18 @@ def test_f3_vehicle_invalid_fuel_type_returns_422(mock_verify, fuel_client, db_s
     assert response.status_code == 422
 
 
-# ── F4 tests (fuel variant + currency-from-preference) ────────────────────────
+# ── F4 tests (currency-from-preference) ──────────────────────────────────────
 
 
 @patch("app.deps.auth.verify_id_token")
-def test_f4_fuel_log_variant_and_currency_from_preference(
-    mock_verify, fuel_client, db_session, users
-):
+def test_f4_fuel_log_currency_from_preference(mock_verify, fuel_client, db_session, users):
     owner, _ = users
     owner.currency = "EUR"
     db_session.commit()
     vehicle = _create_vehicle(db_session, owner)
     _mock_owner(mock_verify)
 
-    # currency omitted → falls back to the user's preference; fuelVariant persists
+    # currency omitted → falls back to the user's preference
     response = fuel_client.post(
         f"/api/v1/vehicles/{vehicle.id}/fuel-logs",
         headers=_auth_headers(),
@@ -325,13 +319,11 @@ def test_f4_fuel_log_variant_and_currency_from_preference(
             "liters": 45.5,
             "priceCents": 7800,
             "odometer": 48200,
-            "fuelVariant": "98 Octane",
         },
     )
     assert response.status_code == 201
     body = response.json()
     assert body["currency"] == "EUR"
-    assert body["fuelVariant"] == "98 Octane"
 
     # explicit currency wins
     explicit = fuel_client.post(
@@ -362,3 +354,133 @@ def test_delete_vehicle_with_children_cascades(mock_verify, fuel_client, db_sess
     assert response.status_code == 204
     assert db_session.scalar(select(Vehicle).where(Vehicle.id == vehicle.id)) is None
     assert db_session.scalar(select(FuelLog).where(FuelLog.vehicle_id == vehicle.id)) is None
+
+
+# ── Odometer validation + mileage-sync tests ──────────────────────────────────
+
+
+@patch("app.deps.auth.verify_id_token")
+def test_odometer_create_first_log_no_validation(mock_verify, fuel_client, db_session, users):
+    """First fuel log for a vehicle is accepted regardless of odometer value."""
+    owner, _ = users
+    vehicle = _create_vehicle(db_session, owner)
+    _mock_owner(mock_verify)
+
+    response = fuel_client.post(
+        f"/api/v1/vehicles/{vehicle.id}/fuel-logs",
+        headers=_auth_headers(),
+        json={
+            "date": "2026-06-01",
+            "liters": 40.0,
+            "priceCents": 6000,
+            "odometer": 50000,
+        },
+    )
+    assert response.status_code == 201
+    db_session.refresh(vehicle)
+    assert vehicle.current_mileage == 50000
+
+
+@patch("app.deps.auth.verify_id_token")
+def test_odometer_create_above_max_accepted(mock_verify, fuel_client, db_session, users):
+    """Creating a log with odometer strictly greater than existing max is accepted."""
+    owner, _ = users
+    vehicle = _create_vehicle(db_session, owner)
+    _create_fuel_log(db_session, vehicle, date(2026, 5, 1), 48000)
+    _mock_owner(mock_verify)
+
+    response = fuel_client.post(
+        f"/api/v1/vehicles/{vehicle.id}/fuel-logs",
+        headers=_auth_headers(),
+        json={
+            "date": "2026-06-01",
+            "liters": 45.0,
+            "priceCents": 7000,
+            "odometer": 48001,
+        },
+    )
+    assert response.status_code == 201
+    db_session.refresh(vehicle)
+    assert vehicle.current_mileage == 48001
+
+
+@patch("app.deps.auth.verify_id_token")
+def test_odometer_create_equal_to_max_rejected(mock_verify, fuel_client, db_session, users):
+    """Creating a log with odometer equal to existing max returns 400."""
+    owner, _ = users
+    vehicle = _create_vehicle(db_session, owner)
+    _create_fuel_log(db_session, vehicle, date(2026, 5, 1), 48500)
+    _mock_owner(mock_verify)
+
+    response = fuel_client.post(
+        f"/api/v1/vehicles/{vehicle.id}/fuel-logs",
+        headers=_auth_headers(),
+        json={
+            "date": "2026-06-01",
+            "liters": 45.0,
+            "priceCents": 7000,
+            "odometer": 48500,
+        },
+    )
+    assert response.status_code == 400
+    assert (
+        response.json()["detail"] == "Odometer must be greater than the latest reading (48500 km)"
+    )
+
+
+@patch("app.deps.auth.verify_id_token")
+def test_odometer_create_below_max_rejected(mock_verify, fuel_client, db_session, users):
+    """Creating a log with odometer less than existing max returns 400."""
+    owner, _ = users
+    vehicle = _create_vehicle(db_session, owner)
+    _create_fuel_log(db_session, vehicle, date(2026, 5, 1), 48500)
+    _mock_owner(mock_verify)
+
+    response = fuel_client.post(
+        f"/api/v1/vehicles/{vehicle.id}/fuel-logs",
+        headers=_auth_headers(),
+        json={
+            "date": "2026-06-01",
+            "liters": 45.0,
+            "priceCents": 7000,
+            "odometer": 48000,
+        },
+    )
+    assert response.status_code == 400
+    assert (
+        response.json()["detail"] == "Odometer must be greater than the latest reading (48500 km)"
+    )
+
+
+@patch("app.deps.auth.verify_id_token")
+def test_odometer_delete_latest_reverts_mileage(mock_verify, fuel_client, db_session, users):
+    """Deleting the latest log reverts current_mileage to the second-to-last odometer."""
+    owner, _ = users
+    vehicle = _create_vehicle(db_session, owner)
+    _create_fuel_log(db_session, vehicle, date(2026, 5, 1), 48000)
+    latest = _create_fuel_log(db_session, vehicle, date(2026, 6, 1), 49000)
+    # Manually set current_mileage so we can verify it changes
+    vehicle.current_mileage = 49000
+    db_session.commit()
+    _mock_owner(mock_verify)
+
+    response = fuel_client.delete(f"/api/v1/fuel-logs/{latest.id}", headers=_auth_headers())
+    assert response.status_code == 204
+    db_session.refresh(vehicle)
+    assert vehicle.current_mileage == 48000
+
+
+@patch("app.deps.auth.verify_id_token")
+def test_odometer_delete_only_log_sets_mileage_null(mock_verify, fuel_client, db_session, users):
+    """Deleting the only fuel log sets vehicle.current_mileage to None."""
+    owner, _ = users
+    vehicle = _create_vehicle(db_session, owner)
+    only_log = _create_fuel_log(db_session, vehicle, date(2026, 6, 1), 50000)
+    vehicle.current_mileage = 50000
+    db_session.commit()
+    _mock_owner(mock_verify)
+
+    response = fuel_client.delete(f"/api/v1/fuel-logs/{only_log.id}", headers=_auth_headers())
+    assert response.status_code == 204
+    db_session.refresh(vehicle)
+    assert vehicle.current_mileage is None
