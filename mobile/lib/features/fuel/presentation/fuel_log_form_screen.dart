@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../shared/utils/distance_unit.dart';
 import '../../profile/data/user_repository.dart';
+import '../../vehicles/data/vehicle_repository.dart';
 import '../../vehicles/domain/vehicle.dart';
 import '../../vehicles/presentation/vehicles_provider.dart';
 import '../data/fuel_repository.dart';
@@ -52,6 +53,14 @@ class _FuelLogFormScreenState extends ConsumerState<FuelLogFormScreen> {
 
   bool _editInitialised = false;
   String? _addDefaultsAppliedFor;
+
+  /// Whether the vehicle had a defaultFuelVariant when the form opened (for the
+  /// current vehicle selection). Used to decide whether to persist on save.
+  bool _vehicleHadDefaultVariant = false;
+
+  /// Controls visibility of the preset fuel-variant chips.
+  /// Shown by default when no variant is selected; hidden when one is chosen.
+  bool _variantOptionsVisible = false;
 
   bool get _isEdit => widget.existing != null;
 
@@ -121,10 +130,27 @@ class _FuelLogFormScreenState extends ConsumerState<FuelLogFormScreen> {
     if (_addDefaultsAppliedFor == vehicle.id) return;
     _addDefaultsAppliedFor = vehicle.id;
 
-    if (_variantCtrl.text.trim().isEmpty &&
-        vehicle.defaultFuelVariant != null) {
+    final hasExistingDefault =
+        vehicle.defaultFuelVariant != null &&
+        vehicle.defaultFuelVariant!.trim().isNotEmpty;
+
+    // Track whether this vehicle already had a default — used during save.
+    _vehicleHadDefaultVariant = hasExistingDefault;
+
+    if (_variantCtrl.text.trim().isEmpty && hasExistingDefault) {
       _variantCtrl.text = vehicle.defaultFuelVariant!;
     }
+
+    // Show chips immediately when there is no variant selected after defaults.
+    final hasVariantAfterDefaults = _variantCtrl.text.trim().isNotEmpty;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        setState(() {
+          _variantOptionsVisible = !hasVariantAfterDefaults;
+        });
+      }
+    });
+
     final latest = logs.isNotEmpty ? logs.first : null;
     if (latest != null) {
       if (_unitPriceCtrl.text.trim().isEmpty && latest.liters > 0) {
@@ -172,15 +198,33 @@ class _FuelLogFormScreenState extends ConsumerState<FuelLogFormScreen> {
         'notes': notes,
       };
 
+      final vehicleIdForSave = _selectedVehicleId!;
       final repo = ref.read(fuelRepositoryProvider);
       if (_isEdit) {
         await repo.updateFuelLog(widget.existing!.id, data);
       } else {
-        await repo.createFuelLog(_selectedVehicleId!, data);
+        await repo.createFuelLog(vehicleIdForSave, data);
       }
 
-      ref.invalidate(fuelLogsProvider(_selectedVehicleId!));
-      ref.invalidate(fuelStatsProvider(_selectedVehicleId!));
+      // Persist the chosen variant as the vehicle's default when the vehicle
+      // did not previously have one (only on add; don't overwrite existing defaults).
+      if (!_isEdit &&
+          !_vehicleHadDefaultVariant &&
+          variant.isNotEmpty) {
+        try {
+          await ref
+              .read(vehiclesProvider.notifier)
+              .updateVehicle(vehicleIdForSave, {'defaultFuelVariant': variant});
+          // Invalidate the per-vehicle FutureProvider so the next form open
+          // auto-fills the newly-persisted variant.
+          ref.invalidate(vehicleProvider(vehicleIdForSave));
+        } catch (_) {
+          // Non-fatal: the fuel log was saved; silently skip variant persist.
+        }
+      }
+
+      ref.invalidate(fuelLogsProvider(vehicleIdForSave));
+      ref.invalidate(fuelStatsProvider(vehicleIdForSave));
 
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
@@ -289,6 +333,9 @@ class _FuelLogFormScreenState extends ConsumerState<FuelLogFormScreen> {
                     _selectedVehicleId = value;
                     _latestOdometerKm = null;
                     _addDefaultsAppliedFor = null;
+                    _vehicleHadDefaultVariant = false;
+                    _variantCtrl.clear();
+                    _variantOptionsVisible = true;
                   }),
             validator: (v) => v == null ? 'Select a vehicle' : null,
           ),
@@ -316,26 +363,7 @@ class _FuelLogFormScreenState extends ConsumerState<FuelLogFormScreen> {
             isDecimal: false,
           ),
           const SizedBox(height: 16),
-          TextFormField(
-            controller: _variantCtrl,
-            decoration: const InputDecoration(
-              labelText: 'Fuel variant',
-              hintText: 'e.g. 95 Octane',
-              border: OutlineInputBorder(),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            children: _variantPresets
-                .map(
-                  (p) => ActionChip(
-                    label: Text(p),
-                    onPressed: () => setState(() => _variantCtrl.text = p),
-                  ),
-                )
-                .toList(),
-          ),
+          _buildFuelVariantField(),
           const SizedBox(height: 16),
           SwitchListTile(
             title: const Text('Full Tank'),
@@ -359,6 +387,63 @@ class _FuelLogFormScreenState extends ConsumerState<FuelLogFormScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  /// Fuel variant field: labeled row with the text field (expanded) and a
+  /// "Change" button. Preset chips are shown/hidden via [_variantOptionsVisible].
+  Widget _buildFuelVariantField() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: TextFormField(
+                controller: _variantCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Fuel type *',
+                  hintText: 'e.g. 95 Octane',
+                  border: OutlineInputBorder(),
+                ),
+                validator: (v) =>
+                    (v == null || v.trim().isEmpty) ? 'Select a fuel type' : null,
+                onChanged: (_) => setState(() {}),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Padding(
+              // Align vertically with the text field (OutlineInputBorder label
+              // adds ~8 px at the top).
+              padding: const EdgeInsets.only(top: 4),
+              child: OutlinedButton(
+                onPressed: () =>
+                    setState(() => _variantOptionsVisible = !_variantOptionsVisible),
+                child: Text(_variantOptionsVisible ? 'Hide' : 'Change'),
+              ),
+            ),
+          ],
+        ),
+        if (_variantOptionsVisible) ...[
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 4,
+            children: _variantPresets
+                .map(
+                  (p) => ActionChip(
+                    label: Text(p),
+                    onPressed: () => setState(() {
+                      _variantCtrl.text = p;
+                      _variantOptionsVisible = false;
+                    }),
+                  ),
+                )
+                .toList(),
+          ),
+        ],
+      ],
     );
   }
 
