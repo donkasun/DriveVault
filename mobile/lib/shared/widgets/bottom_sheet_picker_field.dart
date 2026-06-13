@@ -86,9 +86,16 @@ class _BottomSheetPickerFieldState<T> extends State<BottomSheetPickerField<T>> {
               ),
               ConstrainedBox(
                 constraints: BoxConstraints(maxHeight: maxListHeight),
-                child: ListView(
+                child: ListView.separated(
                   shrinkWrap: true,
-                  children: widget.options.map((option) {
+                  itemCount: widget.options.length,
+                  separatorBuilder: (context2, index2) => const Divider(
+                    height: 1,
+                    indent: 16,
+                    endIndent: 16,
+                  ),
+                  itemBuilder: (ctx, index) {
+                    final option = widget.options[index];
                     final isSelected = option == widget.value;
                     if (widget.sheetItemBuilder != null) {
                       return InkWell(
@@ -113,7 +120,7 @@ class _BottomSheetPickerFieldState<T> extends State<BottomSheetPickerField<T>> {
                       onTap: () =>
                           Navigator.of(ctx, rootNavigator: true).pop(option),
                     );
-                  }).toList(),
+                  },
                 ),
               ),
               const SizedBox(height: 8),

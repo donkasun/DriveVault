@@ -1,8 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/theme/app_theme.dart';
+import '../../../core/network/api_exceptions.dart';
+import '../../../shared/utils/distance_unit.dart';
 import '../../../shared/widgets/bottom_sheet_picker_field.dart';
+import '../../../shared/widgets/form_screen_app_bar.dart';
+import '../../dashboard/presentation/dashboard_provider.dart';
+import '../../expenses/data/expenses_provider.dart';
+import '../../profile/data/user_repository.dart';
+import '../../vehicles/data/vehicle_repository.dart';
+import '../../vehicles/domain/vehicle.dart';
+import '../../vehicles/presentation/vehicles_provider.dart';
 import '../data/maintenance_repository.dart';
 import '../domain/maintenance_record.dart';
 
@@ -27,13 +35,24 @@ class _MaintenanceFormScreenState extends ConsumerState<MaintenanceFormScreen> {
   late final TextEditingController _serviceTypeCtrl;
   late final TextEditingController _odometerCtrl;
   late final TextEditingController _costCtrl;
-  late final TextEditingController _currencyCtrl;
   late final TextEditingController _workshopCtrl;
   late final TextEditingController _notesCtrl;
   String? _category;
   bool _saving = false;
 
   static const _categories = ['maintenance', 'repair', 'inspection', 'other'];
+
+  static const _serviceTypeSuggestions = [
+    'Oil Change',
+    'Tyre Rotation',
+    'Brake Service',
+    'Air Filter',
+    'Battery',
+    'Coolant',
+    'Inspection',
+  ];
+
+  bool get _isEdit => widget.existing != null;
 
   @override
   void initState() {
@@ -49,7 +68,6 @@ class _MaintenanceFormScreenState extends ConsumerState<MaintenanceFormScreen> {
           ? (e!.costCents! / 100).toStringAsFixed(2)
           : '',
     );
-    _currencyCtrl = TextEditingController(text: e?.currency ?? 'USD');
     _workshopCtrl = TextEditingController(text: e?.workshop ?? '');
     _notesCtrl = TextEditingController(text: e?.notes ?? '');
     _category = e?.category;
@@ -61,7 +79,6 @@ class _MaintenanceFormScreenState extends ConsumerState<MaintenanceFormScreen> {
     _serviceTypeCtrl.dispose();
     _odometerCtrl.dispose();
     _costCtrl.dispose();
-    _currencyCtrl.dispose();
     _workshopCtrl.dispose();
     _notesCtrl.dispose();
     super.dispose();
@@ -88,6 +105,57 @@ class _MaintenanceFormScreenState extends ConsumerState<MaintenanceFormScreen> {
     }
   }
 
+  Future<void> _delete() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Service Record'),
+        content: const Text(
+          'Delete this service record? This cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+
+    setState(() => _saving = true);
+    try {
+      final repo = ref.read(maintenanceRepositoryProvider);
+      await repo.deleteRecord(widget.existing!.id);
+
+      ref.invalidate(maintenanceRecordsProvider(widget.vehicleId));
+      ref.invalidate(vehicleProvider(widget.vehicleId));
+      ref.invalidate(vehiclesProvider);
+      ref.invalidate(dashboardProvider);
+      ref.invalidate(allExpensesProvider);
+
+      if (mounted) {
+        Navigator.of(context).pop(true);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Service record deleted')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        final msg = e is ApiException ? e.message : 'Delete failed';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(msg)),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _saving = true);
@@ -95,6 +163,8 @@ class _MaintenanceFormScreenState extends ConsumerState<MaintenanceFormScreen> {
       final costText = _costCtrl.text.trim();
       final odomText = _odometerCtrl.text.trim();
 
+      // currency intentionally omitted — the backend fills it from the user's
+      // currency preference (matches fuel-log form behaviour).
       final data = <String, dynamic>{
         'date': _dateCtrl.text.trim(),
         'serviceType': _serviceTypeCtrl.text.trim(),
@@ -102,22 +172,24 @@ class _MaintenanceFormScreenState extends ConsumerState<MaintenanceFormScreen> {
         if (_category != null) 'category': _category,
         if (costText.isNotEmpty)
           'costCents': (double.parse(costText) * 100).round(),
-        'currency': _currencyCtrl.text.trim().isEmpty
-            ? 'USD'
-            : _currencyCtrl.text.trim(),
         if (_workshopCtrl.text.trim().isNotEmpty)
           'workshop': _workshopCtrl.text.trim(),
         if (_notesCtrl.text.trim().isNotEmpty) 'notes': _notesCtrl.text.trim(),
       };
 
       final repo = ref.read(maintenanceRepositoryProvider);
-      if (widget.existing != null) {
+      if (_isEdit) {
         await repo.updateRecord(widget.existing!.id, data);
       } else {
         await repo.createRecord(widget.vehicleId, data);
       }
 
       ref.invalidate(maintenanceRecordsProvider(widget.vehicleId));
+      ref.invalidate(vehicleProvider(widget.vehicleId));
+      ref.invalidate(vehiclesProvider);
+      ref.invalidate(dashboardProvider);
+      ref.invalidate(allExpensesProvider);
+
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
       if (mounted) {
@@ -132,51 +204,24 @@ class _MaintenanceFormScreenState extends ConsumerState<MaintenanceFormScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isEdit = widget.existing != null;
+    final vehiclesAsync = ref.watch(vehiclesProvider);
+    final meAsync = ref.watch(meProvider);
+
+    // Resolve the effective distance unit for this vehicle.
+    final vehicle = vehiclesAsync.asData?.value
+        .cast<Vehicle?>()
+        .firstWhere((v) => v?.id == widget.vehicleId, orElse: () => null);
+    final userUnit = meAsync.asData?.value.distanceUnit ?? 'km';
+    final unit = effectiveUnit(
+      vehicleUnit: vehicle?.distanceUnit,
+      userUnit: userUnit,
+    );
+
     return Scaffold(
-      appBar: AppBar(
-        centerTitle: true,
-        leadingWidth: 80,
-        title: Text(isEdit ? 'Edit Service Record' : 'Add Service Record'),
-        leading: TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          style: TextButton.styleFrom(foregroundColor: AppColors.textPrimary),
-          child: const Text('Cancel', maxLines: 1),
-        ),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: _saving
-                ? const Center(
-                    child: SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
-                  )
-                : TextButton(
-                    onPressed: _save,
-                    style: TextButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: AppColors.onPrimary,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 2,
-                      ),
-                      minimumSize: Size.zero,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      textStyle: const TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 14,
-                      ),
-                    ),
-                    child: const Text('Save'),
-                  ),
-          ),
-        ],
+      appBar: FormScreenAppBar(
+        title: _isEdit ? 'Edit Service Record' : 'Add Service Record',
+        saving: _saving,
+        onSave: _save,
       ),
       body: Form(
         key: _formKey,
@@ -206,13 +251,28 @@ class _MaintenanceFormScreenState extends ConsumerState<MaintenanceFormScreen> {
               ),
               validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
             ),
+            const SizedBox(height: 8),
+            // Suggestion chips — tapping fills the field (still editable).
+            Wrap(
+              spacing: 8,
+              runSpacing: 4,
+              children: _serviceTypeSuggestions.map((suggestion) {
+                return ActionChip(
+                  label: Text(suggestion),
+                  onPressed: () {
+                    setState(() => _serviceTypeCtrl.text = suggestion);
+                  },
+                  visualDensity: VisualDensity.compact,
+                );
+              }).toList(),
+            ),
             const SizedBox(height: 16),
-            // Odometer
+            // Odometer — label uses effective distance unit
             TextFormField(
               controller: _odometerCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Odometer (km)',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: 'Odometer (${unit.label})',
+                border: const OutlineInputBorder(),
               ),
               keyboardType: TextInputType.number,
               validator: (v) {
@@ -252,16 +312,6 @@ class _MaintenanceFormScreenState extends ConsumerState<MaintenanceFormScreen> {
               },
             ),
             const SizedBox(height: 16),
-            // Currency
-            TextFormField(
-              controller: _currencyCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Currency',
-                hintText: 'USD',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 16),
             // Workshop
             TextFormField(
               controller: _workshopCtrl,
@@ -280,6 +330,21 @@ class _MaintenanceFormScreenState extends ConsumerState<MaintenanceFormScreen> {
               ),
               maxLines: 3,
             ),
+            if (_isEdit) ...[
+              const SizedBox(height: 24),
+              OutlinedButton.icon(
+                onPressed: _saving ? null : _delete,
+                icon: const Icon(Icons.delete_outline, color: Colors.red),
+                label: const Text(
+                  'Delete Service Record',
+                  style: TextStyle(color: Colors.red),
+                ),
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: Colors.red),
+                  minimumSize: const Size.fromHeight(48),
+                ),
+              ),
+            ],
           ],
         ),
       ),

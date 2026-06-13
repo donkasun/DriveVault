@@ -4,6 +4,7 @@ from datetime import UTC, datetime
 
 from sqlalchemy.orm import Session
 
+from app.core.constants import LOCKED_CURRENCY
 from app.models.users import User
 from app.schemas.users import UserUpdate
 
@@ -11,6 +12,8 @@ from app.schemas.users import UserUpdate
 def update_user_profile(db: Session, user: User, payload: UserUpdate) -> User:
     """Apply partial profile updates and persist updated_at."""
     data = payload.model_dump(exclude_unset=True)
+    if "currency" in data and data["currency"] is not None:
+        data["currency"] = LOCKED_CURRENCY
     for field, value in data.items():
         setattr(user, field, value)
 

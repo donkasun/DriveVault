@@ -22,7 +22,7 @@ class User(Base):
     email: Mapped[str] = mapped_column(Text, nullable=False)
     display_name: Mapped[str | None] = mapped_column(Text, nullable=True)
     photo_url: Mapped[str | None] = mapped_column(Text, nullable=True)
-    currency: Mapped[str] = mapped_column(CHAR(3), server_default="USD", nullable=False)
+    currency: Mapped[str] = mapped_column(CHAR(3), server_default="LKR", nullable=False)
     distance_unit: Mapped[str] = mapped_column(Text, server_default="km", nullable=False)
     created_at: Mapped[object] = mapped_column(  # type: ignore[assignment]
         TIMESTAMP(timezone=True), server_default=func.now(), nullable=False

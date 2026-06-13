@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 
 import '../../../core/network/api_exceptions.dart';
+import '../../../core/theme/app_theme.dart';
+import '../../../shared/constants/currencies.dart';
 import '../../../shared/utils/formatting.dart';
+import '../../../shared/widgets/fuel_pump_icon.dart';
 import '../../fuel/data/fuel_repository.dart';
 import '../../fuel/presentation/fuel_log_form_screen.dart';
 import '../../maintenance/data/maintenance_repository.dart';
@@ -29,22 +33,17 @@ class _ExpenseHistoryScreenState extends ConsumerState<ExpenseHistoryScreen> {
   Widget build(BuildContext context) {
     final expensesAsync = ref.watch(allExpensesProvider);
     final vehiclesAsync = ref.watch(vehiclesProvider);
-    final userCurrency =
-        ref.watch(meProvider).asData?.value.currency ?? 'USD';
+    final userCurrency = ref.watch(meProvider).asData?.value.currency ?? kFallbackCurrency;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Expenses'),
-        centerTitle: true,
-      ),
+      appBar: AppBar(title: const Text('Expenses'), centerTitle: true),
       body: expensesAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Error loading expenses: $e')),
         data: (expenses) {
           // Apply filters
           final filtered = expenses.where((e) {
-            final kindOk =
-                _kindFilter == null || e.kind == _kindFilter;
+            final kindOk = _kindFilter == null || e.kind == _kindFilter;
             final vehicleOk =
                 _vehicleIdFilter == null || e.vehicleId == _vehicleIdFilter;
             return kindOk && vehicleOk;
@@ -65,8 +64,7 @@ class _ExpenseHistoryScreenState extends ConsumerState<ExpenseHistoryScreen> {
                 vehicleIdFilter: _vehicleIdFilter,
                 vehiclesAsync: vehiclesAsync,
                 onKindChanged: (v) => setState(() => _kindFilter = v),
-                onVehicleChanged: (v) =>
-                    setState(() => _vehicleIdFilter = v),
+                onVehicleChanged: (v) => setState(() => _vehicleIdFilter = v),
               ),
               // List
               Expanded(
@@ -77,7 +75,12 @@ class _ExpenseHistoryScreenState extends ConsumerState<ExpenseHistoryScreen> {
                           style: TextStyle(color: Colors.grey, fontSize: 16),
                         ),
                       )
-                    : _vehiclesAsync(vehiclesAsync, filtered),
+                    : _vehiclesAsync(
+                        context,
+                        vehiclesAsync,
+                        filtered,
+                        userCurrency,
+                      ),
               ),
             ],
           );
@@ -87,22 +90,58 @@ class _ExpenseHistoryScreenState extends ConsumerState<ExpenseHistoryScreen> {
   }
 
   Widget _vehiclesAsync(
+    BuildContext context,
     AsyncValue<List<Vehicle>> vehiclesAsync,
     List<Expense> filtered,
+    String userCurrency,
   ) {
     return vehiclesAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => Center(child: Text('Error: $e')),
       data: (vehicles) {
         final vehicleMap = {for (final v in vehicles) v.id: v};
-        return ListView.builder(
+        final groups = _groupExpensesByMonth(filtered);
+        return ListView(
           padding: const EdgeInsets.only(bottom: 96),
-          itemCount: filtered.length,
-          itemBuilder: (_, i) => _ExpenseTile(
-            expense: filtered[i],
-            vehicleName: vehicleMap[filtered[i].vehicleId]?.displayName ??
-                'Unknown vehicle',
-          ),
+          children: [
+            for (final group in groups) ...[
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
+                child: Row(
+                  children: [
+                    Text(
+                      DateFormat('MMMM yyyy').format(group.month),
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const Spacer(),
+                    Text(
+                      formatCents(
+                        group.expenses.fold<int>(
+                          0,
+                          (sum, expense) => sum + expense.costCents,
+                        ),
+                        currency: userCurrency,
+                      ),
+                      style: const TextStyle(
+                        color: AppColors.textMuted,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              for (final expense in group.expenses)
+                _ExpenseTile(
+                  expense: expense,
+                  vehicleName:
+                      vehicleMap[expense.vehicleId]?.displayName ??
+                      'Unknown vehicle',
+                ),
+            ],
+          ],
         );
       },
     );
@@ -147,15 +186,15 @@ class _HeaderCard extends StatelessWidget {
               children: [
                 Text(
                   'Total Spent',
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        color: Colors.grey,
-                      ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleSmall?.copyWith(color: Colors.grey),
                 ),
                 Text(
                   formatCents(totalCents, currency: userCurrency),
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
                 ),
               ],
             ),
@@ -175,9 +214,7 @@ class _HeaderCard extends StatelessWidget {
                     label: 'Fuel',
                     selected: kindFilter == ExpenseKind.fuel,
                     onTap: () => onKindChanged(
-                      kindFilter == ExpenseKind.fuel
-                          ? null
-                          : ExpenseKind.fuel,
+                      kindFilter == ExpenseKind.fuel ? null : ExpenseKind.fuel,
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -203,11 +240,11 @@ class _HeaderCard extends StatelessWidget {
                             label: vehicleIdFilter == null
                                 ? 'All vehicles'
                                 : vehicles
-                                        .firstWhere(
-                                          (v) => v.id == vehicleIdFilter,
-                                          orElse: () => vehicles.first,
-                                        )
-                                        .displayName,
+                                      .firstWhere(
+                                        (v) => v.id == vehicleIdFilter,
+                                        orElse: () => vehicles.first,
+                                      )
+                                      .displayName,
                             selected: vehicleIdFilter != null,
                             onTap: () {
                               // cycle through vehicles
@@ -215,7 +252,8 @@ class _HeaderCard extends StatelessWidget {
                                 onVehicleChanged(vehicles.first.id);
                               } else {
                                 final idx = vehicles.indexWhere(
-                                    (v) => v.id == vehicleIdFilter);
+                                  (v) => v.id == vehicleIdFilter,
+                                );
                                 if (idx < vehicles.length - 1) {
                                   onVehicleChanged(vehicles[idx + 1].id);
                                 } else {
@@ -259,7 +297,9 @@ class _FilterChip extends StatelessWidget {
         duration: const Duration(milliseconds: 150),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: selected ? colorScheme.primary : colorScheme.surfaceContainerHighest,
+          color: selected
+              ? colorScheme.primary
+              : colorScheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(20),
         ),
         child: Text(
@@ -285,10 +325,7 @@ class _ExpenseTile extends ConsumerWidget {
   final Expense expense;
   final String vehicleName;
 
-  const _ExpenseTile({
-    required this.expense,
-    required this.vehicleName,
-  });
+  const _ExpenseTile({required this.expense, required this.vehicleName});
 
   Future<void> _delete(BuildContext context, WidgetRef ref) async {
     try {
@@ -296,23 +333,21 @@ class _ExpenseTile extends ConsumerWidget {
         await ref.read(fuelRepositoryProvider).deleteFuelLog(expense.id);
         ref.invalidate(fuelLogsProvider(expense.vehicleId));
       } else {
-        await ref
-            .read(maintenanceRepositoryProvider)
-            .deleteRecord(expense.id);
+        await ref.read(maintenanceRepositoryProvider).deleteRecord(expense.id);
         ref.invalidate(maintenanceRecordsProvider(expense.vehicleId));
       }
       ref.invalidate(allExpensesProvider);
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Expense deleted')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Expense deleted')));
       }
     } catch (e) {
       if (context.mounted) {
         final msg = e is ApiException ? e.message : 'Delete failed';
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(msg)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(msg)));
       }
     }
   }
@@ -337,9 +372,7 @@ class _ExpenseTile extends ConsumerWidget {
         context: context,
         builder: (ctx) => AlertDialog(
           title: const Text('Delete Expense'),
-          content: const Text(
-            'Delete this expense? This cannot be undone.',
-          ),
+          content: const Text('Delete this expense? This cannot be undone.'),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(ctx).pop(false),
@@ -347,10 +380,7 @@ class _ExpenseTile extends ConsumerWidget {
             ),
             TextButton(
               onPressed: () => Navigator.of(ctx).pop(true),
-              child: const Text(
-                'Delete',
-                style: TextStyle(color: Colors.red),
-              ),
+              child: const Text('Delete', style: TextStyle(color: Colors.red)),
             ),
           ],
         ),
@@ -362,42 +392,122 @@ class _ExpenseTile extends ConsumerWidget {
         padding: const EdgeInsets.only(right: 16),
         child: const Icon(Icons.delete_outline, color: Colors.white),
       ),
-      child: ListTile(
-        leading: Icon(
-          expense.kind == ExpenseKind.fuel
-              ? Icons.local_gas_station
-              : Icons.build,
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        decoration: appCardDecoration.copyWith(
+          borderRadius: const BorderRadius.all(Radius.circular(16)),
         ),
-        title: Text(vehicleName),
-        subtitle: Text(_subtitle),
-        trailing: Text(
-          formatCents(expense.costCents, currency: expense.currency),
-          style: const TextStyle(fontWeight: FontWeight.w600),
-        ),
-        onTap: () async {
-          await Navigator.of(context).push(
-            MaterialPageRoute(
-              fullscreenDialog: true,
-              builder: (_) => expense.kind == ExpenseKind.fuel
-                  ? FuelLogFormScreen(
-                      vehicleId: expense.vehicleId,
-                      existing: expense.fuelLog,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(16),
+            onTap: () async {
+              await Navigator.of(context).push(
+                MaterialPageRoute(
+                  fullscreenDialog: true,
+                  builder: (_) => expense.kind == ExpenseKind.fuel
+                      ? FuelLogFormScreen(
+                          vehicleId: expense.vehicleId,
+                          existing: expense.fuelLog,
+                        )
+                      : MaintenanceFormScreen(
+                          vehicleId: expense.vehicleId,
+                          existing: expense.maintenanceRecord,
+                        ),
+                ),
+              );
+              // Invalidate affected providers after returning from edit
+              if (expense.kind == ExpenseKind.fuel) {
+                ref.invalidate(fuelLogsProvider(expense.vehicleId));
+              } else {
+                ref.invalidate(maintenanceRecordsProvider(expense.vehicleId));
+              }
+              ref.invalidate(allExpensesProvider);
+            },
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  if (expense.kind == ExpenseKind.fuel)
+                    FuelPumpIcon(
+                      isFullTank: expense.fuelLog?.isFullTank ?? false,
+                      size: 24,
                     )
-                  : MaintenanceFormScreen(
-                      vehicleId: expense.vehicleId,
-                      existing: expense.maintenanceRecord,
+                  else
+                    const Icon(
+                      Icons.build_outlined,
+                      color: AppColors.primary,
+                      size: 24,
                     ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          vehicleName,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          _subtitle,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textMuted,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    formatCents(expense.costCents, currency: expense.currency),
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          );
-          // Invalidate affected providers after returning from edit
-          if (expense.kind == ExpenseKind.fuel) {
-            ref.invalidate(fuelLogsProvider(expense.vehicleId));
-          } else {
-            ref.invalidate(maintenanceRecordsProvider(expense.vehicleId));
-          }
-          ref.invalidate(allExpensesProvider);
-        },
+          ),
+        ),
       ),
     );
   }
+}
+
+class _ExpenseMonthGroup {
+  final DateTime month;
+  final List<Expense> expenses;
+
+  const _ExpenseMonthGroup({required this.month, required this.expenses});
+}
+
+List<_ExpenseMonthGroup> _groupExpensesByMonth(List<Expense> expenses) {
+  final buckets = <String, List<Expense>>{};
+  final monthDates = <String, DateTime>{};
+
+  for (final expense in expenses) {
+    final date = DateTime.parse(expense.date);
+    final monthKey = '${date.year}-${date.month.toString().padLeft(2, '0')}';
+    buckets.putIfAbsent(monthKey, () => []).add(expense);
+    monthDates[monthKey] = DateTime(date.year, date.month);
+  }
+
+  final groups = buckets.entries.map((entry) {
+    final month = monthDates[entry.key]!;
+    final monthExpenses = [...entry.value]
+      ..sort((a, b) => b.date.compareTo(a.date));
+    return _ExpenseMonthGroup(month: month, expenses: monthExpenses);
+  }).toList();
+
+  groups.sort((a, b) => b.month.compareTo(a.month));
+  return groups;
 }

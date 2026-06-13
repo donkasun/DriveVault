@@ -9,6 +9,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.core.constants import LOCKED_CURRENCY
 from app.models.fuel_logs import FuelLog
 from app.models.users import User
 from app.models.vehicles import Vehicle
@@ -53,8 +54,7 @@ def create_fuel_log(db: Session, user: User, vehicle_id: UUID, payload: FuelLogC
             detail=f"Odometer must be greater than the latest reading ({existing_max} km)",
         )
     data = payload.model_dump()
-    if data.get("currency") is None:
-        data["currency"] = user.currency
+    data["currency"] = LOCKED_CURRENCY
     fuel_log = FuelLog(vehicle_id=vehicle_id, **data)
     db.add(fuel_log)
     db.flush()
@@ -115,11 +115,10 @@ def compute_fuel_stats(db: Session, user: User, vehicle_id: UUID) -> FuelStatsRe
     for log in logs:
         monthly_totals[log.date.strftime("%Y-%m")] += log.price_cents
 
-    full_tank_logs = [log for log in logs if log.is_full_tank]
     segment_liters = Decimal("0")
     segment_spent_cents = 0
     segment_distance_km = 0
-    for previous, current in zip(full_tank_logs, full_tank_logs[1:]):
+    for previous, current in zip(logs, logs[1:]):
         distance = current.odometer - previous.odometer
         if distance <= 0:
             continue

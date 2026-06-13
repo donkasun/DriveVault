@@ -6,6 +6,13 @@ import '../../vehicles/presentation/vehicles_provider.dart';
 import '../domain/expense.dart';
 
 final allExpensesProvider = FutureProvider<List<Expense>>((ref) async {
+  // keepAlive so the fan-out result is cached across tab switches.
+  // The per-vehicle sub-providers (fuelLogsProvider, maintenanceRecordsProvider)
+  // are themselves keepAlive and invalidated on every mutation, so this
+  // provider will be correctly re-evaluated when ref.invalidate(allExpensesProvider)
+  // is called from expense_history_screen.dart and maintenance_form_screen.dart.
+  ref.keepAlive();
+
   final vehicles = await ref.watch(vehiclesProvider.future);
   final all = <Expense>[];
   for (final v in vehicles) {

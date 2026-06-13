@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:drivevault/features/auth/data/auth_repository.dart';
 
 import '../../../core/theme/app_theme.dart';
-import '../../../shared/widgets/currency_selector.dart';
 import '../data/user_repository.dart';
 
 class ProfileScreen extends ConsumerWidget {
@@ -34,12 +34,12 @@ class _ProfileBody extends ConsumerStatefulWidget {
 class _ProfileBodyState extends ConsumerState<_ProfileBody> {
   bool _saving = false;
 
-  Future<void> _update({String? currency, String? distanceUnit}) async {
+  Future<void> _update({String? distanceUnit}) async {
     setState(() => _saving = true);
     try {
       await ref
           .read(userRepositoryProvider)
-          .updatePreferences(currency: currency, distanceUnit: distanceUnit);
+          .updatePreferences(distanceUnit: distanceUnit);
       ref.invalidate(meProvider);
       await ref.read(meProvider.future);
     } catch (e) {
@@ -116,6 +116,18 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody> {
         const SizedBox(height: 8),
         ListTile(
           contentPadding: EdgeInsets.zero,
+          leading: const Icon(Icons.person_outline),
+          title: const Text('Display name'),
+          subtitle: Text(
+            user.displayName?.isNotEmpty == true
+                ? user.displayName!
+                : 'Not set',
+          ),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => context.push('/profile/edit'),
+        ),
+        ListTile(
+          contentPadding: EdgeInsets.zero,
           leading: const Icon(Icons.email_outlined),
           title: const Text('Email'),
           subtitle: Text(user.email),
@@ -124,12 +136,6 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody> {
 
         const _SectionLabel('Preferences'),
         const SizedBox(height: 8),
-        CurrencySelector(
-          value: user.currency,
-          enabled: !_saving,
-          onChanged: (value) => _update(currency: value),
-        ),
-        const SizedBox(height: 16),
         InputDecorator(
           decoration: const InputDecoration(
             labelText: 'Distance unit',

@@ -179,7 +179,7 @@ def test_f2_get_me_includes_currency_and_distance_unit(mock_verify, me_client, d
 
     assert response.status_code == 200
     body = response.json()
-    assert body["currency"] == "USD"
+    assert body["currency"] == "LKR"
     assert body["distanceUnit"] == "km"
 
 
@@ -204,11 +204,11 @@ def test_f2_patch_me_updates_currency_and_distance_unit(mock_verify, me_client, 
 
     assert response.status_code == 200
     body = response.json()
-    assert body["currency"] == "EUR"
+    assert body["currency"] == "LKR"
     assert body["distanceUnit"] == "mi"
 
     db_session.refresh(user)
-    assert user.currency == "EUR"
+    assert user.currency == "LKR"
     assert user.distance_unit == "mi"
 
 
@@ -254,3 +254,29 @@ def test_f2_patch_me_invalid_currency_returns_422(mock_verify, me_client, db_ses
     )
 
     assert response.status_code == 422
+
+
+# ── Currency lock (LKR) tests ─────────────────────────────────────────────────
+
+
+@patch("app.deps.auth.verify_id_token")
+def test_patch_me_coerces_currency_to_lkr(mock_verify, me_client, db_session):
+    """PATCH /me with any currency value is always coerced to LKR."""
+    user = User(firebase_uid="firebase-lkr-coerce", email="lkrcoerce@example.com")
+    db_session.add(user)
+    db_session.commit()
+
+    mock_verify.return_value = {
+        "uid": "firebase-lkr-coerce",
+        "email": "lkrcoerce@example.com",
+        "email_verified": True,
+    }
+
+    response = me_client.patch(
+        "/api/v1/me",
+        headers={"Authorization": "Bearer lkr-coerce-token"},
+        json={"currency": "EUR"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["currency"] == "LKR"

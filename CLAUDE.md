@@ -96,7 +96,7 @@ When unsure, stop and ask. A small clarifying question is cheaper than a wrong i
   - **Never use Fable** for any task — it is not approved for this project.
   - Use judgement: anything ambiguous, cross-cutting, or contract-affecting stays in the main session; only dispatch once the task is well-defined. Default to the cheapest model that can do the job correctly.
 - **Test scope:** run only the tests relevant to the feature(s) being changed — not the full battery — for isolated changes (e.g. `flutter test test/features/fuel`, or the specific backend test module). Reserve a full-suite run for broad/cross-cutting changes or a final pre-merge check. Subagents fixing one feature should likewise run just that feature's tests + a scoped `analyze`.
-- Mobile form screens use a consistent AppBar: centered title, Cancel text button on the left, primary pill Save on the right (`horizontal: 12`, `vertical: 2`).
+- Mobile form screens use the shared `FormScreenAppBar`: centered title, Cancel text button on the left, primary pill Save on the right (`horizontal: 12`, `vertical: 6`), and a smaller title font size (`16`).
 - Keep delete/destructive resource actions on detail/view screens, not on edit forms; destructive profile actions (e.g. sign out) use red styling with a confirmation bottom sheet.
 - Currency pickers use a bottom-sheet field (`BottomSheetPickerField`): rows show symbol + name, selection stores the ISO code, and the closed field shows the currency name only.
 - On fuel log forms, place the Full tank toggle on the same row as the Liters field.
@@ -114,3 +114,4 @@ When unsure, stop and ask. A small clarifying question is cheaper than a wrong i
 - Local backend Docker Postgres may bind to host port 5433 when macOS Postgres already occupies 5432.
 - Email verification gate is task C2d; implementation plan at `docs/superpowers/plans/2026-06-09-email-verification-gate.md`.
 - `MainShell` stacks a floating tab bar above tab navigators; bottom sheets/modals that must cover the tab bar need `useRootNavigator: true`.
+- Shared form headers now live in `mobile/lib/shared/widgets/form_screen_app_bar.dart` and are used by fuel, vehicle, maintenance, document upload, and profile forms.

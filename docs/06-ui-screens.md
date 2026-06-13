@@ -38,7 +38,7 @@ tab bar** (active tab = white circle + colored icon), green progress rings + min
 Verified auth success → enter the shell (tabs appear). Unverified email/password sign-up
 → `/verify-email` (stay signed in). Sign-out → back to `/login`.
 
-### Shell — StatefulShellRoute with 3 branches
+### Shell — StatefulShellRoute with 4 branches
 ```
 🚗 GARAGE branch
 /garage                            Vehicles list
@@ -56,12 +56,16 @@ Verified auth success → enter the shell (tabs appear). Unverified email/passwo
   → tapping an item (e.g. a renewal) switches to the Garage branch
     and deep-links to that vehicle's relevant section
 
-👤 PROFILE branch
-/profile                           Profile / Settings
-  /profile/edit                    Edit profile (modal)
+💰 EXPENSES branch
+/expenses                          Expense history across all vehicles
+
+⚙️ SETTINGS branch
+/settings                          Profile / Settings
+  /settings/edit                   Edit profile (modal)
 ```
 
-- **Tabs (left→right):** Garage · **Home** · Profile. Home is the default after login.
+- **Tabs (left→right):** Garage · **Home** · Expenses · Settings. Home is the default after login.
+- Updated 2026-06-12: 4-tab shell approved (Expenses tab added; Profile renamed Settings).
 - **Forms = full-screen modal dialogs** (`fullscreenDialog: true`), Cancel/Save app bar.
 - **Cross-tab deep-link:** Home never duplicates vehicle screens — it switches to the Garage
   branch (`goBranch`) and navigates there.

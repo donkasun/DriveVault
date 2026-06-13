@@ -10,9 +10,8 @@
 - **Auth:** every endpoint except none-listed-as-public requires header
   `Authorization: Bearer <Firebase ID token>`. The backend resolves the current user from it.
 - All request/response bodies are JSON. Timestamps are ISO-8601 UTC. Money is integer cents.
-- **Currency:** single currency per user (stored on `users.currency`). On money-bearing
-  records (`fuel_logs`, `maintenance_records`), `currency` is optional in requests; when
-  omitted the backend uses the user's preference. **Distance unit** (`km`/`mi`) is a
+- **Currency:** locked to `LKR` for now (multi-currency deferred). `currency` on money
+  records and on `PATCH /me` is **forced server-side to `LKR`** regardless of request value. **Distance unit** (`km`/`mi`) is a
   display-only preference — odometer/mileage values on the wire and in storage are always km.
 - A user can only access **their own** vehicles and nested resources. Accessing another
   user's resource returns `404` (not `403`, to avoid leaking existence).
@@ -147,7 +146,7 @@ On delete, the vehicle's `currentMileage` is recomputed to the highest odometer 
 remaining fuel logs for that vehicle (`null` if no logs remain).
 
 ### `GET /api/v1/vehicles/{vehicleId}/fuel-stats`
-Computed economy metrics (derived from full-tank entries).
+Computed economy metrics (derived from consecutive fuel logs in date order; partial fills are included).
 **200**
 ```json
 {
@@ -162,6 +161,8 @@ Computed economy metrics (derived from full-tank entries).
 ```
 
 **FuelLog object:** create fields + `id`, `vehicleId`, `createdAt`, `updatedAt`.
+
+> Note (2026-06-12): `fuelVariant` is accepted/stored by the backend but the mobile app no longer sends or displays it (dropped in commit 641d8db).
 
 ---
 

@@ -3,14 +3,17 @@ import 'dart:math' as math;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/router/shell_tab_provider.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/constants/currencies.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../../../shared/utils/formatting.dart';
-import '../../fuel/presentation/fuel_log_form_screen.dart';
 import '../../profile/data/user_repository.dart';
+import '../../vehicles/domain/vehicle.dart';
+import '../../vehicles/presentation/vehicles_provider.dart';
 import '../domain/dashboard_data.dart';
 import 'dashboard_provider.dart';
 
@@ -20,8 +23,8 @@ class DashboardScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final dashboardAsync = ref.watch(dashboardProvider);
-    // Account-wide currency preference (defaults to USD until /me loads).
-    final currency = ref.watch(meProvider).asData?.value.currency ?? 'USD';
+    // Account-wide currency preference (defaults to LKR until /me loads).
+    final currency = ref.watch(meProvider).asData?.value.currency ?? kFallbackCurrency;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -178,7 +181,7 @@ class _EmptyState extends ConsumerWidget {
             AppButton(
               label: 'Add your first vehicle',
               onPressed: () =>
-                  ref.read(pendingTabProvider.notifier).switchTo(0),
+                  ref.read(pendingTabProvider.notifier).switchTo(1),
             ),
           ],
         ),
@@ -239,12 +242,7 @@ class _QuickActions extends StatelessWidget {
               side: BorderSide.none,
               padding: const EdgeInsets.symmetric(vertical: 14),
             ),
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(
-                fullscreenDialog: true,
-                builder: (_) => const FuelLogFormScreen(),
-              ),
-            ),
+            onPressed: () => context.push('/home/fuel/add'),
           ),
         ),
       ],
@@ -257,8 +255,6 @@ class _QuickActions extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _TotalCostCard extends StatelessWidget {
-  static const int _maxCents = 1000000; // $10,000
-
   final DashboardData data;
   final String currency;
 
@@ -266,21 +262,19 @@ class _TotalCostCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final progress = (data.totalOwnershipCostCents / _maxCents).clamp(0.0, 1.0);
+    // Ring is decorative: no honest monthly denominator exists in the API data
+    // (costBreakdown is all-time, not monthly). Show a full arc with the
+    // monthly fuel spend amount centred inside.
+    final monthlySpendLabel = formatCents(
+      data.monthlyFuelSpendCents,
+      currency: currency,
+    );
 
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withAlpha(13),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
+      decoration: appCardDecoration.copyWith(
+        borderRadius: const BorderRadius.all(Radius.circular(16)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
@@ -312,9 +306,34 @@ class _TotalCostCard extends StatelessWidget {
           ),
           const SizedBox(width: 16),
           SizedBox(
-            width: 72,
-            height: 72,
-            child: CustomPaint(painter: _RingPainter(progress: progress)),
+            width: 80,
+            height: 80,
+            child: CustomPaint(
+              painter: _SpendRingPainter(),
+              child: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      monthlySpendLabel,
+                      style: const TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF15151C),
+                      ),
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 1),
+                    const Text(
+                      'this month',
+                      style: TextStyle(fontSize: 8, color: Colors.black38),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
         ],
       ),
@@ -322,52 +341,39 @@ class _TotalCostCard extends StatelessWidget {
   }
 }
 
-class _RingPainter extends CustomPainter {
-  final double progress;
-
-  _RingPainter({required this.progress});
-
+/// Decorative filled-arc ring showing green arc on grey track.
+/// Full arc (no meaningful percentage denominator available from the API).
+class _SpendRingPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
-    final radius = (size.width - 8) / 2;
+    final radius = (size.width - 10) / 2;
     const strokeWidth = 8.0;
+    const startAngle = -math.pi / 2;
 
-    final bgPaint = Paint()
+    final trackPaint = Paint()
       ..color = const Color(0xFFE8F5E9)
       ..style = PaintingStyle.stroke
       ..strokeWidth = strokeWidth
       ..strokeCap = StrokeCap.round;
 
-    final fgPaint = Paint()
-      ..color = AppColors.primary
+    final arcPaint = Paint()
+      ..color = AppColors.success
       ..style = PaintingStyle.stroke
       ..strokeWidth = strokeWidth
       ..strokeCap = StrokeCap.round;
 
-    // Background arc
-    canvas.drawArc(
-      Rect.fromCircle(center: center, radius: radius),
-      -math.pi / 2,
-      2 * math.pi,
-      false,
-      bgPaint,
-    );
+    final rect = Rect.fromCircle(center: center, radius: radius);
 
-    // Foreground arc
-    if (progress > 0) {
-      canvas.drawArc(
-        Rect.fromCircle(center: center, radius: radius),
-        -math.pi / 2,
-        2 * math.pi * progress,
-        false,
-        fgPaint,
-      );
-    }
+    // Grey track — full circle
+    canvas.drawArc(rect, startAngle, 2 * math.pi, false, trackPaint);
+
+    // Green arc — decorative full circle (no fake percentage)
+    canvas.drawArc(rect, startAngle, 2 * math.pi, false, arcPaint);
   }
 
   @override
-  bool shouldRepaint(_RingPainter old) => old.progress != progress;
+  bool shouldRepaint(_SpendRingPainter old) => false;
 }
 
 // ---------------------------------------------------------------------------
@@ -422,16 +428,8 @@ class _StatCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withAlpha(13),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
+      decoration: appCardDecoration.copyWith(
+        borderRadius: const BorderRadius.all(Radius.circular(16)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -461,13 +459,17 @@ class _StatCard extends StatelessWidget {
 // Upcoming renewals section
 // ---------------------------------------------------------------------------
 
-class _UpcomingRenewalsSection extends StatelessWidget {
+class _UpcomingRenewalsSection extends ConsumerWidget {
   final List<UpcomingRenewal> renewals;
 
   const _UpcomingRenewalsSection({required this.renewals});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Watch the vehicles list to resolve vehicle names from IDs
+    final vehiclesAsync = ref.watch(vehiclesProvider);
+    final vehicles = vehiclesAsync.asData?.value ?? const <Vehicle>[];
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -480,7 +482,7 @@ class _UpcomingRenewalsSection extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 12),
-        ...renewals.map((r) => _RenewalRow(renewal: r)),
+        ...renewals.map((r) => _RenewalRow(renewal: r, vehicles: vehicles)),
       ],
     );
   }
@@ -488,66 +490,87 @@ class _UpcomingRenewalsSection extends StatelessWidget {
 
 class _RenewalRow extends StatelessWidget {
   final UpcomingRenewal renewal;
+  final List<Vehicle> vehicles;
 
-  const _RenewalRow({required this.renewal});
+  const _RenewalRow({required this.renewal, required this.vehicles});
+
+  /// Returns "Make Model Year" for the renewal's vehicleId, or the first 8
+  /// characters of the ID if the vehicle is not found in the list.
+  String _vehicleDisplayName() {
+    try {
+      final v = vehicles.firstWhere((v) => v.id == renewal.vehicleId);
+      return [
+        v.make,
+        v.model,
+        v.year?.toString(),
+      ].where((s) => s != null && s.isNotEmpty).join(' ');
+    } catch (_) {
+      return '${renewal.vehicleId.substring(0, 8)}…';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final color = expiryColor(renewal.expiryDate);
     final formatted = _formatDate(renewal.expiryDate);
+    final vehicleName = _vehicleDisplayName();
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withAlpha(10),
-            blurRadius: 6,
-            offset: const Offset(0, 1),
-          ),
-        ],
+      decoration: appCardDecoration.copyWith(
+        borderRadius: const BorderRadius.all(Radius.circular(12)),
       ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  renewal.title,
-                  style: const TextStyle(
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () => context.go('/garage/vehicle/${renewal.vehicleId}'),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      renewal.title,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                        color: Color(0xFF15151C),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      vehicleName,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: Colors.black38,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: color.withAlpha(30),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  formatted,
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                    color: Color(0xFF15151C),
                   ),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  'Vehicle: ${renewal.vehicleId.substring(0, 8)}…',
-                  style: const TextStyle(fontSize: 11, color: Colors.black38),
-                ),
-              ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: color.withAlpha(30),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Text(
-              formatted,
-              style: TextStyle(
-                color: color,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
               ),
-            ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

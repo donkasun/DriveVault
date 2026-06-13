@@ -1,3 +1,4 @@
+import '../../../shared/constants/currencies.dart';
 import '../../fuel/domain/fuel_log.dart';
 import '../../maintenance/domain/maintenance_record.dart';
 
@@ -41,7 +42,7 @@ class Expense {
         kind: ExpenseKind.maintenance,
         date: m.date,
         costCents: m.costCents ?? 0,
-        currency: m.currency ?? 'USD',
+        currency: m.currency ?? kFallbackCurrency,
         fuelLog: null,
         maintenanceRecord: m,
       );
