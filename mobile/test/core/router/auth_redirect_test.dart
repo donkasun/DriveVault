@@ -94,7 +94,7 @@ void main() {
       );
     });
 
-    test('unverified password user on home is sent to verify-email', () {
+    test('unverified password user on home stays (no gate)', () {
       expect(
         resolveAuthRedirect(
           currentRoute: '/home',
@@ -103,11 +103,11 @@ void main() {
           isEmailVerified: false,
           isPasswordProvider: true,
         ),
-        '/verify-email',
+        isNull,
       );
     });
 
-    test('unverified password user on splash is sent to verify-email', () {
+    test('unverified password user on splash goes to home', () {
       expect(
         resolveAuthRedirect(
           currentRoute: '/splash',
@@ -116,11 +116,11 @@ void main() {
           isEmailVerified: false,
           isPasswordProvider: true,
         ),
-        '/verify-email',
+        '/home',
       );
     });
 
-    test('unverified password user stays on verify-email', () {
+    test('unverified password user on verify-email is sent home (no gate)', () {
       expect(
         resolveAuthRedirect(
           currentRoute: '/verify-email',
@@ -129,7 +129,7 @@ void main() {
           isEmailVerified: false,
           isPasswordProvider: true,
         ),
-        isNull,
+        '/home',
       );
     });
 

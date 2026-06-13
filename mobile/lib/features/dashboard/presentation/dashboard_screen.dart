@@ -8,6 +8,8 @@ import 'package:intl/intl.dart';
 
 import '../../../core/router/shell_tab_provider.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../auth/presentation/widgets/verify_email_banner.dart';
+import '../../fuel/presentation/widgets/quick_fuel_entry_sheet.dart';
 import '../../../shared/constants/currencies.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../../../shared/utils/formatting.dart';
@@ -28,17 +30,25 @@ class DashboardScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: dashboardAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (error, _) => _ErrorState(
-            message: error.toString(),
-            onRetry: () => ref.read(dashboardProvider.notifier).refresh(),
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const VerifyEmailBanner(),
+          Expanded(
+            child: SafeArea(
+              child: dashboardAsync.when(
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (error, _) => _ErrorState(
+                  message: error.toString(),
+                  onRetry: () => ref.read(dashboardProvider.notifier).refresh(),
+                ),
+                data: (data) => data.vehicleCount == 0
+                    ? const _EmptyState()
+                    : _LoadedContent(data: data, currency: currency),
+              ),
+            ),
           ),
-          data: (data) => data.vehicleCount == 0
-              ? const _EmptyState()
-              : _LoadedContent(data: data, currency: currency),
-        ),
+        ],
       ),
     );
   }
@@ -242,7 +252,7 @@ class _QuickActions extends StatelessWidget {
               side: BorderSide.none,
               padding: const EdgeInsets.symmetric(vertical: 14),
             ),
-            onPressed: () => context.push('/home/fuel/add'),
+            onPressed: () => showQuickFuelEntrySheet(context),
           ),
         ),
       ],

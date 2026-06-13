@@ -44,8 +44,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
-      // Send the verification email; the auth gate then routes the (now
-      // signed-in but unverified) user to /verify-email.
+      // Fire the verification email; the user lands on /home and is nudged by
+      // the in-app verification banner until they verify.
       await repo.sendEmailVerification();
     } catch (e) {
       setState(() {
