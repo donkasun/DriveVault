@@ -7,13 +7,17 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/utils/distance_unit.dart';
 import '../../../../shared/utils/formatting.dart';
 import '../../../documents/data/document_repository.dart';
-import '../../../documents/presentation/document_upload_screen.dart';
 import '../../../fuel/data/fuel_repository.dart';
-import '../../../fuel/presentation/fuel_log_form_screen.dart';
+import '../../../fuel/presentation/widgets/quick_fuel_entry_sheet.dart';
 import '../../../maintenance/data/maintenance_repository.dart';
-import '../../../maintenance/presentation/maintenance_form_screen.dart';
 import '../../../profile/data/user_repository.dart';
 import '../../domain/vehicle.dart';
+
+// Photo dimensions and overhang
+const double _photoWidth = 118.0;
+const double _photoHeight = 62.0;
+const double _photoOverhang = 26.0; // extends above card top edge
+const double _photoRadius = 10.0;
 
 class VehicleCard extends ConsumerWidget {
   final Vehicle vehicle;
@@ -59,143 +63,149 @@ class VehicleCard extends ConsumerWidget {
         .where((s) => s != null && s.isNotEmpty)
         .join(' ');
 
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceDark,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // ── Header Row ──────────────────────────────────────────────────
-            Row(
+    // Photo widget — either a real image or a placeholder
+    final photoWidget = vehicle.photoUrl != null
+        ? ClipRRect(
+            borderRadius: BorderRadius.circular(_photoRadius),
+            child: CachedNetworkImage(
+              imageUrl: vehicle.photoUrl!,
+              width: _photoWidth,
+              height: _photoHeight,
+              fit: BoxFit.cover,
+              placeholder: (context, url) => const _CarPlaceholder(),
+              errorWidget: (context, url, error) => const _CarPlaceholder(),
+            ),
+          )
+        : const _CarPlaceholder();
+
+    // Stack: card body underneath, photo overhanging at top-right.
+    // clipBehavior: Clip.none so the photo can extend above the card.
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        // ── Card body ──────────────────────────────────────────────────────
+        Container(
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [AppColors.cardGradientStart, AppColors.cardGradientEnd],
+            ),
+            borderRadius: BorderRadius.circular(18),
+          ),
+          child: Padding(
+            // Extra top padding so text content clears the overhanging photo area
+            padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        name,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 17,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      if (vehicle.registrationNumber != null) ...[
-                        const SizedBox(height: 4),
-                        Text(
-                          vehicle.registrationNumber!,
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.6),
-                            fontSize: 13,
+                // ── Header Row ───────────────────────────────────────────
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            name,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 17,
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 12),
-                // Photo box (contained in row, no overhang)
-                vehicle.photoUrl != null
-                    ? ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: CachedNetworkImage(
-                          imageUrl: vehicle.photoUrl!,
-                          width: 72,
-                          height: 72,
-                          fit: BoxFit.cover,
-                          placeholder: (context, url) => const _CarPlaceholder(),
-                          errorWidget: (context, url, error) =>
-                              const _CarPlaceholder(),
-                        ),
-                      )
-                    : const _CarPlaceholder(),
-              ],
-            ),
-            const SizedBox(height: 16),
-
-            // ── Stats Row ────────────────────────────────────────────────────
-            Row(
-              children: [
-                _StatItem(
-                  icon: Icons.speed,
-                  value: mileageStr,
-                  label: 'Mileage',
-                ),
-                _StatItem(
-                  icon: Icons.local_gas_station,
-                  value: economyStr,
-                  label: 'Economy',
-                ),
-                _StatItem(
-                  icon: Icons.attach_money,
-                  value: totalSpentStr,
-                  label: 'Spent',
-                ),
-                _StatItem(
-                  icon: Icons.description_outlined,
-                  value: docsCount,
-                  label: 'Docs',
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-
-            // ── Divider ──────────────────────────────────────────────────────
-            const Divider(color: Colors.white12, height: 1),
-            const SizedBox(height: 12),
-
-            // ── Quick-Action Row ─────────────────────────────────────────────
-            Row(
-              children: [
-                _ActionButton(
-                  icon: Icons.add_circle,
-                  label: 'Add Fuel',
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(
-                      fullscreenDialog: true,
-                      builder: (_) =>
-                          FuelLogFormScreen(vehicleId: vehicle.id),
+                          if (vehicle.registrationNumber != null) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              vehicle.registrationNumber!,
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.6),
+                                fontSize: 13,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
                     ),
-                  ),
+                    // Reserve space so the header text doesn't run under the photo
+                    SizedBox(width: _photoWidth + 12),
+                  ],
                 ),
-                _ActionButton(
-                  icon: Icons.build,
-                  label: 'Service',
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(
-                      fullscreenDialog: true,
-                      builder: (_) =>
-                          MaintenanceFormScreen(vehicleId: vehicle.id),
+                const SizedBox(height: 16),
+
+                // ── Stats Row ─────────────────────────────────────────────
+                Row(
+                  children: [
+                    _StatItem(
+                      icon: Icons.speed,
+                      value: mileageStr,
+                      label: 'Mileage',
                     ),
-                  ),
-                ),
-                _ActionButton(
-                  icon: Icons.description,
-                  label: 'Docs',
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(
-                      fullscreenDialog: true,
-                      builder: (_) =>
-                          DocumentUploadScreen(vehicleId: vehicle.id),
+                    _StatItem(
+                      icon: Icons.local_gas_station,
+                      value: economyStr,
+                      label: 'Economy',
                     ),
-                  ),
+                    _StatItem(
+                      icon: Icons.attach_money,
+                      value: totalSpentStr,
+                      label: 'Spent',
+                    ),
+                    _StatItem(
+                      icon: Icons.description_outlined,
+                      value: docsCount,
+                      label: 'Docs',
+                    ),
+                  ],
                 ),
-                _ActionButton(
-                  icon: Icons.arrow_forward,
-                  label: 'Details',
-                  onTap: () => context.push('/garage/vehicle/${vehicle.id}'),
+                const SizedBox(height: 12),
+
+                // ── Divider ───────────────────────────────────────────────
+                const Divider(color: Colors.white12, height: 1),
+                const SizedBox(height: 12),
+
+                // ── Quick-Action Row ──────────────────────────────────────
+                Row(
+                  children: [
+                    _ActionButton(
+                      icon: Icons.add_circle,
+                      label: 'Add Fuel',
+                      onTap: () =>
+                          showQuickFuelEntrySheet(context, vehicleId: vehicle.id),
+                    ),
+                    _ActionButton(
+                      icon: Icons.build,
+                      label: 'Service',
+                      onTap: () => context.push(
+                          '/garage/vehicle/${vehicle.id}/maintenance/add'),
+                    ),
+                    _ActionButton(
+                      icon: Icons.description,
+                      label: 'Docs',
+                      onTap: () => context.push(
+                          '/garage/vehicle/${vehicle.id}/documents/upload'),
+                    ),
+                    _ActionButton(
+                      icon: Icons.arrow_forward,
+                      label: 'Details',
+                      onTap: () => context.push('/garage/vehicle/${vehicle.id}'),
+                    ),
+                  ],
                 ),
               ],
             ),
-          ],
+          ),
         ),
-      ),
+
+        // ── Overhanging photo — positioned top-right of the card ──────────
+        Positioned(
+          top: 8 - _photoOverhang, // card margin top (8) minus overhang
+          right: 16 + 12, // card margin right (16) + inner padding (12)
+          child: photoWidget,
+        ),
+      ],
     );
   }
 }
@@ -208,16 +218,16 @@ class _CarPlaceholder extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 72,
-      height: 72,
+      width: _photoWidth,
+      height: _photoHeight,
       decoration: BoxDecoration(
         color: Colors.white12,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(_photoRadius),
       ),
       child: const Icon(
         Icons.directions_car,
         color: Colors.white38,
-        size: 36,
+        size: 32,
       ),
     );
   }

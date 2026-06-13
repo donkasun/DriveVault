@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:drivevault/features/auth/data/auth_repository.dart';
@@ -10,9 +12,39 @@ class VerifyEmailScreen extends ConsumerStatefulWidget {
 }
 
 class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen> {
+  static const int _cooldownSeconds = 30;
+
   bool _isChecking = false;
   bool _isResending = false;
   String? _message;
+
+  /// Seconds remaining in the resend cooldown (0 = button enabled).
+  int _resendCooldown = 0;
+  Timer? _cooldownTimer;
+
+  @override
+  void dispose() {
+    _cooldownTimer?.cancel();
+    super.dispose();
+  }
+
+  void _startCooldown() {
+    setState(() => _resendCooldown = _cooldownSeconds);
+    _cooldownTimer?.cancel();
+    _cooldownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      setState(() {
+        _resendCooldown--;
+        if (_resendCooldown <= 0) {
+          _resendCooldown = 0;
+          timer.cancel();
+        }
+      });
+    });
+  }
 
   Future<void> _resend() async {
     setState(() {
@@ -23,6 +55,7 @@ class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen> {
       await ref.read(authRepositoryProvider).sendEmailVerification();
       if (mounted) {
         setState(() => _message = 'Verification email sent. Check your inbox.');
+        _startCooldown();
       }
     } catch (e) {
       if (mounted) {
@@ -69,6 +102,12 @@ class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen> {
   @override
   Widget build(BuildContext context) {
     final email = ref.read(authRepositoryProvider).currentUser?.email ?? '';
+    final resendEnabled = !_isResending && _resendCooldown == 0;
+    final resendLabel = _isResending
+        ? 'Sending…'
+        : _resendCooldown > 0
+            ? 'Resend (${_resendCooldown}s)'
+            : 'Resend email';
 
     return Scaffold(
       backgroundColor: const Color(0xFFF3F4F7),
@@ -152,9 +191,9 @@ class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen> {
               ),
               const SizedBox(height: 8),
               TextButton(
-                onPressed: _isResending ? null : _resend,
+                onPressed: resendEnabled ? _resend : null,
                 child: Text(
-                  _isResending ? 'Sending…' : 'Resend email',
+                  resendLabel,
                   style: const TextStyle(
                     color: Color(0xFF16A34A),
                     fontWeight: FontWeight.bold,

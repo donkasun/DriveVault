@@ -56,7 +56,7 @@ class _FloatingTabBar extends StatelessWidget {
 
   const _FloatingTabBar({required this.currentIndex, required this.onTap});
 
-    @override
+  @override
   Widget build(BuildContext context) {
     return Container(
       height: 72,
@@ -68,12 +68,12 @@ class _FloatingTabBar extends StatelessWidget {
             color: Colors.black26,
             blurRadius: 20,
             offset: Offset(0, 6),
-           ),
-         ],
-       ),
+          ),
+        ],
+      ),
       child: _TabBarContent(currentIndex: currentIndex, onTap: onTap),
-     );
-   }
+    );
+  }
 }
 
 class _TabBarContent extends StatefulWidget {
@@ -82,18 +82,18 @@ class _TabBarContent extends StatefulWidget {
 
   const _TabBarContent({required this.currentIndex, required this.onTap});
 
-    @override
+  @override
   State<_TabBarContent> createState() => _TabBarContentState();
 }
 
 class _TabBarContentState extends State<_TabBarContent> {
   static const _iconAssets = [
-    'assets/icons/garage.svg',
     'assets/icons/dashboard.svg',
+    'assets/icons/garage.svg',
     'assets/icons/expenses.svg',
     'assets/icons/settings.svg',
   ];
-  static const _labels = ['Garage', 'Home', 'Expenses', 'Settings'];
+  static const _labels = ['Home', 'Garage', 'Expenses', 'Settings'];
 
   @override
   Widget build(BuildContext context) {
@@ -137,7 +137,9 @@ class _TabBarContentState extends State<_TabBarContent> {
                           width: 22,
                           height: 22,
                           colorFilter: ColorFilter.mode(
-                            isSelected ? AppColors.onPrimary : Colors.grey.shade500,
+                            isSelected
+                                ? AppColors.onPrimary
+                                : Colors.grey.shade500,
                             BlendMode.srcIn,
                           ),
                         ),
@@ -146,8 +148,12 @@ class _TabBarContentState extends State<_TabBarContent> {
                           _labels[index],
                           style: TextStyle(
                             fontSize: 11,
-                            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                            color: isSelected ? AppColors.onPrimary : Colors.grey.shade500,
+                            fontWeight: isSelected
+                                ? FontWeight.w600
+                                : FontWeight.w400,
+                            color: isSelected
+                                ? AppColors.onPrimary
+                                : Colors.grey.shade500,
                           ),
                         ),
                       ],
@@ -162,4 +168,3 @@ class _TabBarContentState extends State<_TabBarContent> {
     );
   }
 }
-

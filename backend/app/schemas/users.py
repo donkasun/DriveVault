@@ -16,7 +16,7 @@ class UserRead(BaseModel):
     email: str
     display_name: Annotated[str | None, Field(default=None, serialization_alias="displayName")]
     photo_url: Annotated[str | None, Field(default=None, serialization_alias="photoUrl")]
-    currency: str = "USD"
+    currency: str = "LKR"
     distance_unit: Annotated[str, Field(serialization_alias="distanceUnit")] = "km"
     created_at: Annotated[datetime, Field(serialization_alias="createdAt")]
 

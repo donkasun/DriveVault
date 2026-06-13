@@ -10,19 +10,18 @@ import '../../../shared/utils/formatting.dart';
 import '../../dashboard/presentation/dashboard_provider.dart';
 import '../../documents/data/document_repository.dart';
 import '../../documents/domain/document.dart';
-import '../../documents/presentation/document_upload_screen.dart';
 import '../../documents/presentation/document_viewer_screen.dart';
 import '../../fuel/data/fuel_repository.dart';
 import '../../fuel/domain/fuel_log.dart';
 import '../../fuel/domain/fuel_stats.dart';
-import '../../fuel/presentation/fuel_log_form_screen.dart';
+import '../../fuel/presentation/widgets/fuel_record_card.dart';
 import '../../maintenance/data/maintenance_repository.dart';
 import '../../maintenance/domain/maintenance_record.dart';
-import '../../maintenance/presentation/maintenance_form_screen.dart';
 import '../../profile/data/user_repository.dart';
 import '../data/vehicle_repository.dart';
 import '../domain/vehicle.dart';
 import '../presentation/vehicles_provider.dart';
+import 'vehicle_fuel_records_screen.dart';
 
 class VehicleDetailScreen extends ConsumerWidget {
   final String vehicleId;
@@ -53,30 +52,56 @@ class _VehicleDetailBody extends ConsumerWidget {
   const _VehicleDetailBody({required this.vehicle});
 
   Future<void> _confirmDelete(BuildContext context, WidgetRef ref) async {
-    final confirm = await showDialog<bool>(
+    final confirm = await showModalBottomSheet<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Delete Vehicle'),
-        content: Text(
-          'Delete "${vehicle.make} ${vehicle.model}"? All data will be lost.',
+      useRootNavigator: true,
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Delete "${vehicle.make} ${vehicle.model}"?',
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'All fuel logs, maintenance records, and documents for this vehicle will be permanently deleted.',
+                style: TextStyle(color: AppColors.textMuted),
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: () =>
+                    Navigator.of(ctx, rootNavigator: true).pop(true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.danger,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                ),
+                child: const Text('Delete Vehicle'),
+              ),
+              const SizedBox(height: 8),
+              TextButton(
+                onPressed: () =>
+                    Navigator.of(ctx, rootNavigator: true).pop(false),
+                child: const Text('Cancel'),
+              ),
+            ],
+          ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Delete', style: TextStyle(color: Colors.red)),
-          ),
-        ],
       ),
     );
     if (confirm != true) return;
 
     try {
-      final repo = ref.read(vehicleRepositoryProvider);
-      await repo.deleteVehicle(vehicle.id);
+      await ref.read(vehiclesProvider.notifier).deleteVehicle(vehicle.id);
       if (context.mounted) context.go('/garage');
     } catch (e) {
       if (context.mounted) {
@@ -87,11 +112,13 @@ class _VehicleDetailBody extends ConsumerWidget {
     }
   }
 
-  void _openEditVehicle(BuildContext context, WidgetRef ref) {
-    context.go(
+  Future<void> _openEditVehicle(BuildContext context, WidgetRef ref) async {
+    await context.push(
       '/garage/edit-vehicle/${vehicle.id}',
       extra: {'vehicle': vehicle},
     );
+    // Refresh the detail view after returning from edit
+    ref.invalidate(vehicleProvider(vehicle.id));
   }
 
   @override
@@ -137,7 +164,9 @@ class _HeroAppBar extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final fuelStatsAsync = ref.watch(fuelStatsProvider(vehicle.id));
-    final currency = ref.watch(meProvider).asData?.value.currency ?? 'USD';
+    final me = ref.watch(meProvider).asData?.value;
+    final currency = me?.currency ?? 'USD';
+    final userDistanceUnit = me?.distanceUnit ?? 'km';
 
     return SliverAppBar(
       expandedHeight: 240,
@@ -225,7 +254,7 @@ class _HeroAppBar extends ConsumerWidget {
                     data: (stats) {
                       final unit = effectiveUnit(
                         vehicleUnit: vehicle.distanceUnit,
-                        userUnit: 'km',
+                        userUnit: userDistanceUnit,
                       );
                       final mileage = vehicle.currentMileage != null
                           ? formatDistance(vehicle.currentMileage!, unit)
@@ -234,7 +263,10 @@ class _HeroAppBar extends ConsumerWidget {
                           ? '${stats.avgConsumptionLPer100Km!.toStringAsFixed(1)} L/100'
                           : '—';
                       final spent = stats.totalSpentCents > 0
-                          ? formatCents(stats.totalSpentCents, currency: currency)
+                          ? formatCents(
+                              stats.totalSpentCents,
+                              currency: currency,
+                            )
                           : formatCents(0, currency: currency);
                       return _StatRow(
                         mileage: mileage,
@@ -312,7 +344,7 @@ class _StatChip extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Vehicle info card (fuel type, distance unit)
+// Vehicle info inline rows (fuel type, distance unit — subtle, no card)
 // ---------------------------------------------------------------------------
 
 class _VehicleInfoCard extends StatelessWidget {
@@ -322,38 +354,29 @@ class _VehicleInfoCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Only show this card when the vehicle has explicit fuel/unit data;
-    // otherwise keep the detail layout unchanged.
-    final hasData =
-        vehicle.fuelType != null ||
-        vehicle.distanceUnit != null;
+    final hasData = vehicle.fuelType != null || vehicle.distanceUnit != null;
     if (!hasData) return const SizedBox.shrink();
 
-    final rows = <Widget>[
-      if (vehicle.fuelType != null)
-        _InfoRow(
-          label: 'Fuel type',
-          value:
-              vehicle.fuelType![0].toUpperCase() +
-              vehicle.fuelType!.substring(1),
-        ),
-      if (vehicle.distanceUnit != null)
-        _InfoRow(
-          label: 'Distance unit',
-          value: vehicle.distanceUnit == 'mi'
-              ? 'Miles (mi)'
-              : 'Kilometres (km)',
-        ),
-    ];
-
-    return Card(
-      margin: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: rows,
-        ),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (vehicle.fuelType != null)
+            _InfoRow(
+              label: 'Fuel type',
+              value:
+                  vehicle.fuelType![0].toUpperCase() +
+                  vehicle.fuelType!.substring(1),
+            ),
+          if (vehicle.distanceUnit != null)
+            _InfoRow(
+              label: 'Distance unit',
+              value: vehicle.distanceUnit == 'mi'
+                  ? 'Miles (mi)'
+                  : 'Kilometres (km)',
+            ),
+        ],
       ),
     );
   }
@@ -368,14 +391,21 @@ class _InfoRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(vertical: 3),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: const TextStyle(color: Colors.grey, fontSize: 13)),
+          Text(
+            '$label:',
+            style: const TextStyle(color: AppColors.textMuted, fontSize: 13),
+          ),
+          const SizedBox(width: 6),
           Text(
             value,
-            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+            style: const TextStyle(
+              fontWeight: FontWeight.w500,
+              fontSize: 13,
+              color: AppColors.textPrimary,
+            ),
           ),
         ],
       ),
@@ -411,11 +441,21 @@ class _SectionHeader extends StatelessWidget {
             ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
           ),
           const Spacer(),
-          TextButton.icon(
-            icon: const Text('＋', style: TextStyle(fontSize: 16)),
-            label: Text(buttonLabel),
-            style: TextButton.styleFrom(foregroundColor: AppColors.primary),
+          TextButton(
             onPressed: onAdd,
+            style: TextButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: AppColors.onPrimary,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              shape: const StadiumBorder(),
+              textStyle: const TextStyle(
+                fontWeight: FontWeight.w700,
+                fontSize: 14,
+              ),
+            ),
+            child: Text(buttonLabel),
           ),
         ],
       ),
@@ -437,6 +477,13 @@ class _FuelSection extends ConsumerWidget {
     final logsAsync = ref.watch(fuelLogsProvider(vehicleId));
     final statsAsync = ref.watch(fuelStatsProvider(vehicleId));
     final currency = ref.watch(meProvider).asData?.value.currency ?? 'USD';
+    void refresh() {
+      ref.invalidate(fuelLogsProvider(vehicleId));
+      ref.invalidate(fuelStatsProvider(vehicleId));
+      ref.invalidate(vehicleProvider(vehicleId));
+      ref.invalidate(vehiclesProvider);
+      ref.invalidate(dashboardProvider);
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -445,12 +492,7 @@ class _FuelSection extends ConsumerWidget {
           title: 'Fuel',
           buttonLabel: 'Add Fuel',
           onAdd: () async {
-            await Navigator.of(context).push(
-              MaterialPageRoute(
-                fullscreenDialog: true,
-                builder: (_) => FuelLogFormScreen(vehicleId: vehicleId),
-              ),
-            );
+            await context.push('/garage/vehicle/$vehicleId/fuel/add');
           },
         ),
         // Stats card
@@ -480,21 +522,29 @@ class _FuelSection extends ConsumerWidget {
               );
             }
             final sorted = [...logs]..sort((a, b) => b.date.compareTo(a.date));
-            return ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: sorted.length,
-              itemBuilder: (_, i) => _FuelLogTile(
-                log: sorted[i],
-                vehicleId: vehicleId,
-                onRefresh: () {
-                  ref.invalidate(fuelLogsProvider(vehicleId));
-                  ref.invalidate(fuelStatsProvider(vehicleId));
-                  ref.invalidate(vehicleProvider(vehicleId));
-                  ref.invalidate(vehiclesProvider);
-                  ref.invalidate(dashboardProvider);
-                },
-              ),
+            final recent = sorted.take(3).toList();
+            return Column(
+              children: [
+                for (final log in recent)
+                  FuelRecordCard(
+                    log: log,
+                    vehicleId: vehicleId,
+                    onRefresh: refresh,
+                  ),
+                if (sorted.length > recent.length)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton(
+                        onPressed: () => context.push(
+                          '/garage/vehicle/$vehicleId/fuel-records',
+                        ),
+                        child: const Text('View more'),
+                      ),
+                    ),
+                  ),
+              ],
             );
           },
         ),
@@ -579,16 +629,16 @@ class _FuelLogTile extends ConsumerWidget {
       await repo.deleteFuelLog(log.id);
       onRefresh();
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Fuel log deleted')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Fuel log deleted')));
       }
     } catch (e) {
       if (context.mounted) {
         final msg = e is ApiException ? e.message : 'Delete failed';
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(msg)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(msg)));
       }
     }
   }
@@ -638,18 +688,29 @@ class _FuelLogTile extends ConsumerWidget {
           '${formatCents(log.priceCents, currency: currency)}',
         ),
         trailing: log.isFullTank
-            ? const Chip(
-                label: Text('Full', style: TextStyle(fontSize: 11)),
-                padding: EdgeInsets.zero,
+            ? Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.successBg,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Text(
+                  'Full',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.success,
+                  ),
+                ),
               )
             : null,
         onTap: () async {
-          await Navigator.of(context).push(
-            MaterialPageRoute(
-              fullscreenDialog: true,
-              builder: (_) =>
-                  FuelLogFormScreen(vehicleId: vehicleId, existing: log),
-            ),
+          await context.push(
+            '/garage/vehicle/$vehicleId/fuel/edit',
+            extra: log,
           );
           onRefresh();
         },
@@ -678,12 +739,7 @@ class _MaintenanceSection extends ConsumerWidget {
           title: 'Maintenance',
           buttonLabel: 'Add Service',
           onAdd: () async {
-            await Navigator.of(context).push(
-              MaterialPageRoute(
-                fullscreenDialog: true,
-                builder: (_) => MaintenanceFormScreen(vehicleId: vehicleId),
-              ),
-            );
+            await context.push('/garage/vehicle/$vehicleId/maintenance/add');
           },
         ),
         recordsAsync.when(
@@ -745,12 +801,9 @@ class _MaintenanceTile extends ConsumerWidget {
         '${record.costCents != null ? ' • ${formatCents(record.costCents!, currency: currency)}' : ''}',
       ),
       onTap: () async {
-        await Navigator.of(context).push(
-          MaterialPageRoute(
-            fullscreenDialog: true,
-            builder: (_) =>
-                MaintenanceFormScreen(vehicleId: vehicleId, existing: record),
-          ),
+        await context.push(
+          '/garage/vehicle/$vehicleId/maintenance/edit',
+          extra: record,
         );
         onRefresh();
       },
@@ -778,12 +831,7 @@ class _DocumentsSection extends ConsumerWidget {
           title: 'Documents',
           buttonLabel: 'Upload',
           onAdd: () async {
-            await Navigator.of(context).push(
-              MaterialPageRoute(
-                fullscreenDialog: true,
-                builder: (_) => DocumentUploadScreen(vehicleId: vehicleId),
-              ),
-            );
+            await context.push('/garage/vehicle/$vehicleId/documents/upload');
           },
         ),
         groupedAsync.when(

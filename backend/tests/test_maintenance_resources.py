@@ -217,20 +217,45 @@ def test_f4_maintenance_currency_from_preference(
     vehicle = _create_vehicle(db_session, owner)
     _mock_owner(mock_verify)
 
-    # currency omitted → falls back to the user's preference
+    # currency omitted → always LKR (locked)
     response = maintenance_client.post(
         f"/api/v1/vehicles/{vehicle.id}/maintenance",
         headers=_auth_headers(),
         json={"date": "2026-05-20", "serviceType": "Oil Change", "costCents": 6500},
     )
     assert response.status_code == 201
-    assert response.json()["currency"] == "EUR"
+    assert response.json()["currency"] == "LKR"
 
-    # explicit currency wins
+    # explicit currency is still coerced to LKR
     explicit = maintenance_client.post(
         f"/api/v1/vehicles/{vehicle.id}/maintenance",
         headers=_auth_headers(),
         json={"date": "2026-05-21", "serviceType": "Brake Service", "currency": "GBP"},
     )
     assert explicit.status_code == 201
-    assert explicit.json()["currency"] == "GBP"
+    assert explicit.json()["currency"] == "LKR"
+
+
+# ── Currency lock (LKR) tests ─────────────────────────────────────────────────
+
+
+@patch("app.deps.auth.verify_id_token")
+def test_create_maintenance_forces_lkr_even_if_client_sends_usd(
+    mock_verify, maintenance_client, db_session, users
+):
+    """Currency is always coerced to LKR regardless of what the client sends."""
+    owner, _ = users
+    vehicle = _create_vehicle(db_session, owner)
+    _mock_owner(mock_verify)
+
+    response = maintenance_client.post(
+        f"/api/v1/vehicles/{vehicle.id}/maintenance",
+        headers=_auth_headers(),
+        json={
+            "date": "2026-06-10",
+            "serviceType": "Oil Change",
+            "currency": "USD",
+        },
+    )
+    assert response.status_code == 201
+    assert response.json()["currency"] == "LKR"

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/app_button.dart';
+import '../../../shared/widgets/dashed_border.dart';
 import 'vehicles_provider.dart';
 import 'widgets/vehicle_card.dart';
 
@@ -47,7 +48,8 @@ class GarageScreen extends ConsumerWidget {
           }
 
           return ListView.builder(
-            padding: const EdgeInsets.only(top: 8, bottom: 100),
+            // Extra top padding so overflow photos aren't clipped by the list
+            padding: const EdgeInsets.only(top: 34, bottom: 100),
             itemCount: vehicles.length + 1,
             itemBuilder: (context, index) {
               if (index < vehicles.length) {
@@ -112,25 +114,36 @@ class _AddVehicleCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Material(
-        color: AppColors.primary,
-        borderRadius: BorderRadius.circular(16),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(16),
-          splashColor: AppColors.onPrimary.withValues(alpha: 0.15),
-          child: SizedBox(
+      child: GestureDetector(
+        onTap: onTap,
+        child: CustomPaint(
+          foregroundPainter: DashedBorderPainter(
+            color: AppColors.dashedBorder,
+            radius: 18,
+            strokeWidth: 1.5,
+          ),
+          child: Container(
             height: 80,
+            decoration: BoxDecoration(
+              color: const Color(0xFFFAFAFB),
+              borderRadius: BorderRadius.circular(18),
+            ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.add_circle_outline,
-                    color: AppColors.onPrimary, size: 22),
-                const SizedBox(width: 8),
                 Text(
+                  '+',
+                  style: const TextStyle(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 20,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                const Text(
                   'Add Vehicle',
                   style: TextStyle(
-                    color: AppColors.onPrimary,
+                    color: AppColors.primary,
                     fontWeight: FontWeight.w700,
                     fontSize: 15,
                   ),

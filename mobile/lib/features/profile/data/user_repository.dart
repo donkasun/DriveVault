@@ -26,6 +26,13 @@ class UserRepository {
     final data = await _apiClient.patch('/me', body: body);
     return AppUser.fromJson(data);
   }
+
+  /// Update display name via `PATCH /api/v1/me`. Returns the updated user.
+  Future<AppUser> updateProfile({String? displayName}) async {
+    final body = <String, dynamic>{'displayName': ?displayName};
+    final data = await _apiClient.patch('/me', body: body);
+    return AppUser.fromJson(data);
+  }
 }
 
 final userRepositoryProvider = Provider<UserRepository>((ref) {
@@ -34,5 +41,6 @@ final userRepositoryProvider = Provider<UserRepository>((ref) {
 
 /// Current user from `GET /api/v1/me`. Invalidate to refresh after an update.
 final meProvider = FutureProvider<AppUser>((ref) async {
+  ref.keepAlive();
   return ref.watch(userRepositoryProvider).getMe();
 });

@@ -60,10 +60,10 @@ Widget _wrapWithProvider(
   final router = GoRouter(
     initialLocation: '/test',
     routes: [
-      GoRoute(path: '/test', builder: (_, __) => child),
+      GoRoute(path: '/test', builder: (_, _) => child),
       GoRoute(
         path: '/garage/add-vehicle',
-        builder: (_, __) => const Scaffold(body: Text('Add Vehicle')),
+        builder: (_, _) => const Scaffold(body: Text('Add Vehicle')),
       ),
       GoRoute(
         path: '/garage/vehicle/:id',

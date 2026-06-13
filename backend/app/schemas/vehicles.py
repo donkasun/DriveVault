@@ -19,7 +19,7 @@ class VehicleBase(BaseModel):
     vin: str | None = None
     purchase_date: date | None = Field(default=None, alias="purchaseDate")
     purchase_price_cents: int | None = Field(default=None, alias="purchasePriceCents")
-    currency: str = "USD"
+    currency: str = "LKR"
     current_mileage: int | None = Field(default=None, alias="currentMileage")
     vehicle_type: str | None = Field(default=None, alias="vehicleType")
     fuel_type: str | None = Field(default=None, alias="fuelType")

@@ -222,14 +222,119 @@ def test_b3_fuel_stats_computes_exact_metrics(mock_verify, fuel_client, db_sessi
 
     assert response.status_code == 200
     body = response.json()
-    assert body["avgConsumptionLPer100Km"] == 8.8
-    assert body["avgCostPerKmCents"] == 14
+    assert body["avgConsumptionLPer100Km"] == 9.8
+    assert body["avgCostPerKmCents"] == 15
     assert body["totalLiters"] == 138.0
     assert body["totalSpentCents"] == 21400
     assert body["monthlySpend"] == [
         {"month": "2026-06", "spentCents": 13900},
         {"month": "2026-05", "spentCents": 7500},
     ]
+
+
+@patch("app.deps.auth.verify_id_token")
+def test_fuel_stats_ignores_trailing_partial_fill(mock_verify, fuel_client, db_session, users):
+    """A partial fill after the last full tank is excluded from the average
+    (interval never closes) but still counts in total_liters."""
+    owner, _ = users
+    vehicle = _create_vehicle(db_session, owner)
+    _create_fuel_log(db_session, vehicle, date(2026, 5, 1), 1000, "40.000", 6000)
+    _create_fuel_log(db_session, vehicle, date(2026, 5, 10), 1500, "30.000", 4500)
+    # Trailing partial — must NOT drag the average down.
+    _create_fuel_log(db_session, vehicle, date(2026, 5, 20), 1800, "12.000", 1800, False)
+    _mock_owner(mock_verify)
+
+    body = fuel_client.get(
+        f"/api/v1/vehicles/{vehicle.id}/fuel-stats", headers=_auth_headers()
+    ).json()
+
+    # Only the closed interval 1000->1500 counts: 30 L over 500 km.
+    assert body["avgConsumptionLPer100Km"] == 6.0
+    assert body["avgCostPerKmCents"] == 9  # 4500 / 500
+    # Totals still include every log.
+    assert body["totalLiters"] == 82.0
+    assert body["totalSpentCents"] == 12300
+
+
+@patch("app.deps.auth.verify_id_token")
+def test_fuel_stats_partial_fill_counts_toward_next_full_interval(
+    mock_verify, fuel_client, db_session, users
+):
+    """A partial fill mid-sequence is accumulated into the interval that closes
+    at the next full tank."""
+    owner, _ = users
+    vehicle = _create_vehicle(db_session, owner)
+    _create_fuel_log(db_session, vehicle, date(2026, 5, 1), 1000, "40.000", 6000)
+    _create_fuel_log(db_session, vehicle, date(2026, 5, 10), 1300, "15.000", 2250, False)
+    _create_fuel_log(db_session, vehicle, date(2026, 5, 20), 1600, "25.000", 3750)
+    _mock_owner(mock_verify)
+
+    body = fuel_client.get(
+        f"/api/v1/vehicles/{vehicle.id}/fuel-stats", headers=_auth_headers()
+    ).json()
+
+    # Closed interval 1000->1600 = 600 km; liters = 15 + 25 = 40.
+    assert body["avgConsumptionLPer100Km"] == 6.7  # 40/600*100 = 6.66.. -> 6.7
+    assert body["avgCostPerKmCents"] == 10  # (2250 + 3750) / 600
+
+
+@patch("app.deps.auth.verify_id_token")
+def test_fuel_stats_single_full_log_has_no_average(mock_verify, fuel_client, db_session, users):
+    owner, _ = users
+    vehicle = _create_vehicle(db_session, owner)
+    _create_fuel_log(db_session, vehicle, date(2026, 5, 1), 1000, "40.000", 6000)
+    _mock_owner(mock_verify)
+
+    body = fuel_client.get(
+        f"/api/v1/vehicles/{vehicle.id}/fuel-stats", headers=_auth_headers()
+    ).json()
+
+    assert body["avgConsumptionLPer100Km"] is None
+    assert body["avgCostPerKmCents"] is None
+    assert body["totalLiters"] == 40.0
+
+
+@patch("app.deps.auth.verify_id_token")
+def test_fuel_stats_skips_non_positive_distance(mock_verify, fuel_client, db_session, users):
+    """A log whose odometer is <= the previous log's is dropped from the
+    average entirely (bad data guard)."""
+    owner, _ = users
+    vehicle = _create_vehicle(db_session, owner)
+    _create_fuel_log(db_session, vehicle, date(2026, 5, 1), 1000, "40.000", 6000)
+    _create_fuel_log(db_session, vehicle, date(2026, 5, 10), 800, "20.000", 3000)
+    _mock_owner(mock_verify)
+
+    body = fuel_client.get(
+        f"/api/v1/vehicles/{vehicle.id}/fuel-stats", headers=_auth_headers()
+    ).json()
+
+    # Second log has negative distance -> skipped -> no closed interval.
+    assert body["avgConsumptionLPer100Km"] is None
+    assert body["totalLiters"] == 60.0
+
+
+@patch("app.deps.auth.verify_id_token")
+def test_fuel_stats_ignores_leading_partial_before_first_full_tank(
+    mock_verify, fuel_client, db_session, users
+):
+    """An interval can only OPEN at a full tank. A partial fill before the first
+    full tank is not a valid measurement anchor and must be excluded."""
+    owner, _ = users
+    vehicle = _create_vehicle(db_session, owner)
+    # First log is a PARTIAL fill — not a valid starting reference.
+    _create_fuel_log(db_session, vehicle, date(2026, 5, 1), 1000, "20.000", 3000, False)
+    _create_fuel_log(db_session, vehicle, date(2026, 5, 10), 1450, "35.000", 5250)
+    _create_fuel_log(db_session, vehicle, date(2026, 5, 25), 1950, "40.000", 6000)
+    _mock_owner(mock_verify)
+
+    body = fuel_client.get(
+        f"/api/v1/vehicles/{vehicle.id}/fuel-stats", headers=_auth_headers()
+    ).json()
+
+    # Only the interval between the two FULL tanks (1450 -> 1950) counts:
+    # 40 L over 500 km. The leading partial interval (1000 -> 1450) is excluded.
+    assert body["avgConsumptionLPer100Km"] == 8.0
+    assert body["avgCostPerKmCents"] == 12  # 6000 / 500
 
 
 # ── F3 tests (vehicle fuel + unit fields) ─────────────────────────────────────
@@ -310,7 +415,7 @@ def test_f4_fuel_log_currency_from_preference(mock_verify, fuel_client, db_sessi
     vehicle = _create_vehicle(db_session, owner)
     _mock_owner(mock_verify)
 
-    # currency omitted → falls back to the user's preference
+    # currency omitted → always LKR (locked)
     response = fuel_client.post(
         f"/api/v1/vehicles/{vehicle.id}/fuel-logs",
         headers=_auth_headers(),
@@ -323,9 +428,9 @@ def test_f4_fuel_log_currency_from_preference(mock_verify, fuel_client, db_sessi
     )
     assert response.status_code == 201
     body = response.json()
-    assert body["currency"] == "EUR"
+    assert body["currency"] == "LKR"
 
-    # explicit currency wins
+    # explicit currency is still coerced to LKR
     explicit = fuel_client.post(
         f"/api/v1/vehicles/{vehicle.id}/fuel-logs",
         headers=_auth_headers(),
@@ -338,7 +443,7 @@ def test_f4_fuel_log_currency_from_preference(mock_verify, fuel_client, db_sessi
         },
     )
     assert explicit.status_code == 201
-    assert explicit.json()["currency"] == "GBP"
+    assert explicit.json()["currency"] == "LKR"
 
 
 @patch("app.deps.auth.verify_id_token")
@@ -484,3 +589,30 @@ def test_odometer_delete_only_log_sets_mileage_null(mock_verify, fuel_client, db
     assert response.status_code == 204
     db_session.refresh(vehicle)
     assert vehicle.current_mileage is None
+
+
+# ── Currency lock (LKR) tests ─────────────────────────────────────────────────
+
+
+@patch("app.deps.auth.verify_id_token")
+def test_create_fuel_log_forces_lkr_even_if_client_sends_usd(
+    mock_verify, fuel_client, db_session, users
+):
+    """Currency is always coerced to LKR regardless of what the client sends."""
+    owner, _ = users
+    vehicle = _create_vehicle(db_session, owner)
+    _mock_owner(mock_verify)
+
+    response = fuel_client.post(
+        f"/api/v1/vehicles/{vehicle.id}/fuel-logs",
+        headers=_auth_headers(),
+        json={
+            "date": "2026-06-10",
+            "liters": 40.0,
+            "priceCents": 7500,
+            "odometer": 51000,
+            "currency": "USD",
+        },
+    )
+    assert response.status_code == 201
+    assert response.json()["currency"] == "LKR"

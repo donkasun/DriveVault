@@ -39,3 +39,7 @@ CurrencyInfo? currencyInfoFor(String code) {
   }
   return null;
 }
+
+/// Single fallback/seam currency while multi-currency is deferred.
+/// Re-enable multi-currency: stop hardcoding this and read the real preference.
+const kFallbackCurrency = 'LKR';

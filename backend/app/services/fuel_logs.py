@@ -9,6 +9,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.core.constants import LOCKED_CURRENCY
 from app.models.fuel_logs import FuelLog
 from app.models.users import User
 from app.models.vehicles import Vehicle
@@ -53,8 +54,7 @@ def create_fuel_log(db: Session, user: User, vehicle_id: UUID, payload: FuelLogC
             detail=f"Odometer must be greater than the latest reading ({existing_max} km)",
         )
     data = payload.model_dump()
-    if data.get("currency") is None:
-        data["currency"] = user.currency
+    data["currency"] = LOCKED_CURRENCY
     fuel_log = FuelLog(vehicle_id=vehicle_id, **data)
     db.add(fuel_log)
     db.flush()
@@ -115,25 +115,44 @@ def compute_fuel_stats(db: Session, user: User, vehicle_id: UUID) -> FuelStatsRe
     for log in logs:
         monthly_totals[log.date.strftime("%Y-%m")] += log.price_cents
 
-    full_tank_logs = [log for log in logs if log.is_full_tank]
-    segment_liters = Decimal("0")
-    segment_spent_cents = 0
-    segment_distance_km = 0
-    for previous, current in zip(full_tank_logs, full_tank_logs[1:]):
+    # Interval method: a measurement interval can only OPEN and CLOSE at a
+    # full-tank fill, where the tank level is a known reference. Partial fills
+    # accumulate into the interval that closes at the next full tank. Partial
+    # fills before the first full tank (no valid opening anchor) and after the
+    # last full tank (interval never closes) are both excluded from the average.
+    pending_liters = Decimal("0")
+    pending_distance = 0
+    pending_spent_cents = 0
+    closed_liters = Decimal("0")
+    closed_distance = 0
+    closed_spent_cents = 0
+    interval_open = False
+
+    for previous, current in zip(logs, logs[1:]):
+        if not interval_open:
+            # Only a full-tank log can anchor the start of an interval.
+            if not previous.is_full_tank:
+                continue
+            interval_open = True
         distance = current.odometer - previous.odometer
         if distance <= 0:
             continue
-        segment_distance_km += distance
-        segment_liters += Decimal(current.liters)
-        segment_spent_cents += current.price_cents
+        pending_liters += Decimal(current.liters)
+        pending_distance += distance
+        pending_spent_cents += current.price_cents
+        if current.is_full_tank:
+            closed_liters += pending_liters
+            closed_distance += pending_distance
+            closed_spent_cents += pending_spent_cents
+            pending_liters = Decimal("0")
+            pending_distance = 0
+            pending_spent_cents = 0
 
     avg_consumption = None
     avg_cost_per_km_cents = None
-    if segment_distance_km > 0:
-        avg_consumption = round(
-            float((segment_liters / Decimal(segment_distance_km)) * Decimal(100)), 1
-        )
-        avg_cost_per_km_cents = round(segment_spent_cents / segment_distance_km)
+    if closed_distance > 0:
+        avg_consumption = round(float((closed_liters / Decimal(closed_distance)) * Decimal(100)), 1)
+        avg_cost_per_km_cents = round(closed_spent_cents / closed_distance)
 
     monthly_spend = [
         MonthlySpend(month=month, spent_cents=spent_cents)

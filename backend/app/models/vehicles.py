@@ -35,7 +35,7 @@ class Vehicle(Base):
     vin: Mapped[str | None] = mapped_column(Text, nullable=True)
     purchase_date: Mapped[object | None] = mapped_column(Date, nullable=True)  # type: ignore[assignment]
     purchase_price_cents: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
-    currency: Mapped[str] = mapped_column(CHAR(3), server_default="USD", nullable=False)
+    currency: Mapped[str] = mapped_column(CHAR(3), server_default="LKR", nullable=False)
     current_mileage: Mapped[int | None] = mapped_column(Integer, nullable=True)
     photo_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     photo_public_id: Mapped[str | None] = mapped_column(Text, nullable=True)

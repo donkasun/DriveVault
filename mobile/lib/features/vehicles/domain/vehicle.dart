@@ -1,3 +1,5 @@
+import '../../../shared/constants/currencies.dart';
+
 /// Vehicle domain model matching Doc 2 schema and Doc 3 API contract.
 class Vehicle {
   final String id;
@@ -50,7 +52,7 @@ class Vehicle {
     vin: json['vin'] as String?,
     purchaseDate: json['purchaseDate'] as String?,
     purchasePriceCents: json['purchasePriceCents'] as int?,
-    currency: json['currency'] as String? ?? 'USD',
+    currency: json['currency'] as String? ?? kFallbackCurrency,
     currentMileage: json['currentMileage'] as int?,
     vehicleType: json['vehicleType'] as String?,
     fuelType: json['fuelType'] as String?,

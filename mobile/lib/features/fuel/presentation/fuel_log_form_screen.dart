@@ -5,6 +5,7 @@ import '../../../core/network/api_exceptions.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/utils/distance_unit.dart';
 import '../../../shared/widgets/bottom_sheet_picker_field.dart';
+import '../../../shared/widgets/form_screen_app_bar.dart';
 import '../../dashboard/presentation/dashboard_provider.dart';
 import '../../profile/data/user_repository.dart';
 import '../../vehicles/data/vehicle_repository.dart';
@@ -19,7 +20,21 @@ class FuelLogFormScreen extends ConsumerStatefulWidget {
   final String? vehicleId;
   final FuelLog? existing;
 
-  const FuelLogFormScreen({super.key, this.vehicleId, this.existing});
+  /// Add-mode seed values from the quick-entry sheet (already in display unit).
+  final String? initialLiters;
+  final String? initialUnitPrice;
+  final String? initialOdometer;
+  final String? initialDate;
+
+  const FuelLogFormScreen({
+    super.key,
+    this.vehicleId,
+    this.existing,
+    this.initialLiters,
+    this.initialUnitPrice,
+    this.initialOdometer,
+    this.initialDate,
+  });
 
   @override
   ConsumerState<FuelLogFormScreen> createState() => _FuelLogFormScreenState();
@@ -47,6 +62,9 @@ class _FuelLogFormScreenState extends ConsumerState<FuelLogFormScreen> {
   bool _editInitialised = false;
   String? _addDefaultsAppliedFor;
 
+  /// Whether single-vehicle auto-select has been attempted.
+  bool _autoSelectAttempted = false;
+
   bool get _isEdit => widget.existing != null;
 
   @override
@@ -54,12 +72,14 @@ class _FuelLogFormScreenState extends ConsumerState<FuelLogFormScreen> {
     super.initState();
     final e = widget.existing;
     _selectedVehicleId = widget.vehicleId ?? e?.vehicleId;
-    _dateCtrl = TextEditingController(text: e?.date ?? _today());
-    _litersCtrl = TextEditingController(
-      text: e != null ? e.liters.toString() : '',
+    _dateCtrl = TextEditingController(
+      text: e?.date ?? widget.initialDate ?? _today(),
     );
-    _unitPriceCtrl = TextEditingController();
-    _odometerCtrl = TextEditingController();
+    _litersCtrl = TextEditingController(
+      text: e != null ? e.liters.toString() : (widget.initialLiters ?? ''),
+    );
+    _unitPriceCtrl = TextEditingController(text: widget.initialUnitPrice ?? '');
+    _odometerCtrl = TextEditingController(text: widget.initialOdometer ?? '');
     _notesCtrl = TextEditingController(text: e?.notes ?? '');
     _isFullTank = e?.isFullTank ?? true;
   }
@@ -107,23 +127,27 @@ class _FuelLogFormScreenState extends ConsumerState<FuelLogFormScreen> {
   }
 
   /// Apply add-mode defaults once per selected vehicle: latest unit price and
-  /// latest odometer (placeholder).
+  /// latest odometer reading (shown as a placeholder, not prefilled).
   void _applyAddDefaults(Vehicle? vehicle, List<FuelLog>? logs) {
     if (_isEdit || vehicle == null || logs == null) return;
     if (_addDefaultsAppliedFor == vehicle.id) return;
     _addDefaultsAppliedFor = vehicle.id;
 
-    final latest = logs.isNotEmpty ? logs.first : null;
-    if (latest != null) {
-      if (_unitPriceCtrl.text.trim().isEmpty && latest.liters > 0) {
-        _unitPriceCtrl.text = (latest.priceCents / 100 / latest.liters)
-            .toStringAsFixed(2);
-      }
-      // Trigger a rebuild so the odometer placeholder picks up the latest value.
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) setState(() => _latestOdometerKm = latest.odometer);
-      });
+    final latestLog = logs.isNotEmpty ? logs.first : null;
+    if (latestLog != null &&
+        _unitPriceCtrl.text.trim().isEmpty &&
+        latestLog.liters > 0) {
+      _unitPriceCtrl.text = (latestLog.priceCents / 100 / latestLog.liters)
+          .toStringAsFixed(2);
     }
+
+    final latestOdometerKm =
+        latestLog?.odometer ?? vehicle.currentMileage;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      setState(() => _latestOdometerKm = latestOdometerKm);
+    });
   }
 
   Future<void> _delete() async {
@@ -243,49 +267,10 @@ class _FuelLogFormScreenState extends ConsumerState<FuelLogFormScreen> {
     final meAsync = ref.watch(meProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        centerTitle: true,
-        leadingWidth: 80,
-        title: Text(_isEdit ? 'Edit Fuel Log' : 'Add Fuel Log'),
-        leading: TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          style: TextButton.styleFrom(foregroundColor: AppColors.textPrimary),
-          child: const Text('Cancel', maxLines: 1),
-        ),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: _saving
-                ? const Center(
-                    child: SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
-                  )
-                : TextButton(
-                    onPressed: () => _save(_effectiveUnit),
-                    style: TextButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: AppColors.onPrimary,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 2,
-                      ),
-                      minimumSize: Size.zero,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      textStyle: const TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 14,
-                      ),
-                    ),
-                    child: const Text('Save'),
-                  ),
-          ),
-        ],
+      appBar: FormScreenAppBar(
+        title: _isEdit ? 'Edit Fuel Log' : 'Add Fuel Log',
+        saving: _saving,
+        onSave: () => _save(_effectiveUnit),
       ),
       body: vehiclesAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -300,6 +285,20 @@ class _FuelLogFormScreenState extends ConsumerState<FuelLogFormScreen> {
   }
 
   Widget _buildForm(List<Vehicle> vehicles, String userUnit) {
+    // Task 2: auto-select when exactly one vehicle and none pre-selected.
+    if (!_isEdit && !_autoSelectAttempted && _selectedVehicleId == null) {
+      _autoSelectAttempted = true;
+      if (vehicles.length == 1) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            setState(() {
+              _selectedVehicleId = vehicles.first.id;
+            });
+          }
+        });
+      }
+    }
+
     Vehicle? selected;
     for (final v in vehicles) {
       if (v.id == _selectedVehicleId) selected = v;
@@ -323,9 +322,10 @@ class _FuelLogFormScreenState extends ConsumerState<FuelLogFormScreen> {
       _applyAddDefaults(selected, logsAsync.asData?.value);
     }
 
-    final odometerHint = _latestOdometerKm != null
-        ? kmToDisplay(_latestOdometerKm!, unit).round().toString()
-        : '48200';
+    final odometerHintKm = _latestOdometerKm ?? selected?.currentMileage;
+    final odometerHint = odometerHintKm != null
+        ? kmToDisplay(odometerHintKm, unit).round().toString()
+        : null;
 
     return Form(
       key: _formKey,
@@ -333,60 +333,26 @@ class _FuelLogFormScreenState extends ConsumerState<FuelLogFormScreen> {
         padding: const EdgeInsets.all(16),
         children: [
           // Vehicle picker — editable when adding, locked when editing a log.
-          BottomSheetPickerField<String>(
-            label: 'Vehicle *',
-            sheetTitle: 'Select vehicle',
-            value: _selectedVehicleId,
-            options: vehicles.map((v) => v.id).toList(),
-            labelBuilder: (id) =>
-                vehicles.firstWhere((v) => v.id == id).displayName,
-            enabled: !_isEdit,
-            onChanged: (value) => setState(() {
-              _selectedVehicleId = value;
-              _latestOdometerKm = null;
-              _addDefaultsAppliedFor = null;
-            }),
-            validator: (v) => v == null ? 'Select a vehicle' : null,
-          ),
+          _buildVehiclePicker(vehicles),
           const SizedBox(height: 16),
           _buildDateField(),
           const SizedBox(height: 16),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: _buildNumberField(
-                  controller: _litersCtrl,
-                  label: 'Liters *',
-                  hint: '45.5',
-                  isDecimal: true,
-                ),
-              ),
-              const SizedBox(width: 12),
-              SizedBox(
-                width: 120,
-                child: InputDecorator(
-                  decoration: const InputDecoration(
-                    labelText: 'Full Tank',
-                    border: OutlineInputBorder(),
-                    contentPadding: EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
-                    ),
-                  ),
-                  child: Align(
-                    alignment: Alignment.center,
-                    child: Switch(
-                      value: _isFullTank,
-                      onChanged: (v) => setState(() => _isFullTank = v),
-                      trackOutlineColor:
-                          const WidgetStatePropertyAll(Colors.black87),
-                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    ),
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(
+                  child: _buildNumberField(
+                    controller: _litersCtrl,
+                    label: 'Liters *',
+                    hint: '45.5',
+                    isDecimal: true,
                   ),
                 ),
-              ),
-            ],
+                const SizedBox(width: 12),
+                _buildFullTankField(),
+              ],
+            ),
           ),
           const SizedBox(height: 16),
           _buildNumberField(
@@ -396,17 +362,13 @@ class _FuelLogFormScreenState extends ConsumerState<FuelLogFormScreen> {
             isDecimal: true,
           ),
           const SizedBox(height: 16),
-          _buildNumberField(
-            controller: _odometerCtrl,
-            label: 'Odometer (${unit.label}) *',
-            hint: odometerHint,
-            isDecimal: false,
-          ),
+          _buildOdometerField(unit: unit, hint: odometerHint),
           const SizedBox(height: 16),
           TextFormField(
             controller: _notesCtrl,
             decoration: const InputDecoration(
               labelText: 'Notes',
+              alignLabelWithHint: true,
               border: OutlineInputBorder(),
             ),
             maxLines: 3,
@@ -431,6 +393,87 @@ class _FuelLogFormScreenState extends ConsumerState<FuelLogFormScreen> {
     );
   }
 
+  /// Task 3: Vehicle picker bottom sheet with dividers + rounded corners.
+  Widget _buildVehiclePicker(List<Vehicle> vehicles) {
+    return GestureDetector(
+      onTap: _isEdit
+          ? null
+          : () => _showVehiclePicker(vehicles),
+      child: AbsorbPointer(
+        absorbing: _isEdit,
+        child: BottomSheetPickerField<String>(
+          label: 'Vehicle *',
+          sheetTitle: 'Select vehicle',
+          value: _selectedVehicleId,
+          options: vehicles.map((v) => v.id).toList(),
+          labelBuilder: (id) =>
+              vehicles.firstWhere((v) => v.id == id).displayName,
+          enabled: !_isEdit,
+          onChanged: (value) => setState(() {
+            _selectedVehicleId = value;
+            _latestOdometerKm = null;
+            _addDefaultsAppliedFor = null;
+            _odometerCtrl.clear();
+          }),
+          validator: (v) => v == null ? 'Select a vehicle' : null,
+        ),
+      ),
+    );
+  }
+
+  /// Shows a polished vehicle picker bottom sheet with rounded corners and
+  /// dividers between rows (Task 3).
+  Future<void> _showVehiclePicker(List<Vehicle> vehicles) async {
+    if (_isEdit) return;
+    final picked = await showModalBottomSheet<String>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 16),
+              Text(
+                'Select Vehicle',
+                style: Theme.of(ctx).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 8),
+              ListView.separated(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: vehicles.length,
+                separatorBuilder: (_, _) =>
+                    const Divider(height: 1, color: AppColors.divider),
+                itemBuilder: (ctx, i) {
+                  final v = vehicles[i];
+                  return ListTile(
+                    title: Text(v.displayName),
+                    trailing: _selectedVehicleId == v.id
+                        ? const Icon(Icons.check, color: AppColors.primary)
+                        : null,
+                    onTap: () => Navigator.of(ctx).pop(v.id),
+                  );
+                },
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
+    );
+    if (picked != null && picked != _selectedVehicleId) {
+      setState(() {
+        _selectedVehicleId = picked;
+        _latestOdometerKm = null;
+        _addDefaultsAppliedFor = null;
+        _odometerCtrl.clear();
+      });
+    }
+  }
+
   Widget _buildDateField() {
     return TextFormField(
       controller: _dateCtrl,
@@ -442,6 +485,60 @@ class _FuelLogFormScreenState extends ConsumerState<FuelLogFormScreen> {
         suffixIcon: Icon(Icons.calendar_today),
       ),
       validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
+    );
+  }
+
+  Widget _buildFullTankField() {
+    final inputTheme = Theme.of(context).inputDecorationTheme;
+    final labelStyle =
+        inputTheme.labelStyle ?? Theme.of(context).textTheme.bodyLarge;
+    final enabledBorder = inputTheme.enabledBorder;
+    final borderRadius = enabledBorder is OutlineInputBorder
+        ? enabledBorder.borderRadius
+        : BorderRadius.circular(12);
+
+    return IntrinsicWidth(
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(8, 0, 2, 0),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: inputTheme.fillColor ?? AppColors.surface,
+          borderRadius: borderRadius,
+          border: Border.all(color: AppColors.divider),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Full Tank', style: labelStyle),
+            Switch(
+              value: _isFullTank,
+              onChanged: (v) => setState(() => _isFullTank = v),
+              trackOutlineColor: const WidgetStatePropertyAll(Colors.black87),
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildOdometerField({
+    required DistanceUnit unit,
+    String? hint,
+  }) {
+    return TextFormField(
+      controller: _odometerCtrl,
+      decoration: InputDecoration(
+        labelText: 'Odometer (${unit.label}) *',
+        hintText: hint,
+        border: const OutlineInputBorder(),
+      ),
+      keyboardType: TextInputType.number,
+      validator: (v) {
+        if (v == null || v.isEmpty) return 'Required';
+        if (int.tryParse(v) == null) return 'Invalid integer';
+        return null;
+      },
     );
   }
 
@@ -462,7 +559,12 @@ class _FuelLogFormScreenState extends ConsumerState<FuelLogFormScreen> {
       validator: (v) {
         if (v == null || v.isEmpty) return 'Required';
         if (isDecimal) {
-          if (double.tryParse(v) == null) return 'Invalid number';
+          final parsed = double.tryParse(v);
+          if (parsed == null) return 'Invalid number';
+          // Liters field: reject zero / negative values.
+          if (label.startsWith('Liters') && parsed <= 0) {
+            return 'Enter a value greater than 0';
+          }
         } else {
           if (int.tryParse(v) == null) return 'Invalid integer';
         }

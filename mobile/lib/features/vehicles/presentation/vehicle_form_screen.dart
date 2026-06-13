@@ -7,6 +7,8 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/bottom_sheet_picker_field.dart';
+import '../../../shared/widgets/dashed_border.dart';
+import '../../../shared/widgets/form_screen_app_bar.dart';
 import '../../profile/data/user_repository.dart';
 import '../data/upload_repository.dart';
 import '../data/vehicle_repository.dart';
@@ -96,9 +98,38 @@ class _VehicleFormScreenState extends ConsumerState<VehicleFormScreen> {
   }
 
   Future<void> _pickAndUploadPhoto() async {
+    // Show source picker bottom sheet (camera / photo library).
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      useRootNavigator: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 8),
+            ListTile(
+              leading: const Icon(Icons.camera_alt_outlined),
+              title: const Text('Take photo'),
+              onTap: () => Navigator.of(ctx).pop(ImageSource.camera),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text('Photo library'),
+              onTap: () => Navigator.of(ctx).pop(ImageSource.gallery),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+    if (source == null) return;
+
     final picker = ImagePicker();
     final pickedFile = await picker.pickImage(
-      source: ImageSource.gallery,
+      source: source,
       imageQuality: 85,
     );
     if (pickedFile == null) return;
@@ -141,10 +172,22 @@ class _VehicleFormScreenState extends ConsumerState<VehicleFormScreen> {
     final mileage = int.tryParse(_mileageCtrl.text.trim());
     if (mileage != null) data['currentMileage'] = mileage;
     if (_vehicleType != null) data['vehicleType'] = _vehicleType;
-    // Fuel & unit fields — sent explicitly (incl. null) so edits can clear them.
-    // distanceUnit null = inherit the user's account-level default.
-    data['fuelType'] = _fuelType;
-    data['distanceUnit'] = _distanceUnit;
+
+    if (_isEditMode) {
+      // In edit mode, only include a nullable field when its value has actually
+      // changed from the original — prevents a PATCH from clobbering server
+      // values when the user edits an unrelated field.
+      final orig = widget.vehicle!;
+      if (_fuelType != orig.fuelType) data['fuelType'] = _fuelType;
+      if (_distanceUnit != orig.distanceUnit) {
+        data['distanceUnit'] = _distanceUnit;
+      }
+    } else {
+      // In create mode, include only non-null values.
+      if (_fuelType != null) data['fuelType'] = _fuelType;
+      if (_distanceUnit != null) data['distanceUnit'] = _distanceUnit;
+    }
+
     if (_photoUrl != null) data['photoUrl'] = _photoUrl;
     if (_photoPublicId != null) data['photoPublicId'] = _photoPublicId;
 
@@ -179,49 +222,11 @@ class _VehicleFormScreenState extends ConsumerState<VehicleFormScreen> {
     final odometerUnitLabel = distanceUnitDisplay == 'mi' ? 'mi' : 'km';
 
     return Scaffold(
-      appBar: AppBar(
-        centerTitle: true,
-        leadingWidth: 80,
-        title: Text(_isEditMode ? 'Edit Vehicle' : 'Add Vehicle'),
-        leading: TextButton(
-          onPressed: () => context.pop(),
-          style: TextButton.styleFrom(foregroundColor: AppColors.textPrimary),
-          child: const Text('Cancel', maxLines: 1),
-        ),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: _isSaving
-                ? const Center(
-                    child: SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
-                  )
-                : TextButton(
-                    onPressed: _save,
-                    style: TextButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: AppColors.onPrimary,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 2,
-                      ),
-                      minimumSize: Size.zero,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      textStyle: const TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 14,
-                      ),
-                    ),
-                    child: const Text('Save'),
-                  ),
-          ),
-        ],
+      appBar: FormScreenAppBar(
+        title: _isEditMode ? 'Edit Vehicle' : 'Add Vehicle',
+        saving: _isSaving,
+        onCancel: () => context.pop(),
+        onSave: _save,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -396,7 +401,7 @@ class _PhotoArea extends StatelessWidget {
     return GestureDetector(
       onTap: isUploading ? null : onTap,
       child: CustomPaint(
-        foregroundPainter: _DashedBorderPainter(
+        foregroundPainter: const DashedBorderPainter(
           color: AppColors.textMuted,
           radius: 16,
           strokeWidth: 1.5,
@@ -405,7 +410,7 @@ class _PhotoArea extends StatelessWidget {
           height: 180,
           width: double.infinity,
           decoration: BoxDecoration(
-            color: AppColors.primary.withValues(alpha: 0.12),
+            color: AppColors.photoUploadTint,
             borderRadius: BorderRadius.circular(16),
           ),
           clipBehavior: Clip.antiAlias,
@@ -509,53 +514,3 @@ class _PhotoArea extends StatelessWidget {
   }
 }
 
-class _DashedBorderPainter extends CustomPainter {
-  final Color color;
-  final double radius;
-  final double strokeWidth;
-
-  const _DashedBorderPainter({
-    required this.color,
-    required this.radius,
-    required this.strokeWidth,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final rrect = RRect.fromRectAndRadius(
-      Rect.fromLTWH(
-        strokeWidth / 2,
-        strokeWidth / 2,
-        size.width - strokeWidth,
-        size.height - strokeWidth,
-      ),
-      Radius.circular(radius),
-    );
-    final path = Path()..addRRect(rrect);
-    final paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = strokeWidth;
-
-    for (final metric in path.computeMetrics()) {
-      var distance = 0.0;
-      const dashLength = 6.0;
-      const gapLength = 4.0;
-      while (distance < metric.length) {
-        final end = distance + dashLength;
-        canvas.drawPath(
-          metric.extractPath(distance, end.clamp(0.0, metric.length)),
-          paint,
-        );
-        distance += dashLength + gapLength;
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _DashedBorderPainter oldDelegate) {
-    return color != oldDelegate.color ||
-        radius != oldDelegate.radius ||
-        strokeWidth != oldDelegate.strokeWidth;
-  }
-}

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:drivevault/features/auth/data/auth_repository.dart';
+import 'package:drivevault/features/auth/presentation/auth_error_message.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -15,6 +16,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isLoading = false;
+  bool _obscurePassword = true;
   String? _errorMessage;
 
   @override
@@ -42,7 +44,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       // Auth state changes will trigger router redirect, no need to navigate manually
     } catch (e) {
       setState(() {
-        _errorMessage = e.toString().replaceFirst('Exception: ', '');
+        _errorMessage = authErrorMessage(e);
       });
     } finally {
       if (mounted) {
@@ -71,7 +73,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       }
     } catch (e) {
       setState(() {
-        _errorMessage = e.toString().replaceFirst('Exception: ', '');
+        _errorMessage = authErrorMessage(e);
         _isLoading = false;
       });
     }
@@ -184,14 +186,26 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         const SizedBox(height: 16),
                         TextFormField(
                           controller: _passwordController,
-                          obscureText: true,
-                          decoration: const InputDecoration(
+                          obscureText: _obscurePassword,
+                          decoration: InputDecoration(
                             labelText: 'Password',
-                            prefixIcon: Icon(Icons.lock_outlined),
-                            border: OutlineInputBorder(
+                            prefixIcon: const Icon(Icons.lock_outlined),
+                            border: const OutlineInputBorder(
                               borderRadius: BorderRadius.all(
                                 Radius.circular(12),
                               ),
+                            ),
+                            suffixIcon: IconButton(
+                              icon: Icon(
+                                _obscurePassword
+                                    ? Icons.visibility_off_outlined
+                                    : Icons.visibility_outlined,
+                              ),
+                              onPressed: () {
+                                setState(() {
+                                  _obscurePassword = !_obscurePassword;
+                                });
+                              },
                             ),
                           ),
                           validator: (value) {
@@ -280,12 +294,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               // Google Sign-In Button
               OutlinedButton.icon(
                 onPressed: _isLoading ? null : _signInWithGoogle,
-                icon: Image.network(
-                  'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/1024px-Google_%22G%22_logo.svg.png',
-                  height: 20,
-                  errorBuilder: (context, error, stackTrace) =>
-                      const Icon(Icons.login),
-                ),
+                icon: _GoogleLogo(),
                 label: const Text(
                   'Continue with Google',
                   style: TextStyle(
@@ -326,6 +335,47 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Google "G" logo widget. Uses a bundled asset when available; falls back to
+/// an inline painted widget so the button works fully offline.
+class _GoogleLogo extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Image.asset(
+      'assets/images/google_g_logo.png',
+      height: 20,
+      width: 20,
+      errorBuilder: (context, error, stackTrace) => const _GoogleLogoFallback(),
+    );
+  }
+}
+
+/// Inline fallback: white circle with the Google brand-blue "G".
+class _GoogleLogoFallback extends StatelessWidget {
+  const _GoogleLogoFallback();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 20,
+      width: 20,
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        shape: BoxShape.circle,
+      ),
+      alignment: Alignment.center,
+      child: const Text(
+        'G',
+        style: TextStyle(
+          color: Color(0xFF4285F4), // Google brand blue
+          fontWeight: FontWeight.bold,
+          fontSize: 13,
+          height: 1,
         ),
       ),
     );

@@ -26,7 +26,27 @@ class AppColors {
   static const Color successBg = Color(0xFFDCFCE7);
   static const Color warningBg = Color(0xFFFEF3C7);
   static const Color dangerBg = Color(0xFFFEE2E2);
+
+  // Design-language tokens
+  static const Color dashedBorder = Color(0xFFC2C4CF);
+  static const Color cardGradientStart = Color(0xFF23232E);
+  static const Color cardGradientEnd = Color(0xFF15151C);
+  static const Color photoUploadTint = Color(0xFFFFF9E6);
 }
+
+/// Shared BoxDecoration for white surface cards.
+/// Approximates `box-shadow: 0 4px 14px rgba(20,20,40,0.06)`.
+const BoxDecoration appCardDecoration = BoxDecoration(
+  color: AppColors.surface,
+  borderRadius: BorderRadius.all(Radius.circular(16)),
+  boxShadow: [
+    BoxShadow(
+      color: Color(0x0F14141F), // rgba(20,20,40,0.06) ≈ 0x0F
+      blurRadius: 14,
+      offset: Offset(0, 4),
+    ),
+  ],
+);
 
 class AppTheme {
   static ThemeData get light => ThemeData(
@@ -73,7 +93,7 @@ class AppTheme {
         foregroundColor: AppColors.onPrimary,
         elevation: 0,
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape: const StadiumBorder(),
         textStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
       ),
     ),
@@ -82,7 +102,7 @@ class AppTheme {
         foregroundColor: AppColors.textPrimary,
         side: const BorderSide(color: AppColors.divider),
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape: const StadiumBorder(),
         textStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
       ),
     ),
@@ -96,6 +116,15 @@ class AppTheme {
       filled: true,
       fillColor: AppColors.surface,
       hintStyle: const TextStyle(color: AppColors.textMuted, fontSize: 14),
+      labelStyle: const TextStyle(color: AppColors.textMuted, fontSize: 16),
+      floatingLabelStyle: WidgetStateTextStyle.resolveWith((states) {
+        return TextStyle(
+          color: states.contains(WidgetState.focused)
+              ? AppColors.textPrimary
+              : AppColors.textMuted,
+          fontSize: 12,
+        );
+      }),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),

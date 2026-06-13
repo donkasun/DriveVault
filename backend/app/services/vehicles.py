@@ -7,6 +7,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.constants import LOCKED_CURRENCY
 from app.models.users import User
 from app.models.vehicles import Vehicle
 from app.schemas.vehicles import VehicleCreate, VehicleUpdate
@@ -31,7 +32,9 @@ def get_vehicle_for_user(db: Session, user: User, vehicle_id: UUID) -> Vehicle:
 
 
 def create_vehicle(db: Session, user: User, payload: VehicleCreate) -> Vehicle:
-    vehicle = Vehicle(user_id=user.id, **payload.model_dump())
+    data = payload.model_dump()
+    data["currency"] = LOCKED_CURRENCY
+    vehicle = Vehicle(user_id=user.id, **data)
     db.add(vehicle)
     db.commit()
     db.refresh(vehicle)
