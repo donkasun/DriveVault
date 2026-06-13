@@ -20,7 +20,21 @@ class FuelLogFormScreen extends ConsumerStatefulWidget {
   final String? vehicleId;
   final FuelLog? existing;
 
-  const FuelLogFormScreen({super.key, this.vehicleId, this.existing});
+  /// Add-mode seed values from the quick-entry sheet (already in display unit).
+  final String? initialLiters;
+  final String? initialUnitPrice;
+  final String? initialOdometer;
+  final String? initialDate;
+
+  const FuelLogFormScreen({
+    super.key,
+    this.vehicleId,
+    this.existing,
+    this.initialLiters,
+    this.initialUnitPrice,
+    this.initialOdometer,
+    this.initialDate,
+  });
 
   @override
   ConsumerState<FuelLogFormScreen> createState() => _FuelLogFormScreenState();
@@ -58,12 +72,14 @@ class _FuelLogFormScreenState extends ConsumerState<FuelLogFormScreen> {
     super.initState();
     final e = widget.existing;
     _selectedVehicleId = widget.vehicleId ?? e?.vehicleId;
-    _dateCtrl = TextEditingController(text: e?.date ?? _today());
-    _litersCtrl = TextEditingController(
-      text: e != null ? e.liters.toString() : '',
+    _dateCtrl = TextEditingController(
+      text: e?.date ?? widget.initialDate ?? _today(),
     );
-    _unitPriceCtrl = TextEditingController();
-    _odometerCtrl = TextEditingController();
+    _litersCtrl = TextEditingController(
+      text: e != null ? e.liters.toString() : (widget.initialLiters ?? ''),
+    );
+    _unitPriceCtrl = TextEditingController(text: widget.initialUnitPrice ?? '');
+    _odometerCtrl = TextEditingController(text: widget.initialOdometer ?? '');
     _notesCtrl = TextEditingController(text: e?.notes ?? '');
     _isFullTank = e?.isFullTank ?? true;
   }
