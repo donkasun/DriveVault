@@ -29,14 +29,16 @@ tab bar** (active tab = white circle + colored icon), green progress rings + min
 
 ### Top level (no tab bar)
 ```
-/splash            decides auth state → /login, /verify-email, or /home
+/splash            decides auth state → /login or /home
 /login
 /signup
 /forgot-password
-/verify-email      email/password users only, until Firebase email is verified
+/verify-email      legacy screen; no longer gated (logged-in users are redirected to /home)
 ```
-Verified auth success → enter the shell (tabs appear). Unverified email/password sign-up
-→ `/verify-email` (stay signed in). Sign-out → back to `/login`.
+Any auth success (verified or not) → enter the shell (tabs appear). There is **no hard
+verification gate**: unverified email/password users land on `/home` and are nudged by a
+per-session dismissible `VerifyEmailBanner` on the dashboard (Resend / I've verified).
+Sign-out → back to `/login`.
 
 ### Shell — StatefulShellRoute with 4 branches
 ```
@@ -108,7 +110,7 @@ Verified auth success → enter the shell (tabs appear). Unverified email/passwo
 ### Auth — Sign-up
 - **Fields:** email, password, (display name — optional), social buttons, back-to-login link.
 - **States:** idle · submitting · error.
-- **On success:** sends Firebase verification email → redirects to `/verify-email` (not `/home`).
+- **On success:** sends Firebase verification email → lands on `/home`; the dashboard `VerifyEmailBanner` nudges the user to verify (no hard gate).
 
 ### Auth — Verify email
 - **Data:** signed-in user's email address.
@@ -148,7 +150,14 @@ Sections top-to-bottom:
   currency, currentMileage, vehicleType, photo (upload → Cloudinary).  (* required)
 - **Actions:** Cancel · Save (`POST`/`PATCH /vehicles`).
 
-### Garage — Add/Edit Fuel log (modal)  — `POST/PATCH fuel-logs`
+### Quick-entry fuel sheet (bottom sheet) — `POST fuel-logs`
+- **Default add path** from dashboard + vehicle-card "Add Fuel". Lightweight half-sheet:
+  odometer* + any two of {liters, total paid, price-per-liter} — the third is derived
+  (price-per-liter is a sticky default from the last log). Always logs `isFullTank: true`.
+- **Full details** button hands typed values to the full form below (for partial fills / notes).
+
+### Garage — Add/Edit Fuel log (full form)  — `POST/PATCH fuel-logs`
+- Used for **edits** and the quick sheet's "Full details" handoff.
 - **Fields:** date*, liters*, priceCents*, odometer*, isFullTank, notes.
 
 ### Garage — Add/Edit Maintenance (modal)  — `POST/PATCH maintenance`

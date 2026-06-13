@@ -86,7 +86,7 @@ When unsure, stop and ask. A small clarifying question is cheaper than a wrong i
 ## Learned User Preferences
 
 - Do not commit changes unless explicitly asked.
-- After email/password sign-up, route unverified users to `/verify-email` (Firebase verification link + in-app gate), not `/home`; Google/Apple sign-in bypasses the gate.
+- Email verification uses a **soft nudge, not a hard gate**: after email/password sign-up the user lands on `/home` like everyone else; a per-session dismissible `VerifyEmailBanner` on the dashboard prompts them to verify (Resend / I've verified actions). A Firebase verification email is still sent on sign-up. (The earlier hard `/verify-email` gate was removed; the 48h purge-unverified idea was rejected.)
 - Use isolated git worktrees under `.worktrees/` for parallel Phase 1 task branches (e.g. `task/backend-models`, `task/mobile-auth`).
 - When pointed at a plan in `docs/superpowers/plans/`, implement that plan rather than improvising.
 - Configure project MCP for Claude Code via repo-root `.mcp.json`; Cursor MCP plugins are separate and not shared automatically.
@@ -112,6 +112,6 @@ When unsure, stop and ask. A small clarifying question is cheaper than a wrong i
 - Firebase service-account credentials stored in GCP Secret Manager as `firebase-credentials` (project `drivevault-app`), injected into Cloud Run as `FIREBASE_CREDENTIALS_JSON`.
 - UI design references live in `docs/design-references/` (`mockup-screens.html`, `DESIGN-LANGUAGE.md`, `ref-0N-*.png` screenshots).
 - Local backend Docker Postgres may bind to host port 5433 when macOS Postgres already occupies 5432.
-- Email verification gate is task C2d; implementation plan at `docs/superpowers/plans/2026-06-09-email-verification-gate.md`.
+- Email verification was originally a hard gate (task C2d, plan `docs/superpowers/plans/2026-06-09-email-verification-gate.md`) but was later replaced by the soft `VerifyEmailBanner` nudge — see `docs/superpowers/specs/2026-06-13-fuel-economy-quick-entry-verify-banner-design.md`.
 - `MainShell` stacks a floating tab bar above tab navigators; bottom sheets/modals that must cover the tab bar need `useRootNavigator: true`.
 - Shared form headers now live in `mobile/lib/shared/widgets/form_screen_app_bar.dart` and are used by fuel, vehicle, maintenance, document upload, and profile forms.

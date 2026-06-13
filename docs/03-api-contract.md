@@ -146,7 +146,7 @@ On delete, the vehicle's `currentMileage` is recomputed to the highest odometer 
 remaining fuel logs for that vehicle (`null` if no logs remain).
 
 ### `GET /api/v1/vehicles/{vehicleId}/fuel-stats`
-Computed economy metrics (derived from consecutive fuel logs in date order; partial fills are included).
+Computed economy metrics. `avgConsumptionLPer100Km` / `avgCostPerKmCents` use the **interval method**: a measurement interval runs between two full-tank fills (`isFullTank: true`). Partial fills accumulate into the interval that closes at the next full tank; partial fills before the first full tank or after the last full tank are excluded from the averages (they remain in `totalLiters` / `totalSpentCents`). Both averages are `null` until at least one full-tank interval exists.
 **200**
 ```json
 {
