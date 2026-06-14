@@ -18,6 +18,9 @@ class UserRead(BaseModel):
     photo_url: Annotated[str | None, Field(default=None, serialization_alias="photoUrl")]
     currency: str = "LKR"
     distance_unit: Annotated[str, Field(serialization_alias="distanceUnit")] = "km"
+    renewal_reminders_enabled: Annotated[
+        bool, Field(serialization_alias="renewalRemindersEnabled")
+    ] = True
     created_at: Annotated[datetime, Field(serialization_alias="createdAt")]
 
 
@@ -28,6 +31,9 @@ class UserUpdate(BaseModel):
     photo_url: str | None = Field(default=None, alias="photoUrl")
     currency: str | None = Field(default=None)
     distance_unit: str | None = Field(default=None, alias="distanceUnit")
+    renewal_reminders_enabled: bool | None = Field(
+        default=None, alias="renewalRemindersEnabled"
+    )
 
     @field_validator("currency")
     @classmethod

@@ -13,19 +13,25 @@ void main() {
   };
 
   group('AppUser preferences (F6)', () {
-    test('fromJson maps currency and distanceUnit', () {
+    test('fromJson maps currency, distanceUnit, and reminders toggle', () {
       final u = AppUser.fromJson(
-        baseJson()..addAll({'currency': 'EUR', 'distanceUnit': 'mi'}),
+        baseJson()..addAll({
+          'currency': 'EUR',
+          'distanceUnit': 'mi',
+          'renewalRemindersEnabled': false,
+        }),
       );
 
       expect(u.currency, 'EUR');
       expect(u.distanceUnit, 'mi');
+      expect(u.renewalRemindersEnabled, isFalse);
     });
 
-    test('defaults to USD / km when fields are absent', () {
+    test('defaults to USD / km / true when fields are absent', () {
       final u = AppUser.fromJson(baseJson());
       expect(u.currency, 'USD');
       expect(u.distanceUnit, 'km');
+      expect(u.renewalRemindersEnabled, isTrue);
     });
   });
 }

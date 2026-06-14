@@ -48,6 +48,7 @@ Mirrors a Firebase Auth account. Created lazily on first authenticated request.
 | photo_url | text | NULL |
 | currency | char(3) | NOT NULL DEFAULT 'LKR' (forced to 'LKR' server-side — see Currency note) |
 | distance_unit | text | NOT NULL DEFAULT 'km' ('km'\|'mi', display-only) |
+| renewal_reminders_enabled | boolean | NOT NULL DEFAULT true |
 | created_at | timestamptz | NOT NULL |
 | updated_at | timestamptz | NOT NULL |
 

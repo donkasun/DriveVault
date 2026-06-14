@@ -165,7 +165,7 @@ def test_a5_get_me_handles_concurrent_insert(mock_verify, me_client, db_session)
 
 @patch("app.deps.auth.verify_id_token")
 def test_f2_get_me_includes_currency_and_distance_unit(mock_verify, me_client, db_session):
-    """GET /me response includes currency and distanceUnit fields."""
+    """GET /me response includes currency, distanceUnit, and reminders fields."""
     mock_verify.return_value = {
         "uid": "firebase-f2-get",
         "email": "f2get@example.com",
@@ -181,11 +181,12 @@ def test_f2_get_me_includes_currency_and_distance_unit(mock_verify, me_client, d
     body = response.json()
     assert body["currency"] == "LKR"
     assert body["distanceUnit"] == "km"
+    assert body["renewalRemindersEnabled"] is True
 
 
 @patch("app.deps.auth.verify_id_token")
 def test_f2_patch_me_updates_currency_and_distance_unit(mock_verify, me_client, db_session):
-    """PATCH /me with valid currency and distanceUnit updates both fields."""
+    """PATCH /me with valid settings updates preference fields."""
     user = User(firebase_uid="firebase-f2-patch", email="f2patch@example.com")
     db_session.add(user)
     db_session.commit()
@@ -199,17 +200,23 @@ def test_f2_patch_me_updates_currency_and_distance_unit(mock_verify, me_client, 
     response = me_client.patch(
         "/api/v1/me",
         headers={"Authorization": "Bearer f2-patch-token"},
-        json={"currency": "EUR", "distanceUnit": "mi"},
+        json={
+            "currency": "EUR",
+            "distanceUnit": "mi",
+            "renewalRemindersEnabled": False,
+        },
     )
 
     assert response.status_code == 200
     body = response.json()
     assert body["currency"] == "LKR"
     assert body["distanceUnit"] == "mi"
+    assert body["renewalRemindersEnabled"] is False
 
     db_session.refresh(user)
     assert user.currency == "LKR"
     assert user.distance_unit == "mi"
+    assert user.renewal_reminders_enabled is False
 
 
 @patch("app.deps.auth.verify_id_token")

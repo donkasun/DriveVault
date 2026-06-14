@@ -87,21 +87,23 @@ class _TabBarContent extends StatefulWidget {
 }
 
 class _TabBarContentState extends State<_TabBarContent> {
+  static const _addSlotWidthFactor = 0.72;
   static const _iconAssets = [
-    'assets/icons/dashboard.svg',
+    'assets/icons/home.svg',
     'assets/icons/garage.svg',
     'assets/icons/expenses.svg',
     'assets/icons/settings.svg',
   ];
   static const _labels = ['Home', 'Garage', 'Expenses', 'Settings'];
+  static const _tabSlots = [0, 1, 3, 4];
 
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final slotWidth = constraints.maxWidth / _labels.length;
+        final slotWidth = constraints.maxWidth / 5;
         final pillWidth = slotWidth - 16;
-        final pillLeft = widget.currentIndex * slotWidth + 8;
+        final pillLeft = _tabSlots[widget.currentIndex] * slotWidth + 8;
 
         return Stack(
           children: [
@@ -120,51 +122,91 @@ class _TabBarContentState extends State<_TabBarContent> {
                 ),
               ),
             ),
-            // Tab items rendered above the pill
+            // Tab items rendered above the pill, with a center add slot.
             Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: List.generate(_labels.length, (index) {
-                final isSelected = index == widget.currentIndex;
-                return Expanded(
-                  child: GestureDetector(
-                    onTap: () => widget.onTap(index),
-                    behavior: HitTestBehavior.opaque,
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        SvgPicture.asset(
-                          _iconAssets[index],
-                          width: 22,
-                          height: 22,
-                          colorFilter: ColorFilter.mode(
-                            isSelected
-                                ? AppColors.onPrimary
-                                : Colors.grey.shade500,
-                            BlendMode.srcIn,
+              children: [
+                for (var index = 0; index < _labels.length; index++) ...[
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => widget.onTap(index),
+                      behavior: HitTestBehavior.opaque,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          SvgPicture.asset(
+                            _iconAssets[index],
+                            width: 22,
+                            height: 22,
+                            colorFilter: ColorFilter.mode(
+                              index == widget.currentIndex
+                                  ? AppColors.onPrimary
+                                  : Colors.grey.shade500,
+                              BlendMode.srcIn,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 3),
-                        Text(
-                          _labels[index],
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: isSelected
-                                ? FontWeight.w600
-                                : FontWeight.w400,
-                            color: isSelected
-                                ? AppColors.onPrimary
-                                : Colors.grey.shade500,
+                          const SizedBox(height: 3),
+                          Text(
+                            _labels[index],
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: index == widget.currentIndex
+                                  ? FontWeight.w600
+                                  : FontWeight.w400,
+                              color: index == widget.currentIndex
+                                  ? AppColors.onPrimary
+                                  : Colors.grey.shade500,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
-                );
-              }),
+                  if (index == 1)
+                    SizedBox(
+                      width: slotWidth * _addSlotWidthFactor,
+                      child: Center(
+                        child: _AddButton(
+                          onPressed: () {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Add action coming soon'),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                ],
+              ],
             ),
           ],
         );
       },
+    );
+  }
+}
+
+class _AddButton extends StatelessWidget {
+  final VoidCallback onPressed;
+
+  const _AddButton({required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.primary,
+      shape: const CircleBorder(),
+      elevation: 0,
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: onPressed,
+        child: const SizedBox(
+          width: 40,
+          height: 40,
+          child: Icon(Icons.add, color: AppColors.onPrimary, size: 22),
+        ),
+      ),
     );
   }
 }

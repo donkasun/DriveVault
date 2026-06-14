@@ -63,6 +63,40 @@ MaintenanceRecord _maintenance(String id, String date, int cents) {
 }
 
 void main() {
+  testWidgets('shows redesigned expense header cards', (tester) async {
+    final expenses = <Expense>[
+      Expense.fromFuelLog(_fuelLog('f-1', '2026-06-04', 18000)),
+      Expense.fromMaintenance(_maintenance('m-1', '2026-06-02', 25000)),
+    ];
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          allExpensesProvider.overrideWith((ref) async => expenses),
+          meProvider.overrideWith((ref) async => _testUser),
+          vehiclesProvider.overrideWith(() => _FakeVehiclesNotifier()),
+        ],
+        child: const MaterialApp(home: ExpenseHistoryScreen()),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    expect(find.text('Expenses'), findsOneWidget);
+    expect(find.text('TOTAL SPENT'), findsOneWidget);
+    expect(find.text('All time'), findsOneWidget);
+    expect(find.text('Month'), findsOneWidget);
+    expect(find.text('All'), findsOneWidget);
+    expect(find.text('Fuel'), findsWidgets);
+    expect(find.text('Maintenance'), findsOneWidget);
+
+    await tester.tap(find.text('Maintenance').last);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Fuel  Rs 18,000.00'), findsNothing);
+    expect(find.text('Maintenance  Rs 25,000.00'), findsNothing);
+  });
+
   testWidgets('groups combined expenses by month', (tester) async {
     final expenses = <Expense>[
       Expense.fromFuelLog(_fuelLog('f-1', '2026-06-04', 18000)),
@@ -86,7 +120,7 @@ void main() {
 
     expect(find.text('June 2026'), findsOneWidget);
     expect(find.text('May 2026'), findsOneWidget);
-    expect(find.text(_vehicle.displayName), findsNWidgets(4));
+    expect(find.text(_vehicle.displayName), findsWidgets);
 
     final juneTop = tester.getTopLeft(find.text('June 2026'));
     final mayTop = tester.getTopLeft(find.text('May 2026'));

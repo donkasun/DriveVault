@@ -47,18 +47,24 @@ class DocumentRead(BaseModel):
     updated_at: Annotated[datetime, Field(serialization_alias="updatedAt")]
 
 class CostBreakdown(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
     fuel_cents: int = Field(serialization_alias="fuelCents")
     maintenance_cents: int = Field(serialization_alias="maintenanceCents")
     purchase_cents: int = Field(serialization_alias="purchaseCents")
 
 
 class UpcomingRenewal(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
     vehicle_id: Annotated[UUID, Field(serialization_alias="vehicleId")]
     title: str
     expiry_date: Annotated[date, Field(serialization_alias="expiryDate")]
 
 
 class DashboardRead(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
     vehicle_count: int = Field(serialization_alias="vehicleCount")
     monthly_fuel_spend_cents: int = Field(serialization_alias="monthlyFuelSpendCents")
     total_ownership_cost_cents: int = Field(serialization_alias="totalOwnershipCostCents")

@@ -45,14 +45,15 @@ Returns the current user, lazily creating the `users` row on first call.
   "photoUrl": null,
   "currency": "LKR",
   "distanceUnit": "km",
+  "renewalRemindersEnabled": true,
   "createdAt": "2026-06-08T10:00:00Z"
 }
 ```
-`distanceUnit` (`"km"`\|`"mi"`) is the user's account-wide display-only preference (storage stays in km). `currency` is **locked to `LKR`** and forced server-side (see the Currency note above).
+`distanceUnit` (`"km"`\|`"mi"`) is the user's account-wide display-only preference (storage stays in km). `currency` is **locked to `LKR`** and forced server-side (see the Currency note above). `renewalRemindersEnabled` stores the user's reminder toggle for future Phase 2 document/service alerts.
 
 ### `PATCH /api/v1/me`
 Update profile fields. Body (all optional):
-`{ "displayName": "...", "photoUrl": "...", "currency": "LKR", "distanceUnit": "mi" }`
+`{ "displayName": "...", "photoUrl": "...", "currency": "LKR", "distanceUnit": "mi", "renewalRemindersEnabled": true }`
 (A `currency` value is accepted but coerced to `LKR`.)
 **Response 200** — updated user object.
 

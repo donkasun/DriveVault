@@ -183,6 +183,8 @@ Sections top-to-bottom:
 ### Profile / Settings  (`GET /me`)
 - **Data:** display name, email, avatar.
 - **Actions:** edit profile (modal, `PATCH /me`) · **Sign out** → `/login`.
+- **Future work:** allow changing the account email once the verification + auth flow
+  supports it safely; keep email read-only for now.
 
 ---
 
@@ -207,6 +209,8 @@ Sections top-to-bottom:
 ## Open / deferred
 - **Currency** is locked to `LKR` app-wide (forced server-side via `LOCKED_CURRENCY`); no currency UI and no picker.
 - Apple sign-in — enabled later (needs Apple Developer setup).
+- Email changes on Profile / Settings are deferred until the auth flow is ready to handle
+  re-verification and backend updates safely.
 - 🎨 **Layouts locked** for the three core screens (Home, Garage, Vehicle detail). Auth,
   modal forms, and Profile follow the same design language (`design-references/`) — detailed
   layouts can be refined when those screens are built.
