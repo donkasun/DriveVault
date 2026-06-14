@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import '../theme/app_theme.dart';
+import '../../shared/widgets/quick_add_sheet.dart';
 import 'shell_tab_provider.dart';
 
 class MainShell extends ConsumerWidget {
@@ -87,6 +88,9 @@ class _TabBarContent extends StatefulWidget {
 }
 
 class _TabBarContentState extends State<_TabBarContent> {
+  /// Guard against opening multiple quick-add sheets simultaneously.
+  bool _quickAddOpen = false;
+
   static const _addSlotWidthFactor = 0.72;
   static const _iconAssets = [
     'assets/icons/home.svg',
@@ -167,13 +171,20 @@ class _TabBarContentState extends State<_TabBarContent> {
                       width: slotWidth * _addSlotWidthFactor,
                       child: Center(
                         child: _AddButton(
-                          onPressed: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Add action coming soon'),
-                              ),
-                            );
-                          },
+                          key: const Key('fab_quick_add'),
+                          onPressed: _quickAddOpen
+                              ? null
+                              : () async {
+                                  if (_quickAddOpen) return;
+                                  setState(() => _quickAddOpen = true);
+                                  try {
+                                    await showQuickAddSheet(context);
+                                  } finally {
+                                    if (mounted) {
+                                      setState(() => _quickAddOpen = false);
+                                    }
+                                  }
+                                },
                         ),
                       ),
                     ),
@@ -188,9 +199,9 @@ class _TabBarContentState extends State<_TabBarContent> {
 }
 
 class _AddButton extends StatelessWidget {
-  final VoidCallback onPressed;
+  final VoidCallback? onPressed;
 
-  const _AddButton({required this.onPressed});
+  const _AddButton({super.key, required this.onPressed});
 
   @override
   Widget build(BuildContext context) {
