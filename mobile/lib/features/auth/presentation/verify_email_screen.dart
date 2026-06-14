@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:drivevault/core/theme/app_theme.dart';
 import 'package:drivevault/features/auth/data/auth_repository.dart';
 
 class VerifyEmailScreen extends ConsumerStatefulWidget {
@@ -110,7 +111,7 @@ class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen> {
             : 'Resend email';
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF3F4F7),
+      backgroundColor: AppColors.background,
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
@@ -121,7 +122,7 @@ class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen> {
               const Icon(
                 Icons.mark_email_unread_outlined,
                 size: 72,
-                color: Color(0xFF16A34A),
+                color: AppColors.primary,
               ),
               const SizedBox(height: 16),
               const Text(
@@ -129,7 +130,7 @@ class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen> {
                 style: TextStyle(
                   fontSize: 26,
                   fontWeight: FontWeight.w800,
-                  color: Color(0xFF15151C),
+                  color: AppColors.textPrimary,
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -138,7 +139,7 @@ class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen> {
                 email.isEmpty
                     ? 'We sent you a verification link. Open it, then come back here.'
                     : 'We sent a verification link to $email. Open it, then come back here.',
-                style: const TextStyle(fontSize: 15, color: Color(0xFF5A5A66)),
+                style: const TextStyle(fontSize: 15, color: Color(0xFF73738A)),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 24),
@@ -146,13 +147,13 @@ class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen> {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFEAF6EE),
+                    color: AppColors.successBg,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
                     _message!,
                     style: const TextStyle(
-                      color: Color(0xFF15151C),
+                      color: AppColors.textPrimary,
                       fontSize: 14,
                     ),
                     textAlign: TextAlign.center,
@@ -163,8 +164,8 @@ class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen> {
               ElevatedButton(
                 onPressed: _isChecking ? null : _iHaveVerified,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF16A34A),
-                  foregroundColor: Colors.white,
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: AppColors.onPrimary,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -178,7 +179,7 @@ class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen> {
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
                           valueColor:
-                              AlwaysStoppedAnimation<Color>(Colors.white),
+                              AlwaysStoppedAnimation<Color>(AppColors.onPrimary),
                         ),
                       )
                     : const Text(
@@ -195,7 +196,7 @@ class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen> {
                 child: Text(
                   resendLabel,
                   style: const TextStyle(
-                    color: Color(0xFF16A34A),
+                    color: AppColors.textPrimary,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -204,7 +205,7 @@ class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen> {
                 onPressed: _signOut,
                 child: const Text(
                   'Sign out',
-                  style: TextStyle(color: Color(0xFF5A5A66)),
+                  style: TextStyle(color: Color(0xFF73738A)),
                 ),
               ),
             ],

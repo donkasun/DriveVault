@@ -174,8 +174,8 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody> {
                 onPressed: () =>
                     Navigator.of(ctx, rootNavigator: true).pop(true),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.danger,
-                  foregroundColor: Colors.white,
+                  backgroundColor: AppColors.surfaceDark,
+                  foregroundColor: AppColors.textOnDark,
                   elevation: 0,
                 ),
                 child: const Text('Sign Out'),
@@ -202,6 +202,8 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody> {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, _bottomScrollablePadding),
       children: [
+        const _SectionLabel('Account'),
+        const SizedBox(height: 8),
         _AccountHeaderCard(
           user: _user,
           authUser: widget.authUser,
@@ -223,10 +225,12 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody> {
             padding: EdgeInsets.only(top: 16),
             child: LinearProgressIndicator(),
           ),
-        const Divider(height: 32),
+        const SizedBox(height: 20),
 
+        const _SectionLabel('About'),
+        const SizedBox(height: 8),
         const _AboutSection(),
-        const SizedBox(height: 24),
+        const SizedBox(height: 20),
 
         _SignOutButton(onPressed: _confirmSignOut),
       ],
@@ -430,52 +434,35 @@ class _AboutSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Padding(
-          padding: EdgeInsets.only(left: 4, bottom: 8),
-          child: Text(
-            'ABOUT',
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 1.2,
-              color: Color(0xFF9A9AAF),
-            ),
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x12000000),
+            blurRadius: 18,
+            offset: Offset(0, 6),
           ),
-        ),
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(18),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x12000000),
-                blurRadius: 18,
-                offset: Offset(0, 6),
-              ),
-            ],
+        ],
+      ),
+      child: Column(
+        children: [
+          _AboutRow(
+            icon: Icons.privacy_tip_outlined,
+            label: 'Privacy & data',
+            onTap: () => _showPlaceholder(context, 'Privacy & data'),
           ),
-          child: Column(
-            children: [
-              _AboutRow(
-                icon: Icons.privacy_tip_outlined,
-                label: 'Privacy & data',
-                onTap: () => _showPlaceholder(context, 'Privacy & data'),
-              ),
-              const Divider(height: 1, indent: 60),
-              _AboutRow(
-                icon: Icons.mail_outline,
-                label: 'Help & feedback',
-                onTap: () => _showPlaceholder(context, 'Help & feedback'),
-              ),
-              const Divider(height: 1, indent: 60),
-              const _AboutVersionRow(value: AppConfig.appVersion),
-            ],
+          const Divider(height: 1, indent: 60),
+          _AboutRow(
+            icon: Icons.mail_outline,
+            label: 'Help & feedback',
+            onTap: () => _showPlaceholder(context, 'Help & feedback'),
           ),
-        ),
-      ],
+          const Divider(height: 1, indent: 60),
+          const _AboutVersionRow(value: AppConfig.appVersion),
+        ],
+      ),
     );
   }
 
@@ -633,7 +620,7 @@ class _PreferencesCard extends StatelessWidget {
             subtitle: 'Locked for this account',
             trailing: _LockedCurrencyLabel(
               code: user.currency,
-              symbol: currencyInfo?.symbol ?? user.currency,
+              name: currencyInfo?.name ?? user.currency,
             ),
           ),
           const Divider(height: 1, indent: 60),
@@ -646,7 +633,7 @@ class _PreferencesCard extends StatelessWidget {
             trailing: Switch(
               value: user.renewalRemindersEnabled,
               onChanged: saving ? null : onRenewalRemindersChanged,
-              activeColor: const Color(0xFF1D1D2D),
+              activeThumbColor: const Color(0xFF1D1D2D),
               activeTrackColor: const Color(0xFFFFD100),
               inactiveThumbColor: Colors.white,
               inactiveTrackColor: const Color(0xFFE3E3EC),
@@ -828,25 +815,32 @@ class _DistanceUnitSelector extends StatelessWidget {
 
 class _LockedCurrencyLabel extends StatelessWidget {
   final String code;
-  final String symbol;
+  final String name;
 
-  const _LockedCurrencyLabel({required this.code, required this.symbol});
+  const _LockedCurrencyLabel({required this.code, required this.name});
 
   @override
   Widget build(BuildContext context) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(
-          '$code · $symbol',
-          style: const TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w700,
-            color: Color(0xFF8C8CA1),
+        Flexible(
+          child: Text(
+            '$code · $name',
+            textAlign: TextAlign.end,
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF8C8CA1),
+            ),
           ),
         ),
-        const SizedBox(width: 8),
-        const Icon(Icons.check_rounded, size: 18, color: Color(0xFFC1C1D0)),
+        const SizedBox(width: 6),
+        const Icon(
+          Icons.lock_outline_rounded,
+          size: 16,
+          color: Color(0xFFC1C1D0),
+        ),
       ],
     );
   }
@@ -859,13 +853,16 @@ class _SectionLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Text(
-      text,
-      style: const TextStyle(
-        fontSize: 14,
-        fontWeight: FontWeight.w700,
-        color: Colors.grey,
-        letterSpacing: 0.5,
+    return Padding(
+      padding: const EdgeInsets.only(left: 4),
+      child: Text(
+        text.toUpperCase(),
+        style: const TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 1.2,
+          color: Color(0xFF9A9AAF),
+        ),
       ),
     );
   }

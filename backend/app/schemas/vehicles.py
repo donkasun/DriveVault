@@ -9,6 +9,15 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 FUEL_TYPES = {"petrol", "diesel", "electric", "hybrid", "other"}
 
 
+class DocsStatus(BaseModel):
+    """Derived document expiry health for a vehicle."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    state: str  # "valid" | "needs_action" | "none"
+    needs_action_count: Annotated[int, Field(serialization_alias="needsActionCount")] = 0
+
+
 class VehicleBase(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
@@ -77,3 +86,10 @@ class VehicleRead(BaseModel):
     photo_public_id: Annotated[str | None, Field(default=None, serialization_alias="photoPublicId")]
     created_at: Annotated[datetime, Field(serialization_alias="createdAt")]
     updated_at: Annotated[datetime, Field(serialization_alias="updatedAt")]
+    docs_status: Annotated[
+        DocsStatus,
+        Field(
+            default_factory=lambda: DocsStatus(state="none", needs_action_count=0),
+            serialization_alias="docsStatus",
+        ),
+    ]

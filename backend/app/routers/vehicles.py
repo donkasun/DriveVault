@@ -17,7 +17,7 @@ from app.services import vehicles as vehicle_service
 router = APIRouter(tags=["vehicles"])
 
 
-@router.get("/vehicles", response_model=list[VehicleRead])
+@router.get("/vehicles", response_model=list[VehicleRead], response_model_by_alias=True)
 def list_vehicles(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -25,7 +25,12 @@ def list_vehicles(
     return vehicle_service.list_vehicles(db, current_user)
 
 
-@router.post("/vehicles", response_model=VehicleRead, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/vehicles",
+    response_model=VehicleRead,
+    response_model_by_alias=True,
+    status_code=status.HTTP_201_CREATED,
+)
 def create_vehicle(
     payload: VehicleCreate,
     current_user: User = Depends(get_current_user),
@@ -34,16 +39,16 @@ def create_vehicle(
     return vehicle_service.create_vehicle(db, current_user, payload)
 
 
-@router.get("/vehicles/{vehicle_id}", response_model=VehicleRead)
+@router.get("/vehicles/{vehicle_id}", response_model=VehicleRead, response_model_by_alias=True)
 def get_vehicle(
     vehicle_id: UUID,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    return vehicle_service.get_vehicle_for_user(db, current_user, vehicle_id)
+    return vehicle_service.get_vehicle_read_for_user(db, current_user, vehicle_id)
 
 
-@router.patch("/vehicles/{vehicle_id}", response_model=VehicleRead)
+@router.patch("/vehicles/{vehicle_id}", response_model=VehicleRead, response_model_by_alias=True)
 def update_vehicle(
     vehicle_id: UUID,
     payload: VehicleUpdate,

@@ -6,6 +6,7 @@ import '../../../core/network/api_exceptions.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/constants/currencies.dart';
 import '../../../shared/utils/formatting.dart';
+import '../../../shared/widgets/breakdown_bar.dart';
 import '../../../shared/widgets/fuel_pump_icon.dart';
 import '../../fuel/data/fuel_repository.dart';
 import '../../fuel/presentation/fuel_log_form_screen.dart';
@@ -16,6 +17,11 @@ import '../../vehicles/domain/vehicle.dart';
 import '../../vehicles/presentation/vehicles_provider.dart';
 import '../data/expenses_provider.dart';
 import '../domain/expense.dart';
+import '../domain/expense_filters.dart';
+
+// ---------------------------------------------------------------------------
+// Screen
+// ---------------------------------------------------------------------------
 
 class ExpenseHistoryScreen extends ConsumerStatefulWidget {
   const ExpenseHistoryScreen({super.key});
@@ -28,7 +34,7 @@ class ExpenseHistoryScreen extends ConsumerStatefulWidget {
 class _ExpenseHistoryScreenState extends ConsumerState<ExpenseHistoryScreen> {
   ExpenseKind? _kindFilter; // null = All
   String? _vehicleIdFilter; // null = All vehicles
-  _ExpenseSummaryRange _summaryRange = _ExpenseSummaryRange.allTime;
+  _SummaryRange _summaryRange = _SummaryRange.allTime;
 
   @override
   Widget build(BuildContext context) {
@@ -38,378 +44,436 @@ class _ExpenseHistoryScreenState extends ConsumerState<ExpenseHistoryScreen> {
         ref.watch(meProvider).asData?.value.currency ?? kFallbackCurrency;
 
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        surfaceTintColor: Colors.transparent,
-        toolbarHeight: 60,
-        titleSpacing: 16,
-        title: const Text(
-          'Expenses',
-          style: TextStyle(
-            fontSize: 29,
-            fontWeight: FontWeight.w800,
-            color: AppColors.textPrimary,
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // ---- Title row with All-time / Month toggle ----
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 16, 8),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'Expenses',
+                      style: TextStyle(
+                        fontSize: 29,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                  ),
+                  _SummaryRangeToggle(
+                    value: _summaryRange,
+                    onChanged: (v) => setState(() => _summaryRange = v),
+                  ),
+                ],
+              ),
+            ),
+
+            // ---- Body ----
+            Expanded(
+              child: expensesAsync.when(
+                loading: () => const _LoadingSkeleton(),
+                error: (e, _) => _ErrorState(
+                  message: e is ApiException
+                      ? e.message
+                      : 'Could not load expenses.',
+                  onRetry: () => ref.invalidate(allExpensesProvider),
+                ),
+                data: (expenses) {
+                  // Apply kind + vehicle filters (client-side, no new network call).
+                  final filtered = filterByVehicle(
+                    filterByKind(expenses, _kindFilter),
+                    _vehicleIdFilter,
+                  );
+
+                  // Summary card uses the time-scoped subset.
+                  final summaryExpenses = _summaryRange == _SummaryRange.month
+                      ? filterToCurrentMonth(filtered)
+                      : filtered;
+
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // ---- Summary card ----
+                      _SummaryCard(
+                        expenses: summaryExpenses,
+                        userCurrency: userCurrency,
+                        kindFilter: _kindFilter,
+                      ),
+
+                      // ---- Kind + vehicle filter bar ----
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            _KindFilterBar(
+                              value: _kindFilter,
+                              onChanged: (v) => setState(() => _kindFilter = v),
+                            ),
+                            vehiclesAsync.maybeWhen(
+                              data: (vehicles) {
+                                if (vehicles.length <= 1) {
+                                  return const SizedBox.shrink();
+                                }
+                                return Padding(
+                                  padding: const EdgeInsets.only(top: 10),
+                                  child: _VehicleFilterPill(
+                                    vehicles: vehicles,
+                                    selectedId: _vehicleIdFilter,
+                                    onChanged: (v) =>
+                                        setState(() => _vehicleIdFilter = v),
+                                  ),
+                                );
+                              },
+                              orElse: () => const SizedBox.shrink(),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      // ---- List ----
+                      Expanded(
+                        child: vehiclesAsync.when(
+                          loading: () =>
+                              const Center(child: CircularProgressIndicator()),
+                          error: (e, _) => Center(
+                            child: Text(
+                              'Could not load vehicles: $e',
+                              style: const TextStyle(
+                                color: AppColors.textMuted,
+                              ),
+                            ),
+                          ),
+                          data: (vehicles) {
+                            final showVehicleName = vehicles.length > 1;
+                            final vehicleMap = {
+                              for (final v in vehicles) v.id: v,
+                            };
+
+                            // Use time-scoped list for the list as well when
+                            // Month filter is active — so empty-state is per-filter.
+                            final listExpenses =
+                                _summaryRange == _SummaryRange.month
+                                ? filterToCurrentMonth(filtered)
+                                : filtered;
+
+                            if (listExpenses.isEmpty) {
+                              return _EmptyState(
+                                isMonthFilter:
+                                    _summaryRange == _SummaryRange.month,
+                              );
+                            }
+
+                            final groups = groupExpensesByMonth(listExpenses);
+
+                            return ListView.builder(
+                              padding: const EdgeInsets.only(bottom: 96),
+                              itemCount: groups.fold<int>(
+                                0,
+                                (count, g) => count + 1 + g.expenses.length,
+                              ),
+                              itemBuilder: (context, index) {
+                                // Flatten groups into (header | tile) items.
+                                int offset = 0;
+                                for (final group in groups) {
+                                  if (index == offset) {
+                                    return _MonthHeader(
+                                      month: group.month,
+                                      subtotalCents: group.subtotalCents,
+                                      currency: userCurrency,
+                                    );
+                                  }
+                                  offset++;
+                                  final tileIndex = index - offset;
+                                  if (tileIndex < group.expenses.length) {
+                                    final expense = group.expenses[tileIndex];
+                                    return _ExpenseTile(
+                                      expense: expense,
+                                      vehicleName: showVehicleName
+                                          ? (vehicleMap[expense.vehicleId]
+                                                    ?.displayName ??
+                                                'Unknown vehicle')
+                                          : null,
+                                    );
+                                  }
+                                  offset += group.expenses.length;
+                                }
+                                return const SizedBox.shrink();
+                              },
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Time range enum
+// ---------------------------------------------------------------------------
+
+enum _SummaryRange { allTime, month }
+
+// ---------------------------------------------------------------------------
+// Summary card (total + BreakdownBar)
+// ---------------------------------------------------------------------------
+
+class _SummaryCard extends StatelessWidget {
+  final List<Expense> expenses;
+  final String userCurrency;
+  final ExpenseKind? kindFilter;
+
+  const _SummaryCard({
+    required this.expenses,
+    required this.userCurrency,
+    required this.kindFilter,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final total = totalCents(expenses);
+    final fuel = fuelCents(expenses);
+    final maintenance = maintenanceCents(expenses);
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      child: DecoratedBox(
+        decoration: appCardDecoration,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'TOTAL SPENT',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1.6,
+                  color: AppColors.textMuted,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                formatCents(total, currency: userCurrency),
+                maxLines: 1,
+                overflow: TextOverflow.fade,
+                softWrap: false,
+                style: const TextStyle(
+                  fontSize: 30,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textPrimary,
+                  height: 1.05,
+                ),
+              ),
+              // Breakdown bar + legend — hidden when a single kind is filtered.
+              if (kindFilter == null) ...[
+                const SizedBox(height: 14),
+                BreakdownBar(
+                  segments: [
+                    BreakdownSegment(
+                      label: 'Fuel',
+                      valueCents: fuel,
+                      color: AppColors.primary,
+                    ),
+                    BreakdownSegment(
+                      label: 'Maintenance',
+                      valueCents: maintenance,
+                      color: AppColors.surfaceDark,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    _LegendDot(
+                      color: AppColors.primary,
+                      label: 'Fuel',
+                      amountText: formatCents(fuel, currency: userCurrency),
+                    ),
+                    const SizedBox(width: 16),
+                    _LegendDot(
+                      color: AppColors.surfaceDark,
+                      label: 'Maintenance',
+                      amountText: formatCents(
+                        maintenance,
+                        currency: userCurrency,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ],
           ),
         ),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 16),
-            child: Container(
-              width: 44,
-              height: 44,
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                shape: BoxShape.circle,
-              ),
-              child: IconButton(
-                onPressed: () {},
-                icon: const Icon(Icons.tune_rounded, size: 22),
+      ),
+    );
+  }
+}
+
+class _LegendDot extends StatelessWidget {
+  final Color color;
+  final String label;
+  final String amountText;
+
+  const _LegendDot({
+    required this.color,
+    required this.label,
+    required this.amountText,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Flexible(
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 10,
+            height: 10,
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(3),
+            ),
+          ),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              '$label  $amountText',
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
                 color: AppColors.textPrimary,
-                tooltip: 'Filter',
               ),
             ),
           ),
         ],
       ),
-      body: expensesAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Error loading expenses: $e')),
-        data: (expenses) {
-          // Apply filters
-          final filtered = expenses.where((e) {
-            final kindOk = _kindFilter == null || e.kind == _kindFilter;
-            final vehicleOk =
-                _vehicleIdFilter == null || e.vehicleId == _vehicleIdFilter;
-            return kindOk && vehicleOk;
-          }).toList();
+    );
+  }
+}
 
-          final summaryExpenses = _summaryRange == _ExpenseSummaryRange.month
-              ? filtered.where(_isInCurrentMonth).toList()
-              : filtered;
+// ---------------------------------------------------------------------------
+// All-time / Month toggle (compact pill)
+// ---------------------------------------------------------------------------
 
-          return Column(
-            children: [
-              // Header cards: summary + filters
-              _HeaderCard(
-                expenses: summaryExpenses,
-                userCurrency: userCurrency,
-                summaryRange: _summaryRange,
-                onSummaryRangeChanged: (v) => setState(() => _summaryRange = v),
-                kindFilter: _kindFilter,
-                vehicleIdFilter: _vehicleIdFilter,
-                vehiclesAsync: vehiclesAsync,
-                onKindChanged: (v) => setState(() => _kindFilter = v),
-                onVehicleChanged: (v) => setState(() => _vehicleIdFilter = v),
+class _SummaryRangeToggle extends StatelessWidget {
+  final _SummaryRange value;
+  final ValueChanged<_SummaryRange> onChanged;
+
+  const _SummaryRangeToggle({required this.value, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 160,
+      height: 40,
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF4F5FA),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Stack(
+        children: [
+          AnimatedAlign(
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOutCubic,
+            alignment: value == _SummaryRange.month
+                ? Alignment.centerRight
+                : Alignment.centerLeft,
+            child: FractionallySizedBox(
+              widthFactor: 0.5,
+              heightFactor: 1,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: AppColors.textPrimary,
+                  borderRadius: BorderRadius.circular(999),
+                ),
               ),
-              // List
+            ),
+          ),
+          Row(
+            children: [
               Expanded(
-                child: filtered.isEmpty
-                    ? const Center(
-                        child: Text(
-                          'No expenses yet.',
-                          style: TextStyle(color: Colors.grey, fontSize: 16),
-                        ),
-                      )
-                    : _vehiclesAsync(
-                        context,
-                        vehiclesAsync,
-                        filtered,
-                        userCurrency,
-                      ),
+                child: _RangeSegment(
+                  label: 'All time',
+                  selected: value == _SummaryRange.allTime,
+                  onTap: () => onChanged(_SummaryRange.allTime),
+                ),
+              ),
+              Expanded(
+                child: _RangeSegment(
+                  label: 'Month',
+                  selected: value == _SummaryRange.month,
+                  onTap: () => onChanged(_SummaryRange.month),
+                ),
               ),
             ],
-          );
-        },
+          ),
+        ],
       ),
     );
   }
-
-  Widget _vehiclesAsync(
-    BuildContext context,
-    AsyncValue<List<Vehicle>> vehiclesAsync,
-    List<Expense> filtered,
-    String userCurrency,
-  ) {
-    return vehiclesAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(child: Text('Error: $e')),
-      data: (vehicles) {
-        final vehicleMap = {for (final v in vehicles) v.id: v};
-        final groups = _groupExpensesByMonth(filtered);
-        return ListView(
-          padding: const EdgeInsets.only(bottom: 96),
-          children: [
-            for (final group in groups) ...[
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
-                child: Row(
-                  children: [
-                    Text(
-                      DateFormat('MMMM yyyy').format(group.month),
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const Spacer(),
-                    Text(
-                      formatCents(
-                        group.expenses.fold<int>(
-                          0,
-                          (sum, expense) => sum + expense.costCents,
-                        ),
-                        currency: userCurrency,
-                      ),
-                      style: const TextStyle(
-                        color: AppColors.textMuted,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              for (final expense in group.expenses)
-                _ExpenseTile(
-                  expense: expense,
-                  vehicleName:
-                      vehicleMap[expense.vehicleId]?.displayName ??
-                      'Unknown vehicle',
-                ),
-            ],
-          ],
-        );
-      },
-    );
-  }
 }
 
-enum _ExpenseSummaryRange { allTime, month }
+class _RangeSegment extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
 
-bool _isInCurrentMonth(Expense expense) {
-  final date = DateTime.parse(expense.date);
-  final now = DateTime.now();
-  return date.year == now.year && date.month == now.month;
-}
-
-// ---------------------------------------------------------------------------
-// Header card
-// ---------------------------------------------------------------------------
-
-class _HeaderCard extends StatelessWidget {
-  final List<Expense> expenses;
-  final String userCurrency;
-  final _ExpenseSummaryRange summaryRange;
-  final ValueChanged<_ExpenseSummaryRange> onSummaryRangeChanged;
-  final ExpenseKind? kindFilter;
-  final String? vehicleIdFilter;
-  final AsyncValue<List<Vehicle>> vehiclesAsync;
-  final ValueChanged<ExpenseKind?> onKindChanged;
-  final ValueChanged<String?> onVehicleChanged;
-
-  const _HeaderCard({
-    required this.expenses,
-    required this.userCurrency,
-    required this.summaryRange,
-    required this.onSummaryRangeChanged,
-    required this.kindFilter,
-    required this.vehicleIdFilter,
-    required this.vehiclesAsync,
-    required this.onKindChanged,
-    required this.onVehicleChanged,
+  const _RangeSegment({
+    required this.label,
+    required this.selected,
+    required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    final totalCents = expenses.fold<int>(0, (sum, e) => sum + e.costCents);
-    final fuelCents = expenses
-        .where((e) => e.kind == ExpenseKind.fuel)
-        .fold<int>(0, (sum, e) => sum + e.costCents);
-    final maintenanceCents = expenses
-        .where((e) => e.kind == ExpenseKind.maintenance)
-        .fold<int>(0, (sum, e) => sum + e.costCents);
-    final totalSegments = fuelCents + maintenanceCents;
-    final fuelFraction = totalSegments == 0 ? 0.0 : fuelCents / totalSegments;
-    final maintenanceFraction = totalSegments == 0
-        ? 0.0
-        : maintenanceCents / totalSegments;
-
-    return Column(
-      children: [
-        Card(
-          margin: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Expanded(
-                      child: Text(
-                        'TOTAL SPENT',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 1.6,
-                          color: AppColors.textMuted,
-                        ),
-                      ),
-                    ),
-                    _SummaryRangeToggle(
-                      value: summaryRange,
-                      onChanged: onSummaryRangeChanged,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                _SummaryAmount(
-                  amountText: formatCents(totalCents, currency: userCurrency),
-                ),
-                AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 240),
-                  switchInCurve: Curves.easeOutCubic,
-                  switchOutCurve: Curves.easeInCubic,
-                  layoutBuilder: (currentChild, previousChildren) {
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        ...previousChildren,
-                        if (currentChild != null) currentChild,
-                      ],
-                    );
-                  },
-                  transitionBuilder: (child, animation) {
-                    return ClipRect(
-                      child: SizeTransition(
-                        sizeFactor: animation,
-                        axisAlignment: -1,
-                        child: FadeTransition(opacity: animation, child: child),
-                      ),
-                    );
-                  },
-                  child: kindFilter == null
-                      ? Column(
-                          key: const ValueKey('expense-breakdown'),
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const SizedBox(height: 14),
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(999),
-                              child: SizedBox(
-                                height: 8,
-                                child: totalSegments == 0
-                                    ? Container(color: AppColors.divider)
-                                    : _buildExpenseBar(
-                                        fuelCents,
-                                        maintenanceCents,
-                                      ),
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            Row(
-                              children: [
-                                _LegendItem(
-                                  color: AppColors.primary,
-                                  label:
-                                      'Fuel  ${formatCents(fuelCents, currency: userCurrency)}',
-                                ),
-                                const SizedBox(width: 16),
-                                _LegendItem(
-                                  color: AppColors.surfaceDark,
-                                  label:
-                                      'Maintenance  ${formatCents(maintenanceCents, currency: userCurrency)}',
-                                ),
-                              ],
-                            ),
-                          ],
-                        )
-                      : const SizedBox(
-                          key: ValueKey('expense-breakdown-hidden'),
-                        ),
-                ),
-              ],
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(999),
+        onTap: onTap,
+        child: Center(
+          child: AnimatedDefaultTextStyle(
+            duration: const Duration(milliseconds: 180),
+            curve: Curves.easeOut,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: selected ? Colors.white : AppColors.textMuted,
             ),
+            child: Text(label),
           ),
         ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _ExpenseKindToggle(value: kindFilter, onChanged: onKindChanged),
-              vehiclesAsync.maybeWhen(
-                data: (vehicles) {
-                  if (vehicles.length <= 1) return const SizedBox.shrink();
-                  return Padding(
-                    padding: const EdgeInsets.only(top: 10),
-                    child: _FilterPill(
-                      label: vehicleIdFilter == null
-                          ? 'All vehicles'
-                          : vehicles
-                                .firstWhere(
-                                  (v) => v.id == vehicleIdFilter,
-                                  orElse: () => vehicles.first,
-                                )
-                                .displayName,
-                      selected: vehicleIdFilter != null,
-                      onTap: () {
-                        if (vehicleIdFilter == null) {
-                          onVehicleChanged(vehicles.first.id);
-                        } else {
-                          final idx = vehicles.indexWhere(
-                            (v) => v.id == vehicleIdFilter,
-                          );
-                          if (idx < vehicles.length - 1) {
-                            onVehicleChanged(vehicles[idx + 1].id);
-                          } else {
-                            onVehicleChanged(null);
-                          }
-                        }
-                      },
-                    ),
-                  );
-                },
-                orElse: () => const SizedBox.shrink(),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _SummaryAmount extends StatelessWidget {
-  final String amountText;
-
-  const _SummaryAmount({required this.amountText});
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      amountText,
-      maxLines: 1,
-      softWrap: false,
-      overflow: TextOverflow.fade,
-      style: const TextStyle(
-        fontSize: 30,
-        fontWeight: FontWeight.w800,
-        color: AppColors.textPrimary,
-        height: 1.05,
       ),
     );
   }
 }
 
-class _ExpenseKindToggle extends StatelessWidget {
+// ---------------------------------------------------------------------------
+// Kind filter bar (All / Fuel / Maintenance)
+// ---------------------------------------------------------------------------
+
+class _KindFilterBar extends StatelessWidget {
   final ExpenseKind? value;
   final ValueChanged<ExpenseKind?> onChanged;
 
-  const _ExpenseKindToggle({required this.value, required this.onChanged});
+  const _KindFilterBar({required this.value, required this.onChanged});
 
   @override
   Widget build(BuildContext context) {
@@ -429,7 +493,7 @@ class _ExpenseKindToggle extends StatelessWidget {
             child: FractionallySizedBox(
               widthFactor: 1 / 3,
               heightFactor: 1,
-              child: Container(
+              child: DecoratedBox(
                 decoration: BoxDecoration(
                   color: AppColors.textPrimary,
                   borderRadius: BorderRadius.circular(999),
@@ -440,14 +504,14 @@ class _ExpenseKindToggle extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: _KindToggleSegment(
+                child: _KindSegment(
                   label: 'All',
                   selected: value == null,
                   onTap: () => onChanged(null),
                 ),
               ),
               Expanded(
-                child: _KindToggleSegment(
+                child: _KindSegment(
                   label: 'Fuel',
                   selected: value == ExpenseKind.fuel,
                   onTap: () => onChanged(
@@ -456,7 +520,7 @@ class _ExpenseKindToggle extends StatelessWidget {
                 ),
               ),
               Expanded(
-                child: _KindToggleSegment(
+                child: _KindSegment(
                   label: 'Maintenance',
                   selected: value == ExpenseKind.maintenance,
                   onTap: () => onChanged(
@@ -485,12 +549,12 @@ Alignment _alignmentFor(ExpenseKind? value) {
   }
 }
 
-class _KindToggleSegment extends StatelessWidget {
+class _KindSegment extends StatelessWidget {
   final String label;
   final bool selected;
   final VoidCallback onTap;
 
-  const _KindToggleSegment({
+  const _KindSegment({
     required this.label,
     required this.selected,
     required this.onTap,
@@ -508,7 +572,7 @@ class _KindToggleSegment extends StatelessWidget {
             duration: const Duration(milliseconds: 180),
             curve: Curves.easeOut,
             style: TextStyle(
-              fontSize: 16,
+              fontSize: 15,
               fontWeight: FontWeight.w700,
               color: selected ? Colors.white : const Color(0xFF8A8AA3),
             ),
@@ -520,223 +584,126 @@ class _KindToggleSegment extends StatelessWidget {
   }
 }
 
-Widget _buildExpenseBar(int fuelCents, int maintenanceCents) {
-  if (fuelCents == 0) {
-    return Row(
-      children: [
-        Expanded(
-          flex: maintenanceCents,
-          child: Container(color: AppColors.surfaceDark),
-        ),
-      ],
-    );
-  }
-  if (maintenanceCents == 0) {
-    return Row(
-      children: [
-        Expanded(
-          flex: fuelCents,
-          child: Container(color: AppColors.primary),
-        ),
-      ],
-    );
-  }
-  return Row(
-    children: [
-      Expanded(
-        flex: fuelCents,
-        child: Container(color: AppColors.primary),
-      ),
-      Expanded(
-        flex: maintenanceCents,
-        child: Container(color: AppColors.surfaceDark),
-      ),
-    ],
-  );
-}
+// ---------------------------------------------------------------------------
+// Vehicle filter pill (only when >1 vehicle)
+// ---------------------------------------------------------------------------
 
-class _SummaryRangeToggle extends StatelessWidget {
-  final _ExpenseSummaryRange value;
-  final ValueChanged<_ExpenseSummaryRange> onChanged;
+class _VehicleFilterPill extends StatelessWidget {
+  final List<Vehicle> vehicles;
+  final String? selectedId;
+  final ValueChanged<String?> onChanged;
 
-  const _SummaryRangeToggle({required this.value, required this.onChanged});
+  const _VehicleFilterPill({
+    required this.vehicles,
+    required this.selectedId,
+    required this.onChanged,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 164,
-      height: 44,
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF4F5FA),
+    final label = selectedId == null
+        ? 'All vehicles'
+        : vehicles
+              .firstWhere(
+                (v) => v.id == selectedId,
+                orElse: () => vehicles.first,
+              )
+              .displayName;
+    final selected = selectedId != null;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
         borderRadius: BorderRadius.circular(999),
-      ),
-      child: Stack(
-        children: [
-          AnimatedAlign(
-            duration: const Duration(milliseconds: 220),
-            curve: Curves.easeOutCubic,
-            alignment: value == _ExpenseSummaryRange.month
-                ? Alignment.centerRight
-                : Alignment.centerLeft,
-            child: FractionallySizedBox(
-              widthFactor: 0.5,
-              heightFactor: 1,
-              child: Container(
-                decoration: BoxDecoration(
-                  color: AppColors.textPrimary,
-                  borderRadius: BorderRadius.circular(999),
-                ),
-              ),
-            ),
+        onTap: () {
+          if (selectedId == null) {
+            onChanged(vehicles.first.id);
+          } else {
+            final idx = vehicles.indexWhere((v) => v.id == selectedId);
+            if (idx < vehicles.length - 1) {
+              onChanged(vehicles[idx + 1].id);
+            } else {
+              onChanged(null);
+            }
+          }
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          decoration: BoxDecoration(
+            color: selected ? AppColors.textPrimary : const Color(0xFFF4F5FA),
+            borderRadius: BorderRadius.circular(999),
           ),
-          Row(
-            children: [
-              Expanded(
-                child: Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(999),
-                    onTap: () => onChanged(_ExpenseSummaryRange.allTime),
-                    child: Center(
-                      child: AnimatedDefaultTextStyle(
-                        duration: const Duration(milliseconds: 180),
-                        curve: Curves.easeOut,
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: value == _ExpenseSummaryRange.allTime
-                              ? Colors.white
-                              : AppColors.textMuted,
-                        ),
-                        child: const Text('All time'),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              Expanded(
-                child: Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(999),
-                    onTap: () => onChanged(_ExpenseSummaryRange.month),
-                    child: Center(
-                      child: AnimatedDefaultTextStyle(
-                        duration: const Duration(milliseconds: 180),
-                        curve: Curves.easeOut,
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: value == _ExpenseSummaryRange.month
-                              ? Colors.white
-                              : AppColors.textMuted,
-                        ),
-                        child: const Text('Month'),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _LegendItem extends StatelessWidget {
-  final Color color;
-  final String label;
-
-  const _LegendItem({required this.color, required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Flexible(
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 10,
-            height: 10,
-            decoration: BoxDecoration(
-              color: color,
-              borderRadius: BorderRadius.circular(3),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Flexible(
+          child: Center(
             child: Text(
               label,
+              maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 12,
+              style: TextStyle(
+                fontSize: 13,
                 fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary,
+                color: selected ? Colors.white : AppColors.textMuted,
               ),
             ),
           ),
-        ],
+        ),
       ),
     );
   }
 }
 
-class _FilterPill extends StatelessWidget {
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
+// ---------------------------------------------------------------------------
+// Month header row
+// ---------------------------------------------------------------------------
 
-  const _FilterPill({
-    required this.label,
-    required this.selected,
-    required this.onTap,
+class _MonthHeader extends StatelessWidget {
+  final DateTime month;
+  final int subtotalCents;
+  final String currency;
+
+  const _MonthHeader({
+    required this.month,
+    required this.subtotalCents,
+    required this.currency,
   });
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(999),
-          onTap: onTap,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 180),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            decoration: BoxDecoration(
-              color: selected ? AppColors.textPrimary : Colors.transparent,
-              borderRadius: BorderRadius.circular(999),
-            ),
-            child: Center(
-              child: Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: selected ? Colors.white : AppColors.textMuted,
-                ),
-              ),
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 6),
+      child: Row(
+        children: [
+          Text(
+            DateFormat('MMMM yyyy').format(month),
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary,
             ),
           ),
-        ),
+          const Spacer(),
+          Text(
+            formatCents(subtotalCents, currency: currency),
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textMuted,
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
 // ---------------------------------------------------------------------------
-// Expense tile
+// Expense tile — category-led; vehicle name conditional
 // ---------------------------------------------------------------------------
 
 class _ExpenseTile extends ConsumerWidget {
   final Expense expense;
-  final String vehicleName;
+
+  /// Null when the user has only one vehicle (name is suppressed).
+  final String? vehicleName;
 
   const _ExpenseTile({required this.expense, required this.vehicleName});
 
@@ -765,19 +732,29 @@ class _ExpenseTile extends ConsumerWidget {
     }
   }
 
-  String get _subtitle {
+  /// Primary label (category): e.g. "Fuel" or the service type.
+  String get _categoryLabel {
+    if (expense.kind == ExpenseKind.fuel) return 'Fuel';
+    final serviceType = expense.maintenanceRecord?.serviceType;
+    return (serviceType != null && serviceType.isNotEmpty)
+        ? serviceType
+        : 'Maintenance';
+  }
+
+  /// Secondary detail line (date + extra context).
+  String get _detail {
     if (expense.kind == ExpenseKind.fuel) {
       final log = expense.fuelLog!;
-      return '${expense.date} • ${log.liters.toStringAsFixed(1)} L • '
+      return '${expense.date} · ${log.liters.toStringAsFixed(1)} L · '
           '${log.isFullTank ? 'Full' : 'Partial'}';
-    } else {
-      final record = expense.maintenanceRecord!;
-      return '${expense.date} • ${record.serviceType}';
     }
+    return expense.date;
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final isMultiVehicle = vehicleName != null;
+
     return Dismissible(
       key: ValueKey(expense.id),
       direction: DismissDirection.endToStart,
@@ -793,7 +770,10 @@ class _ExpenseTile extends ConsumerWidget {
             ),
             TextButton(
               onPressed: () => Navigator.of(ctx).pop(true),
-              child: const Text('Delete', style: TextStyle(color: Colors.red)),
+              child: const Text(
+                'Delete',
+                style: TextStyle(color: AppColors.danger),
+              ),
             ),
           ],
         ),
@@ -801,12 +781,12 @@ class _ExpenseTile extends ConsumerWidget {
       onDismissed: (_) => _delete(context, ref),
       background: Container(
         alignment: Alignment.centerRight,
-        color: Colors.red,
-        padding: const EdgeInsets.only(right: 16),
+        color: AppColors.danger,
+        padding: const EdgeInsets.only(right: 20),
         child: const Icon(Icons.delete_outline, color: Colors.white),
       ),
       child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
         decoration: appCardDecoration.copyWith(
           borderRadius: const BorderRadius.all(Radius.circular(16)),
         ),
@@ -829,7 +809,6 @@ class _ExpenseTile extends ConsumerWidget {
                         ),
                 ),
               );
-              // Invalidate affected providers after returning from edit
               if (expense.kind == ExpenseKind.fuel) {
                 ref.invalidate(fuelLogsProvider(expense.vehicleId));
               } else {
@@ -838,46 +817,76 @@ class _ExpenseTile extends ConsumerWidget {
               ref.invalidate(allExpensesProvider);
             },
             child: Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  if (expense.kind == ExpenseKind.fuel)
-                    FuelPumpIcon(
-                      isFullTank: expense.fuelLog?.isFullTank ?? false,
-                      size: 24,
-                    )
-                  else
-                    const Icon(
-                      Icons.build_outlined,
-                      color: AppColors.primary,
-                      size: 24,
+                  // Category icon
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: expense.kind == ExpenseKind.fuel
+                          ? AppColors.primary.withValues(alpha: 0.12)
+                          : AppColors.surfaceDark.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(12),
                     ),
+                    child: Center(
+                      child: expense.kind == ExpenseKind.fuel
+                          ? FuelPumpIcon(
+                              isFullTank: expense.fuelLog?.isFullTank ?? false,
+                              size: 20,
+                            )
+                          : const Icon(
+                              Icons.build_outlined,
+                              color: AppColors.surfaceDark,
+                              size: 20,
+                            ),
+                    ),
+                  ),
                   const SizedBox(width: 12),
+
+                  // Text content
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        // Category is the primary label
                         Text(
-                          vehicleName,
+                          _categoryLabel,
                           style: const TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w700,
                             color: AppColors.textPrimary,
                           ),
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 3),
+                        // Detail line: date + extras
                         Text(
-                          _subtitle,
+                          _detail,
                           style: const TextStyle(
                             fontSize: 12,
                             color: AppColors.textMuted,
                           ),
                         ),
+                        // Vehicle name only when multiple vehicles
+                        if (isMultiVehicle) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            vehicleName!,
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: AppColors.textMuted,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),
                   const SizedBox(width: 12),
+
+                  // Cost
                   Text(
                     formatCents(expense.costCents, currency: expense.currency),
                     style: const TextStyle(
@@ -896,31 +905,123 @@ class _ExpenseTile extends ConsumerWidget {
   }
 }
 
-class _ExpenseMonthGroup {
-  final DateTime month;
-  final List<Expense> expenses;
+// ---------------------------------------------------------------------------
+// Async states
+// ---------------------------------------------------------------------------
 
-  const _ExpenseMonthGroup({required this.month, required this.expenses});
+class _LoadingSkeleton extends StatelessWidget {
+  const _LoadingSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 96),
+      children: [
+        // Summary card skeleton
+        _SkeletonBox(height: 110, radius: 16),
+        const SizedBox(height: 12),
+        // Filter bar skeleton
+        _SkeletonBox(height: 48, radius: 999),
+        const SizedBox(height: 20),
+        // Tile skeletons
+        for (var i = 0; i < 6; i++) ...[
+          _SkeletonBox(height: 72, radius: 16),
+          const SizedBox(height: 8),
+        ],
+      ],
+    );
+  }
 }
 
-List<_ExpenseMonthGroup> _groupExpensesByMonth(List<Expense> expenses) {
-  final buckets = <String, List<Expense>>{};
-  final monthDates = <String, DateTime>{};
+class _SkeletonBox extends StatelessWidget {
+  final double height;
+  final double radius;
 
-  for (final expense in expenses) {
-    final date = DateTime.parse(expense.date);
-    final monthKey = '${date.year}-${date.month.toString().padLeft(2, '0')}';
-    buckets.putIfAbsent(monthKey, () => []).add(expense);
-    monthDates[monthKey] = DateTime(date.year, date.month);
+  const _SkeletonBox({required this.height, required this.radius});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: height,
+      decoration: BoxDecoration(
+        color: AppColors.divider,
+        borderRadius: BorderRadius.circular(radius),
+      ),
+    );
   }
+}
 
-  final groups = buckets.entries.map((entry) {
-    final month = monthDates[entry.key]!;
-    final monthExpenses = [...entry.value]
-      ..sort((a, b) => b.date.compareTo(a.date));
-    return _ExpenseMonthGroup(month: month, expenses: monthExpenses);
-  }).toList();
+class _EmptyState extends StatelessWidget {
+  final bool isMonthFilter;
 
-  groups.sort((a, b) => b.month.compareTo(a.month));
-  return groups;
+  const _EmptyState({required this.isMonthFilter});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              isMonthFilter
+                  ? Icons.calendar_today_outlined
+                  : Icons.receipt_long_outlined,
+              size: 48,
+              color: AppColors.textMuted,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              isMonthFilter ? 'No expenses this month' : 'No expenses yet',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              isMonthFilter
+                  ? 'Fuel and maintenance costs will appear here once logged.'
+                  : 'Log your first fuel fill-up or maintenance service to get started.',
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 14, color: AppColors.textMuted),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ErrorState extends StatelessWidget {
+  final String message;
+  final VoidCallback onRetry;
+
+  const _ErrorState({required this.message, required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.error_outline, size: 48, color: AppColors.danger),
+            const SizedBox(height: 16),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 15, color: AppColors.textMuted),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(onPressed: onRetry, child: const Text('Retry')),
+          ],
+        ),
+      ),
+    );
+  }
 }

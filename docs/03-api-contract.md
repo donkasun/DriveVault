@@ -108,9 +108,18 @@ Deletes the vehicle **and all nested data** (cascade). **204** no content.
   "currentMileage": 48000, "vehicleType": "pickup",
   "fuelType": "petrol", "distanceUnit": null,
   "photoUrl": null, "photoPublicId": null,
-  "createdAt": "2026-06-08T10:00:00Z", "updatedAt": "2026-06-08T10:00:00Z"
+  "createdAt": "2026-06-08T10:00:00Z", "updatedAt": "2026-06-08T10:00:00Z",
+  "docsStatus": { "state": "needs_action", "needsActionCount": 2 }
 }
 ```
+
+`docsStatus` is a derived field computed per vehicle from its documents:
+- `state` = `"none"` if the vehicle has no documents with an `expiryDate`.
+- `state` = `"needs_action"` + `needsActionCount` = count of docs whose status is `"soon"` or `"overdue"` (same thresholds as status scale below), when that count > 0.
+- `state` = `"valid"` otherwise (all expiring docs are > 30 days away).
+
+**Status scale** (shared across renewals, docs rows, and `docsStatus`):
+`ok` = > 30 days · `soon` = 0–30 days · `overdue` = already expired.
 
 ---
 
@@ -268,10 +277,59 @@ Aggregated summary across all the caller's vehicles for the home screen.
     "purchaseCents": 0
   },
   "upcomingRenewals": [
-    { "vehicleId": "uuid", "title": "Insurance", "expiryDate": "2026-12-31" }
+    {
+      "vehicleId": "uuid",
+      "title": "Insurance Policy",
+      "expiryDate": "2026-01-15",
+      "docType": "insurance",
+      "vehicleLabel": "2020 Toyota Hilux",
+      "daysRemaining": -5,
+      "status": "overdue"
+    }
+  ],
+  "recentActivity": [
+    {
+      "type": "fuel",
+      "vehicleId": "uuid",
+      "vehicleLabel": "2020 Toyota Hilux",
+      "date": "2026-06-14",
+      "amountCents": 7800,
+      "label": "Fuel"
+    },
+    {
+      "type": "maintenance",
+      "vehicleId": "uuid",
+      "vehicleLabel": "2020 Toyota Hilux",
+      "date": "2026-06-10",
+      "amountCents": 6500,
+      "label": "Oil Change"
+    },
+    {
+      "type": "document",
+      "vehicleId": "uuid",
+      "vehicleLabel": "2020 Toyota Hilux",
+      "date": "2026-01-01",
+      "amountCents": null,
+      "label": "2026 Insurance Policy"
+    }
   ]
 }
 ```
+
+**`upcomingRenewals`** includes:
+- All documents with `expiryDate < today` (overdue, any age).
+- Documents with `today ≤ expiryDate ≤ today + 90 days` (upcoming within 90 days).
+- Sorted ascending by `expiryDate` (overdue first). Docs expiring > 90 days away are excluded.
+- `status`: `"overdue"` / `"soon"` (0–30 d) / `"ok"` (> 30 d) per the shared status scale.
+- `daysRemaining`: integer (negative if overdue).
+- `vehicleLabel`: `"YYYY Make Model"` if make+model known, else registration number.
+
+**`recentActivity`** is a merged, date-descending list (limit 10) across all the user's vehicles:
+- `type`: `"fuel"` \| `"maintenance"` \| `"document"`.
+- `amountCents`: `price_cents` for fuel, `cost_cents` for maintenance, `null` for documents.
+- `label`: `"Fuel"` for fuel logs, `service_type` for maintenance, `title` for documents.
+- `date`: the event date (`YYYY-MM-DD`). For documents with no `issueDate`, the upload (`createdAt`) date is used.
+
 > In Phase 1, `nextService` and reminder data are minimal (just document expiries). Full
 > service-due logic arrives with Phase 2 (`maintenance_schedules` / `reminders`).
 

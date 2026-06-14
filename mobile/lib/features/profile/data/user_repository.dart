@@ -21,11 +21,10 @@ class UserRepository {
     bool? renewalRemindersEnabled,
   }) async {
     final body = <String, dynamic>{
-      if (currency != null) 'currency': currency,
-      if (distanceUnit != null) 'distanceUnit': distanceUnit,
-      if (renewalRemindersEnabled != null)
-        'renewalRemindersEnabled': renewalRemindersEnabled,
-    };
+      'currency': currency,
+      'distanceUnit': distanceUnit,
+      'renewalRemindersEnabled': renewalRemindersEnabled,
+    }..removeWhere((_, v) => v == null);
     final data = await _apiClient.patch('/me', body: body);
     return AppUser.fromJson(data);
   }
@@ -33,8 +32,8 @@ class UserRepository {
   /// Update display name via `PATCH /api/v1/me`. Returns the updated user.
   Future<AppUser> updateProfile({String? displayName}) async {
     final body = <String, dynamic>{
-      if (displayName != null) 'displayName': displayName,
-    };
+      'displayName': displayName,
+    }..removeWhere((_, v) => v == null);
     final data = await _apiClient.patch('/me', body: body);
     return AppUser.fromJson(data);
   }

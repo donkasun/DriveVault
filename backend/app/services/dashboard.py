@@ -1,14 +1,29 @@
 """Dashboard aggregate endpoint service (Task B6)."""
 
 from datetime import date, timedelta
-from typing import List
+from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.documents import Document
+from app.models.fuel_logs import FuelLog
+from app.models.maintenance_records import MaintenanceRecord
 from app.models.users import User
 from app.models.vehicles import Vehicle
+from app.services.renewals import days_until, renewal_status
+
+
+def _vehicle_label(vehicle: Vehicle) -> str:
+    """Return a human-readable label for a vehicle: make+model+year or registration_number."""
+    if vehicle.make and vehicle.model:
+        label = f"{vehicle.make} {vehicle.model}"
+        if vehicle.year:
+            label = f"{vehicle.year} {label}"
+        return label
+    if vehicle.registration_number:
+        return vehicle.registration_number
+    return str(vehicle.id)
 
 
 def get_dashboard_data(
@@ -24,17 +39,15 @@ def get_dashboard_data(
         - monthly_fuel_spend_cents: Sum of fuel prices for the current calendar month
         - total_ownership_cost_cents: Sum of all costs (fuel + maintenance + purchase)
         - cost_breakdown: Breakdown by category
-        - upcoming_renewals: Documents expiring within 90 days
+        - upcoming_renewals: Overdue docs + docs expiring within 90 days, sorted by expiry_date
+        - recent_activity: Last 10 events across fuel, maintenance, and documents
     """
-    # Get all vehicles owned by the user
-    vehicles_result = db.execute(
-        select(Vehicle).where(Vehicle.user_id == current_user.id)
-    )
+    # ── vehicles ──────────────────────────────────────────────────────────────
+    vehicles_result = db.execute(select(Vehicle).where(Vehicle.user_id == current_user.id))
     vehicles = list(vehicles_result.scalars())
     vehicle_count = len(vehicles)
 
     if vehicle_count == 0:
-        # Return empty dashboard data if no vehicles
         return {
             "vehicle_count": 0,
             "monthly_fuel_spend_cents": 0,
@@ -45,79 +58,118 @@ def get_dashboard_data(
                 "purchase_cents": 0,
             },
             "upcoming_renewals": [],
+            "recent_activity": [],
         }
 
-    # Calculate fuel costs for the current month
+    vehicle_ids: list[UUID] = [v.id for v in vehicles]
+    # Build a label map once to avoid N+1 on activity rows
+    label_map: dict[UUID, str] = {v.id: _vehicle_label(v) for v in vehicles}
+
     today = date.today()
+
+    # ── fuel costs ────────────────────────────────────────────────────────────
     month_start = date(today.year, today.month, 1)
     if today.month == 12:
         next_month_start = date(today.year + 1, 1, 1)
     else:
         next_month_start = date(today.year, today.month + 1, 1)
 
-    from app.models.fuel_logs import FuelLog
-    fuel_logs_result = db.execute(
-        select(FuelLog)
-        .join(Vehicle, FuelLog.vehicle_id == Vehicle.id)
-        .where(
-            FuelLog.vehicle_id.in_([v.id for v in vehicles]),
-            FuelLog.date >= month_start,
-            FuelLog.date < next_month_start,
-        )
+    all_fuel_logs: list[FuelLog] = list(
+        db.scalars(select(FuelLog).where(FuelLog.vehicle_id.in_(vehicle_ids)))
     )
-    fuel_logs = list(fuel_logs_result.scalars())
-
-    monthly_fuel_spend_cents = sum(log.price_cents for log in fuel_logs)
-    
-    # Calculate total fuel cost (all time)
-    all_fuel_logs_result = db.execute(
-        select(FuelLog).join(Vehicle, FuelLog.vehicle_id == Vehicle.id)
-        .where(FuelLog.vehicle_id.in_([v.id for v in vehicles]))
+    monthly_fuel_spend_cents = sum(
+        log.price_cents for log in all_fuel_logs if month_start <= log.date < next_month_start
     )
-    all_fuel_logs = list(all_fuel_logs_result.scalars())
     total_fuel_cents = sum(log.price_cents for log in all_fuel_logs)
 
-    # Calculate maintenance costs
-    from app.models.maintenance_records import MaintenanceRecord
-    maintenance_result = db.execute(
-        select(MaintenanceRecord)
-        .join(Vehicle, MaintenanceRecord.vehicle_id == Vehicle.id)
-        .where(MaintenanceRecord.vehicle_id.in_([v.id for v in vehicles]))
+    # ── maintenance costs ─────────────────────────────────────────────────────
+    all_maintenance: list[MaintenanceRecord] = list(
+        db.scalars(select(MaintenanceRecord).where(MaintenanceRecord.vehicle_id.in_(vehicle_ids)))
     )
-    maintenance_records = list(maintenance_result.scalars())
-    total_maintenance_cents = sum(record.cost_cents for record in maintenance_records)
+    total_maintenance_cents = sum(r.cost_cents for r in all_maintenance)
 
-    # Calculate purchase costs (treat NULL as 0)
+    # ── purchase costs ────────────────────────────────────────────────────────
     purchase_costs_result = db.execute(
-        select(Vehicle.purchase_price_cents).where(
-            Vehicle.id.in_([v.id for v in vehicles])
-        )
+        select(Vehicle.purchase_price_cents).where(Vehicle.id.in_(vehicle_ids))
     )
-    purchase_prices = [row.purchase_price_cents or 0 for row in purchase_costs_result]
-    total_purchase_cents = sum(purchase_prices)
+    total_purchase_cents = sum(row.purchase_price_cents or 0 for row in purchase_costs_result)
 
-    # Calculate upcoming renewals (documents expiring within 90 days from today)
+    # ── upcoming renewals (overdue + within 90 days) ───────────────────────
     ninety_days_later = today + timedelta(days=90)
-    
-    documents_result = db.execute(
-        select(Document)
-        .join(Vehicle, Document.vehicle_id == Vehicle.id)
-        .where(
-            Document.vehicle_id.in_([v.id for v in vehicles]),
-            Document.expiry_date.isnot(None),
-            Document.expiry_date >= today,
-            Document.expiry_date <= ninety_days_later,
+
+    docs_for_renewals: list[Document] = list(
+        db.scalars(
+            select(Document).where(
+                Document.vehicle_id.in_(vehicle_ids),
+                Document.expiry_date.isnot(None),
+                # Include overdue (any age) AND upcoming within 90 days
+                Document.expiry_date <= ninety_days_later,
+            )
         )
     )
-    documents = list(documents_result.scalars())
+    # Sort ascending by expiry_date (overdue first)
+    docs_for_renewals.sort(key=lambda d: d.expiry_date)
 
-    upcoming_renewals = []
-    for doc in documents:
-        upcoming_renewals.append({
+    upcoming_renewals = [
+        {
             "vehicle_id": doc.vehicle_id,
             "title": doc.title,
-            "expiry_date": doc.expiry_date.strftime("%Y-%m-%d"),
-        })
+            "expiry_date": doc.expiry_date,
+            "doc_type": doc.doc_type,
+            "vehicle_label": label_map[doc.vehicle_id],
+            "days_remaining": days_until(doc.expiry_date, today),
+            "status": renewal_status(doc.expiry_date, today),
+        }
+        for doc in docs_for_renewals
+    ]
+
+    # ── recent activity (merged, date-descending, limit 10) ──────────────────
+    activity_items: list[dict] = []
+
+    for log in all_fuel_logs:
+        activity_items.append(
+            {
+                "type": "fuel",
+                "vehicle_id": log.vehicle_id,
+                "vehicle_label": label_map[log.vehicle_id],
+                "date": log.date,
+                "amount_cents": log.price_cents,
+                "label": "Fuel",
+            }
+        )
+
+    for rec in all_maintenance:
+        activity_items.append(
+            {
+                "type": "maintenance",
+                "vehicle_id": rec.vehicle_id,
+                "vehicle_label": label_map[rec.vehicle_id],
+                "date": rec.date,
+                "amount_cents": rec.cost_cents,
+                "label": rec.service_type,
+            }
+        )
+
+    all_docs: list[Document] = list(
+        db.scalars(select(Document).where(Document.vehicle_id.in_(vehicle_ids)))
+    )
+    for doc in all_docs:
+        # Use issue_date if available, else created_at date
+        doc_date = doc.issue_date if doc.issue_date is not None else doc.created_at.date()
+        activity_items.append(
+            {
+                "type": "document",
+                "vehicle_id": doc.vehicle_id,
+                "vehicle_label": label_map[doc.vehicle_id],
+                "date": doc_date,
+                "amount_cents": None,
+                "label": doc.title,
+            }
+        )
+
+    # Sort descending by date, take top 10
+    activity_items.sort(key=lambda x: x["date"], reverse=True)
+    recent_activity = activity_items[:10]
 
     total_ownership_cost_cents = total_fuel_cents + total_maintenance_cents + total_purchase_cents
 
@@ -131,4 +183,5 @@ def get_dashboard_data(
             "purchase_cents": total_purchase_cents,
         },
         "upcoming_renewals": upcoming_renewals,
+        "recent_activity": recent_activity,
     }

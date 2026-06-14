@@ -1,5 +1,31 @@
 import '../../../shared/constants/currencies.dart';
 
+/// Derived docs-status for a vehicle — computed server-side from its documents.
+///
+/// `state` values: `"valid"` | `"needs_action"` | `"none"`.
+class DocsStatus {
+  final String state; // "valid" | "needs_action" | "none"
+  final int needsActionCount;
+
+  const DocsStatus({required this.state, required this.needsActionCount});
+
+  /// Backward-compatible: missing key → state "none", count 0.
+  factory DocsStatus.fromJson(Map<String, dynamic> json) {
+    return DocsStatus(
+      state: (json['state'] as String?) ?? 'none',
+      needsActionCount: (json['needsActionCount'] as int?) ?? 0,
+    );
+  }
+
+  /// Sentinel used when the backend omits the `docsStatus` key entirely.
+  static const DocsStatus none = DocsStatus(state: 'none', needsActionCount: 0);
+
+  Map<String, dynamic> toJson() => {
+    'state': state,
+    'needsActionCount': needsActionCount,
+  };
+}
+
 /// Vehicle domain model matching Doc 2 schema and Doc 3 API contract.
 class Vehicle {
   final String id;
@@ -23,6 +49,9 @@ class Vehicle {
   final DateTime createdAt;
   final DateTime updatedAt;
 
+  /// Derived docs-status. Defaults to [DocsStatus.none] when absent from JSON.
+  final DocsStatus docsStatus;
+
   const Vehicle({
     required this.id,
     required this.make,
@@ -41,6 +70,7 @@ class Vehicle {
     this.photoPublicId,
     required this.createdAt,
     required this.updatedAt,
+    this.docsStatus = DocsStatus.none,
   });
 
   factory Vehicle.fromJson(Map<String, dynamic> json) => Vehicle(
@@ -61,6 +91,9 @@ class Vehicle {
     photoPublicId: json['photoPublicId'] as String?,
     createdAt: DateTime.parse(json['createdAt'] as String),
     updatedAt: DateTime.parse(json['updatedAt'] as String),
+    docsStatus: json['docsStatus'] != null
+        ? DocsStatus.fromJson(json['docsStatus'] as Map<String, dynamic>)
+        : DocsStatus.none,
   );
 
   Map<String, dynamic> toJson() => {
@@ -81,6 +114,7 @@ class Vehicle {
     if (photoPublicId != null) 'photoPublicId': photoPublicId,
     'createdAt': createdAt.toIso8601String(),
     'updatedAt': updatedAt.toIso8601String(),
+    'docsStatus': docsStatus.toJson(),
   };
 
   String get displayName =>
@@ -104,6 +138,7 @@ class Vehicle {
     String? photoPublicId,
     DateTime? createdAt,
     DateTime? updatedAt,
+    DocsStatus? docsStatus,
   }) {
     return Vehicle(
       id: id ?? this.id,
@@ -123,6 +158,7 @@ class Vehicle {
       photoPublicId: photoPublicId ?? this.photoPublicId,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      docsStatus: docsStatus ?? this.docsStatus,
     );
   }
 }

@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/network/api_exceptions.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/utils/distance_unit.dart';
 import '../../../shared/utils/formatting.dart';
@@ -12,7 +11,6 @@ import '../../documents/data/document_repository.dart';
 import '../../documents/domain/document.dart';
 import '../../documents/presentation/document_viewer_screen.dart';
 import '../../fuel/data/fuel_repository.dart';
-import '../../fuel/domain/fuel_log.dart';
 import '../../fuel/domain/fuel_stats.dart';
 import '../../fuel/presentation/widgets/fuel_record_card.dart';
 import '../../maintenance/data/maintenance_repository.dart';
@@ -21,7 +19,6 @@ import '../../profile/data/user_repository.dart';
 import '../data/vehicle_repository.dart';
 import '../domain/vehicle.dart';
 import '../presentation/vehicles_provider.dart';
-import 'vehicle_fuel_records_screen.dart';
 
 class VehicleDetailScreen extends ConsumerWidget {
   final String vehicleId;
@@ -259,9 +256,10 @@ class _HeroAppBar extends ConsumerWidget {
                       final mileage = vehicle.currentMileage != null
                           ? formatDistance(vehicle.currentMileage!, unit)
                           : '—';
-                      final economy = stats.avgConsumptionLPer100Km != null
-                          ? '${stats.avgConsumptionLPer100Km!.toStringAsFixed(1)} L/100'
-                          : '—';
+                      final economy = formatEconomyFromStats(
+                        stats.avgConsumptionLPer100Km,
+                        unit,
+                      );
                       final spent = stats.totalSpentCents > 0
                           ? formatCents(
                               stats.totalSpentCents,
@@ -608,113 +606,6 @@ class _StatItem extends StatelessWidget {
         const SizedBox(height: 2),
         Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey)),
       ],
-    );
-  }
-}
-
-class _FuelLogTile extends ConsumerWidget {
-  final FuelLog log;
-  final String vehicleId;
-  final VoidCallback onRefresh;
-
-  const _FuelLogTile({
-    required this.log,
-    required this.vehicleId,
-    required this.onRefresh,
-  });
-
-  Future<void> _deleteFuelLog(BuildContext context, WidgetRef ref) async {
-    try {
-      final repo = ref.read(fuelRepositoryProvider);
-      await repo.deleteFuelLog(log.id);
-      onRefresh();
-      if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Fuel log deleted')));
-      }
-    } catch (e) {
-      if (context.mounted) {
-        final msg = e is ApiException ? e.message : 'Delete failed';
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(msg)));
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final currency = ref.watch(meProvider).asData?.value.currency ?? 'USD';
-    return Dismissible(
-      key: ValueKey(log.id),
-      direction: DismissDirection.endToStart,
-      confirmDismiss: (_) async {
-        return showDialog<bool>(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            title: const Text('Delete Fuel Log'),
-            content: Text(
-              'Delete the fuel log for ${log.date}? This cannot be undone.',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(ctx).pop(false),
-                child: const Text('Cancel'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.of(ctx).pop(true),
-                child: const Text(
-                  'Delete',
-                  style: TextStyle(color: Colors.red),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-      onDismissed: (_) => _deleteFuelLog(context, ref),
-      background: Container(
-        alignment: Alignment.centerRight,
-        color: Colors.red,
-        padding: const EdgeInsets.only(right: 16),
-        child: const Icon(Icons.delete_outline, color: Colors.white),
-      ),
-      child: ListTile(
-        leading: const Icon(Icons.local_gas_station),
-        title: Text(log.date),
-        subtitle: Text(
-          '${log.liters.toStringAsFixed(1)} L • '
-          '${formatCents(log.priceCents, currency: currency)}',
-        ),
-        trailing: log.isFullTank
-            ? Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 4,
-                ),
-                decoration: BoxDecoration(
-                  color: AppColors.successBg,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: const Text(
-                  'Full',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.success,
-                  ),
-                ),
-              )
-            : null,
-        onTap: () async {
-          await context.push(
-            '/garage/vehicle/$vehicleId/fuel/edit',
-            extra: log,
-          );
-          onRefresh();
-        },
-      ),
     );
   }
 }

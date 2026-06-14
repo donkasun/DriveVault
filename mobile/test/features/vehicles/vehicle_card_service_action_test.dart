@@ -2,10 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:drivevault/features/maintenance/data/maintenance_repository.dart';
-import 'package:drivevault/features/maintenance/domain/maintenance_record.dart';
+import 'package:drivevault/features/fuel/domain/fuel_log.dart';
 import 'package:drivevault/features/fuel/data/fuel_repository.dart';
 import 'package:drivevault/features/fuel/domain/fuel_stats.dart';
+import 'package:drivevault/features/maintenance/data/maintenance_repository.dart';
+import 'package:drivevault/features/maintenance/domain/maintenance_record.dart';
 import 'package:drivevault/features/profile/data/user_repository.dart';
 import 'package:drivevault/features/profile/domain/user.dart';
 import 'package:drivevault/features/documents/data/document_repository.dart';
@@ -47,7 +48,7 @@ class _FakeVehiclesNotifier extends VehiclesNotifier {
 }
 
 void main() {
-  testWidgets('tapping Service opens the quick maintenance sheet',
+  testWidgets('tapping Log Fuel opens the quick fuel entry sheet',
       (tester) async {
     await tester.pumpWidget(ProviderScope(
       overrides: [
@@ -62,6 +63,7 @@ void main() {
               totalSpentCents: 0,
               monthlySpend: [],
             )),
+        fuelLogsProvider.overrideWith((ref, id) async => <FuelLog>[]),
         documentsProvider.overrideWith((ref, id) async => []),
       ],
       child: MaterialApp(
@@ -70,9 +72,9 @@ void main() {
     ));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Service'));
+    await tester.tap(find.text('Log Fuel'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Log service'), findsOneWidget);
+    expect(find.text('Log fuel'), findsOneWidget);
   });
 }

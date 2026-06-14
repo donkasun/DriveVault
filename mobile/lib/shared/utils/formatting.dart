@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import 'distance_unit.dart';
+
 /// Format integer cents to a currency string using the given ISO currency code.
 /// e.g. formatCents(412000) → "$4,120.00", formatCents(412000, currency: 'EUR') → "€4,120.00"
 String formatCents(int cents, {String currency = 'USD'}) {
@@ -27,6 +29,17 @@ String _ensureSymbolSpacing(String formatted) {
   final rest = formatted.substring(sign.length + symbol.length);
   return '$sign$symbol $rest';
 }
+
+/// Canonical economy formatter: converts backend L/100km to the user's unit.
+///
+/// This is the single source of truth — both the garage card and vehicle detail
+/// call this so they always show the same string for the same data.
+///
+/// km  → "X.X km/L"
+/// mi  → "X.X mpg"
+/// null / ≤ 0 → "—"
+String formatEconomyFromStats(double? lPer100km, DistanceUnit unit) =>
+    formatEconomy(lPer100km, unit);
 
 /// Returns a color based on how many days remain until [expiryDateStr].
 /// - expired or < 30 days: red

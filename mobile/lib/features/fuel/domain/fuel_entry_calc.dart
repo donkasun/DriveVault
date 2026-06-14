@@ -7,6 +7,10 @@ enum FuelField { liters, total, perLiter }
 /// The two most-recently-edited fields are authoritative; the remaining field
 /// is computed. When per-liter is edited while both others are set, liters is
 /// kept and total is recomputed.
+///
+/// [derivedField] exposes which of the three fields is currently being computed
+/// so the UI can tag it as "AUTO". When fewer than two fields are set the
+/// derived field is null (no computation possible yet).
 class FuelEntryCalc {
   double? liters;
   double? total;
@@ -19,6 +23,12 @@ class FuelEntryCalc {
       pricePerLiter = initialPerLiter;
       _locked.add(FuelField.perLiter);
     }
+  }
+
+  /// The field currently being derived (AUTO), or null when there isn't one.
+  FuelField? get derivedField {
+    if (_locked.length < 2) return null;
+    return FuelField.values.firstWhere((f) => !_locked.contains(f));
   }
 
   void setField(FuelField field, double? value) {
@@ -49,8 +59,7 @@ class FuelEntryCalc {
 
   void _recompute() {
     if (_locked.length < 2) return;
-    final computed =
-        FuelField.values.firstWhere((f) => !_locked.contains(f));
+    final computed = FuelField.values.firstWhere((f) => !_locked.contains(f));
     switch (computed) {
       case FuelField.perLiter:
         if (liters != null && liters! > 0 && total != null) {
