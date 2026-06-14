@@ -10,6 +10,7 @@ import '../../../documents/data/document_repository.dart';
 import '../../../fuel/data/fuel_repository.dart';
 import '../../../fuel/presentation/widgets/quick_fuel_entry_sheet.dart';
 import '../../../maintenance/data/maintenance_repository.dart';
+import '../../../maintenance/presentation/widgets/quick_maintenance_sheet.dart';
 import '../../../profile/data/user_repository.dart';
 import '../../domain/vehicle.dart';
 
@@ -178,8 +179,7 @@ class VehicleCard extends ConsumerWidget {
                     _ActionButton(
                       icon: Icons.build,
                       label: 'Service',
-                      onTap: () => context.push(
-                          '/garage/vehicle/${vehicle.id}/maintenance/add'),
+                      onTap: () => showQuickMaintenanceSheet(context, vehicleId: vehicle.id),
                     ),
                     _ActionButton(
                       icon: Icons.description,
