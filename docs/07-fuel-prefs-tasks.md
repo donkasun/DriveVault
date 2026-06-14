@@ -49,7 +49,7 @@ BATCH 3
 
 ### 🟦 F1 — Migration: new columns ✅
 Alembic migration adding, exactly per Doc 2:
-- `users`: `currency char(3) NOT NULL DEFAULT 'USD'`, `distance_unit text NOT NULL DEFAULT 'km'`
+- `users`: `currency char(3) NOT NULL DEFAULT 'LKR'`, `distance_unit text NOT NULL DEFAULT 'km'`
 - `vehicles`: `fuel_type text NULL`, `default_fuel_variant text NULL`, `distance_unit text NULL`
 - `fuel_logs`: `fuel_variant text NULL`
 
@@ -70,7 +70,7 @@ schemas + service (Doc 3). All optional; `fuelType` validated against the enum, 
 **Done when:** create/patch round-trips the three fields; existing vehicle CRUD + ownership
 tests still pass; a test asserts `distanceUnit: null` is accepted (inherit).
 
-### 🟦 F4 — Fuel variant + currency-from-preference ✅
+### 🟦 F4 — Fuel variant + currency-from-preference ✅ (currency-from-preference later SUPERSEDED — currency is now hard-locked to `LKR` via migration f3001 + `LOCKED_CURRENCY`.)
 - Add optional `fuelVariant` to fuel-log create/patch/response.
 - Make `currency` optional on **fuel-log** and **maintenance** create; when omitted, fill from
   the requesting user's `currency` preference (Doc 3 conventions).
@@ -95,7 +95,7 @@ A shared helper that converts/display-formats odometer values using the effectiv
 (vehicle `distanceUnit` ?? user `distanceUnit`). Storage/wire stays km — convert at the edge.
 **Done when:** unit tests cover km↔mi conversion and the vehicle-override-falls-back-to-user rule.
 
-### 🟩 F6 — Settings: currency + distance preference ✅
+### 🟩 F6 — Settings: currency + distance preference ✅ (the currency control was later removed — currency is locked to `LKR`; only the distance-unit control remains.)
 Settings screen controls for `currency` and `distanceUnit`, persisting via `PATCH /me`; reflect
 the values from `GET /me`.
 **Done when:** changing either preference persists across app restart and updates displayed units.
@@ -136,7 +136,7 @@ price, placeholder odometer, variant) → confirm it persists and displays in th
 emulator, so the flow was smoke-tested at the **API level** against live Cloud Run with the
 `smoketest@drivevault.dev` account (the exact calls the F6/F7/F8 screens make). All passed:
 PATCH/GET `/me` prefs (F6), `POST /vehicles` with fuelType/defaultFuelVariant/distanceUnit (F7),
-`POST /fuel-logs` persisting `fuelVariant` with `currency` defaulting to the user pref (F8/F4).
+`POST /fuel-logs` with `currency` defaulting to the user pref (F8/F4). (`fuelVariant` was later dropped — migration f2001.)
 The UI itself is covered by 110 passing widget/unit tests.
 
 **Follow-up bug found + FIXED (pre-existing, Phase 1):** `DELETE /vehicles/{id}` returned **500**

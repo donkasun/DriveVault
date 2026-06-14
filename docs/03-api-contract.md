@@ -5,7 +5,7 @@
 > Later-phase endpoints are added in their own contract docs.
 
 ## Conventions
-- Base URL (prod): `https://drivevault-api.onrender.com`  ·  (local): `http://localhost:8000`
+- Base URL (prod): `https://drivevault-backend-250609806849.us-central1.run.app`  ·  (local): `http://localhost:8000`
 - All endpoints are under `/api/v1`.
 - **Auth:** every endpoint except none-listed-as-public requires header
   `Authorization: Bearer <Firebase ID token>`. The backend resolves the current user from it.
@@ -43,17 +43,17 @@ Returns the current user, lazily creating the `users` row on first call.
   "email": "user@example.com",
   "displayName": "Kasun",
   "photoUrl": null,
-  "currency": "USD",
+  "currency": "LKR",
   "distanceUnit": "km",
   "createdAt": "2026-06-08T10:00:00Z"
 }
 ```
-`currency` (3-letter code) and `distanceUnit` (`"km"`\|`"mi"`) are the user's account-wide
-preferences. `distanceUnit` is display-only (storage stays in km).
+`distanceUnit` (`"km"`\|`"mi"`) is the user's account-wide display-only preference (storage stays in km). `currency` is **locked to `LKR`** and forced server-side (see the Currency note above).
 
 ### `PATCH /api/v1/me`
 Update profile fields. Body (all optional):
-`{ "displayName": "...", "photoUrl": "...", "currency": "EUR", "distanceUnit": "mi" }`
+`{ "displayName": "...", "photoUrl": "...", "currency": "LKR", "distanceUnit": "mi" }`
+(A `currency` value is accepted but coerced to `LKR`.)
 **Response 200** — updated user object.
 
 ---
@@ -75,7 +75,7 @@ Create a vehicle.
   "vin": "JTEBU5JR...",
   "purchaseDate": "2020-03-15",
   "purchasePriceCents": 3500000,
-  "currency": "USD",
+  "currency": "LKR",
   "currentMileage": 48000,
   "vehicleType": "pickup",
   "fuelType": "petrol",
@@ -103,7 +103,7 @@ Deletes the vehicle **and all nested data** (cascade). **204** no content.
   "id": "uuid",
   "make": "Toyota", "model": "Hilux", "year": 2020,
   "registrationNumber": "ABC-1234", "vin": "JTEBU5JR...",
-  "purchaseDate": "2020-03-15", "purchasePriceCents": 3500000, "currency": "USD",
+  "purchaseDate": "2020-03-15", "purchasePriceCents": 3500000, "currency": "LKR",
   "currentMileage": 48000, "vehicleType": "pickup",
   "fuelType": "petrol", "distanceUnit": null,
   "photoUrl": null, "photoPublicId": null,
@@ -126,14 +126,13 @@ Query params (optional): `from=YYYY-MM-DD`, `to=YYYY-MM-DD`. **200** → `[ Fuel
   "date": "2026-06-01",
   "liters": 45.5,
   "priceCents": 7800,
-  "currency": "USD",
+  "currency": "LKR",
   "odometer": 48200,
   "isFullTank": true,
   "notes": null
 }
 ```
-Required: `date`, `liters`, `priceCents`, `odometer`. `currency` is optional — if omitted,
-the backend fills it from the user's `currency` preference. **201** → `FuelLog`.
+Required: `date`, `liters`, `priceCents`, `odometer`. `currency` is ignored if sent — the backend forces it to `LKR` (see Currency note). **201** → `FuelLog`.
 
 **Odometer validation:** `odometer` must be strictly greater than the highest existing
 odometer for that vehicle's fuel logs. If not, returns **400**
@@ -162,7 +161,7 @@ Computed economy metrics. `avgConsumptionLPer100Km` / `avgCostPerKmCents` use th
 
 **FuelLog object:** create fields + `id`, `vehicleId`, `createdAt`, `updatedAt`.
 
-> Note (2026-06-12): `fuelVariant` is accepted/stored by the backend but the mobile app no longer sends or displays it (dropped in commit 641d8db).
+> Note (2026-06-14): `fuelVariant` was fully removed — the column was dropped from the DB (migration f2001) and is no longer referenced by the backend model/schemas or the mobile app.
 
 ---
 
@@ -180,13 +179,12 @@ Optional `category`, `from`, `to` query params. **200** → `[ MaintenanceRecord
   "serviceType": "Oil Change",
   "category": "maintenance",
   "costCents": 6500,
-  "currency": "USD",
+  "currency": "LKR",
   "workshop": "City Auto",
   "notes": "5W-30 synthetic"
 }
 ```
-Required: `date`, `serviceType`. `currency` is optional — if omitted, the backend fills it
-from the user's `currency` preference (the app does not show a currency dropdown). **201** → `MaintenanceRecord`.
+Required: `date`, `serviceType`. `currency` is ignored if sent — the backend forces it to `LKR`; there is no currency dropdown in the app. **201** → `MaintenanceRecord`.
 
 ### `GET /api/v1/maintenance/{id}` · `PATCH /api/v1/maintenance/{id}` · `DELETE /api/v1/maintenance/{id}`
 **200** / **200** / **204**.

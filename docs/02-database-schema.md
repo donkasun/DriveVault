@@ -46,7 +46,7 @@ Mirrors a Firebase Auth account. Created lazily on first authenticated request.
 | email | text | NOT NULL |
 | display_name | text | NULL |
 | photo_url | text | NULL |
-| currency | char(3) | NOT NULL DEFAULT 'LKR' (user-level money preference) |
+| currency | char(3) | NOT NULL DEFAULT 'LKR' (forced to 'LKR' server-side — see Currency note) |
 | distance_unit | text | NOT NULL DEFAULT 'km' ('km'\|'mi', display-only) |
 | created_at | timestamptz | NOT NULL |
 | updated_at | timestamptz | NOT NULL |
