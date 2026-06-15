@@ -182,22 +182,39 @@ class _ActiveTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Yellow rounded chip carrying the icon + its label, per the mockup.
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      decoration: BoxDecoration(
-        color: AppColors.primary,
-        borderRadius: BorderRadius.circular(40),
-      ),
-      child: SvgPicture.asset(
-        iconAsset,
-        width: 24,
-        height: 24,
-        colorFilter: const ColorFilter.mode(
-          AppColors.textPrimary,
-          BlendMode.srcIn,
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          decoration: BoxDecoration(
+            color: AppColors.primary,
+            borderRadius: BorderRadius.circular(40),
+          ),
+          child: SvgPicture.asset(
+            iconAsset,
+            width: 24,
+            height: 24,
+            colorFilter: const ColorFilter.mode(
+              AppColors.textPrimary,
+              BlendMode.srcIn,
+            ),
+          ),
         ),
-      ),
+        const SizedBox(height: 3),
+        Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
+            color: AppColors.primary,
+            height: 1,
+          ),
+        ),
+      ],
     );
   }
 }
