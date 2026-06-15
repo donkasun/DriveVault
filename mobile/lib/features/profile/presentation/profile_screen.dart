@@ -453,13 +453,13 @@ class _AboutSection extends StatelessWidget {
             label: 'Privacy & data',
             onTap: () => _showPlaceholder(context, 'Privacy & data'),
           ),
-          const Divider(height: 1, indent: 60),
+          const Divider(height: 1),
           _AboutRow(
             icon: Icons.mail_outline,
             label: 'Help & feedback',
             onTap: () => _showPlaceholder(context, 'Help & feedback'),
           ),
-          const Divider(height: 1, indent: 60),
+          const Divider(height: 1),
           const _AboutVersionRow(value: AppConfig.appVersion),
         ],
       ),
@@ -489,7 +489,7 @@ class _AboutRow extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         child: Row(
           children: [
             Container(
@@ -506,7 +506,7 @@ class _AboutRow extends StatelessWidget {
               child: Text(
                 label,
                 style: const TextStyle(
-                  fontSize: 16,
+                  fontSize: 15,
                   fontWeight: FontWeight.w700,
                   color: Color(0xFF24243A),
                 ),
@@ -528,7 +528,7 @@ class _AboutVersionRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       child: Row(
         children: [
           Container(
@@ -549,7 +549,7 @@ class _AboutVersionRow extends StatelessWidget {
             child: Text(
               'Version',
               style: TextStyle(
-                fontSize: 16,
+                fontSize: 15,
                 fontWeight: FontWeight.w700,
                 color: Color(0xFF24243A),
               ),
@@ -611,7 +611,7 @@ class _PreferencesCard extends StatelessWidget {
               onChanged: onDistanceUnitChanged,
             ),
           ),
-          const Divider(height: 1, indent: 60),
+          const Divider(height: 1),
           _PreferenceRowShell(
             icon: Icons.payments_outlined,
             iconBackground: const Color(0xFFF1F2F8),
@@ -623,7 +623,7 @@ class _PreferencesCard extends StatelessWidget {
               name: currencyInfo?.name ?? user.currency,
             ),
           ),
-          const Divider(height: 1, indent: 60),
+          const Divider(height: 1),
           _PreferenceRowShell(
             icon: Icons.notifications_none_rounded,
             iconBackground: const Color(0xFFFFF3D9),
@@ -666,7 +666,7 @@ class _PreferenceRowShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       child: Row(
         children: [
           Container(
@@ -687,7 +687,7 @@ class _PreferenceRowShell extends StatelessWidget {
                 Text(
                   title,
                   style: const TextStyle(
-                    fontSize: 16,
+                    fontSize: 15,
                     fontWeight: FontWeight.w700,
                     color: Color(0xFF24243A),
                   ),

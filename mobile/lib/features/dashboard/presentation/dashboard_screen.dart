@@ -221,42 +221,86 @@ class _EmptyState extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
+      children: [
+        const _Header(),
+        const SizedBox(height: 20),
+        _WelcomeCard(),
+      ],
+    );
+  }
+}
+
+class _WelcomeCard extends StatelessWidget {
+  const _WelcomeCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            // Dark header with garage icon
             Container(
-              width: 72,
-              height: 72,
-              decoration: BoxDecoration(
-                color: AppColors.primary,
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.directions_car_outlined,
-                size: 36,
-                color: AppColors.onPrimary,
+              height: 120,
+              color: AppColors.surfaceDark,
+              child: Center(
+                child: Icon(
+                  Icons.garage_outlined,
+                  size: 48,
+                  color: Colors.white.withValues(alpha: 0.25),
+                ),
               ),
             ),
-            const SizedBox(height: 20),
-            Text(
-              'No vehicles yet',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Add your first vehicle to start tracking your ownership costs.',
-              textAlign: TextAlign.center,
-              style: Theme.of(
-                context,
-              ).textTheme.bodyMedium?.copyWith(color: AppColors.textMuted),
-            ),
-            const SizedBox(height: 24),
-            AppButton(
-              label: 'Add your first vehicle',
-              onPressed: () => context.go('/garage'),
+            // Content section
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  const Text(
+                    'Welcome to DriveVault',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.4,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Add your first vehicle to start tracking fuel, costs and paperwork — all in one place.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w400,
+                      color: AppColors.textMuted,
+                      height: 1.45,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  AppButton(
+                    label: 'Add your first vehicle',
+                    icon: const Icon(Icons.add),
+                    onPressed: () => context.go('/garage/add-vehicle'),
+                  ),
+                ],
+              ),
             ),
           ],
         ),

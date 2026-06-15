@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -288,6 +289,33 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ),
                     ),
                     const Spacer(),
+
+                    // Dev shortcut — debug builds only
+                    if (kDebugMode) ...[
+                      Center(
+                        child: TextButton(
+                          onPressed: () {
+                            _emailController.text = 'crtest083@gmail.com';
+                            _passwordController.text = '123123';
+                          },
+                          style: TextButton.styleFrom(
+                            foregroundColor: AppColors.textMuted,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 6,
+                            ),
+                          ),
+                          child: const Text(
+                            '🛠 Fill dev account',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                    ],
 
                     // Terms & Privacy — pinned to bottom
                     Center(

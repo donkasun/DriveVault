@@ -107,33 +107,82 @@ class _EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.garage_outlined, size: 72, color: Colors.grey),
-            const SizedBox(height: 16),
-            const Text(
-              'No vehicles yet',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.fromLTRB(20, 66, 20, 0),
+          child: Text(
+            'Your garage',
+            style: TextStyle(
+              fontSize: 29,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.6,
+              color: Color(0xFF13121C),
+              height: 1.05,
             ),
-            const SizedBox(height: 8),
-            const Text(
-              'Add your first vehicle to get started',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey),
-            ),
-            const SizedBox(height: 24),
-            AppButton(
-              label: 'Add your first vehicle',
-              onPressed: onAddTap,
-              icon: const Icon(Icons.add),
-            ),
-          ],
+          ),
         ),
-      ),
+        Expanded(
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 80,
+                    height: 80,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(22),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.06),
+                          blurRadius: 12,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
+                    ),
+                    child: const Icon(
+                      Icons.garage_outlined,
+                      size: 38,
+                      color: Color(0xFF73738A),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  const Text(
+                    'Your garage is empty',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.3,
+                      color: Color(0xFF13121C),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Add a vehicle to track its fuel, services and documents.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w400,
+                      color: Color(0xFF73738A),
+                      height: 1.45,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  AppButton(
+                    label: 'Add vehicle',
+                    onPressed: onAddTap,
+                    icon: const Icon(Icons.add),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

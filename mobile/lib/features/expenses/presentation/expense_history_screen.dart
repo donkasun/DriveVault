@@ -7,6 +7,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../shared/constants/currencies.dart';
 import '../../../shared/utils/formatting.dart';
 import '../../../shared/widgets/activity_entry_card.dart';
+import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/breakdown_bar.dart';
 import '../../../shared/widgets/fuel_pump_icon.dart';
 import '../../../shared/widgets/sheet_close_button.dart';
@@ -197,6 +198,10 @@ class _ExpenseHistoryScreenState extends ConsumerState<ExpenseHistoryScreen> {
                               return _EmptyState(
                                 isMonthFilter:
                                     _summaryRange == _SummaryRange.month,
+                                onLogFillUp: () async {
+                                  await showQuickFuelEntrySheet(context);
+                                  ref.invalidate(allExpensesProvider);
+                                },
                               );
                             }
 
@@ -980,8 +985,12 @@ class _SkeletonBox extends StatelessWidget {
 
 class _EmptyState extends StatelessWidget {
   final bool isMonthFilter;
+  final VoidCallback? onLogFillUp;
 
-  const _EmptyState({required this.isMonthFilter});
+  const _EmptyState({
+    required this.isMonthFilter,
+    this.onLogFillUp,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -991,20 +1000,34 @@ class _EmptyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              isMonthFilter
-                  ? Icons.calendar_today_outlined
-                  : Icons.receipt_long_outlined,
-              size: 48,
-              color: AppColors.textMuted,
+            Container(
+              width: 72,
+              height: 72,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.06),
+                    blurRadius: 12,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: const Icon(
+                Icons.receipt_long_outlined,
+                size: 34,
+                color: Color(0xFF73738A),
+              ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
             Text(
               isMonthFilter ? 'No expenses this month' : 'No expenses yet',
               textAlign: TextAlign.center,
               style: const TextStyle(
-                fontSize: 17,
-                fontWeight: FontWeight.w700,
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.3,
                 color: AppColors.textPrimary,
               ),
             ),
@@ -1012,10 +1035,23 @@ class _EmptyState extends StatelessWidget {
             Text(
               isMonthFilter
                   ? 'Fuel and maintenance costs will appear here once logged.'
-                  : 'Log your first fuel fill-up or maintenance service to get started.',
+                  : 'Your fuel and service costs will show up here as you log them.',
               textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 14, color: AppColors.textMuted),
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w400,
+                color: AppColors.textMuted,
+                height: 1.45,
+              ),
             ),
+            if (!isMonthFilter && onLogFillUp != null) ...[
+              const SizedBox(height: 24),
+              AppButton(
+                label: 'Log a fill-up',
+                icon: const Icon(Icons.add),
+                onPressed: onLogFillUp!,
+              ),
+            ],
           ],
         ),
       ),
