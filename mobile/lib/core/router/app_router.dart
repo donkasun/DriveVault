@@ -20,6 +20,7 @@ import '../../features/vehicles/presentation/garage_screen.dart';
 import '../../features/vehicles/presentation/vehicle_detail_screen.dart';
 import '../../features/vehicles/presentation/vehicle_fuel_records_screen.dart';
 import '../../features/vehicles/presentation/vehicle_form_screen.dart';
+import '../../features/activity/presentation/activity_screen.dart';
 import '../../features/expenses/presentation/expense_history_screen.dart';
 import '../../features/profile/presentation/edit_profile_screen.dart';
 import 'auth_redirect.dart';
@@ -96,6 +97,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                     pageBuilder: (context, state) => const MaterialPage(
                       fullscreenDialog: true,
                       child: FuelLogFormScreen(),
+                    ),
+                  ),
+                  // Full activity history (from dashboard "See all" button)
+                  GoRoute(
+                    path: 'activity',
+                    pageBuilder: (context, state) => const MaterialPage(
+                      fullscreenDialog: true,
+                      child: ActivityScreen(),
                     ),
                   ),
                 ],

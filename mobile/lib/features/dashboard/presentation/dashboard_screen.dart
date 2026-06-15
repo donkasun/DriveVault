@@ -7,10 +7,12 @@ import '../../../core/theme/app_theme.dart';
 import '../../auth/presentation/widgets/verify_email_banner.dart';
 import '../../../shared/constants/currencies.dart';
 import '../../../shared/utils/formatting.dart';
+import '../../../shared/widgets/activity_entry_card.dart';
 import '../../../shared/widgets/breakdown_bar.dart';
 import '../../../shared/widgets/fuel_pump_icon.dart';
 import '../../../shared/widgets/status_pill.dart';
 import '../../../shared/widgets/app_button.dart';
+import '../../activity/presentation/activity_screen.dart';
 import '../../profile/data/user_repository.dart';
 import '../domain/dashboard_data.dart';
 import 'dashboard_provider.dart';
@@ -625,57 +627,12 @@ class _ActivityCard extends StatelessWidget {
       subLabel = '$friendlyDate · ${item.label}';
     }
 
-    return DecoratedBox(
-      decoration: appCardDecoration,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: () {},
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              _iconWidget(),
-              const SizedBox(width: 13),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      item.vehicleLabel,
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    Text(
-                      subLabel,
-                      style: const TextStyle(
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w500,
-                        color: AppColors.textMuted,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              if (item.amountCents != null) ...[
-                const SizedBox(width: 12),
-                Text(
-                  formatCents(item.amountCents!, currency: currency),
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.3,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
+    return ActivityEntryCard(
+      icon: _iconWidget(),
+      title: item.vehicleLabel,
+      subLabel: subLabel,
+      amountCents: item.amountCents,
+      currency: currency,
     );
   }
 
@@ -745,14 +702,19 @@ class _SeeAllExpensesButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: GestureDetector(
-        onTap: () => context.go('/expenses'),
+        onTap: () => Navigator.of(context, rootNavigator: true).push(
+          MaterialPageRoute(
+            fullscreenDialog: true,
+            builder: (_) => const ActivityScreen(),
+          ),
+        ),
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: const [
               Text(
-                'See all expenses',
+                'See all activity',
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w700,

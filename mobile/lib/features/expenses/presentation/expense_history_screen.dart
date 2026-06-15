@@ -6,6 +6,7 @@ import '../../../core/network/api_exceptions.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/constants/currencies.dart';
 import '../../../shared/utils/formatting.dart';
+import '../../../shared/widgets/activity_entry_card.dart';
 import '../../../shared/widgets/breakdown_bar.dart';
 import '../../../shared/widgets/fuel_pump_icon.dart';
 import '../../../shared/widgets/sheet_close_button.dart';
@@ -202,7 +203,7 @@ class _ExpenseHistoryScreenState extends ConsumerState<ExpenseHistoryScreen> {
                             final groups = groupExpensesByMonth(listExpenses);
 
                             return ListView.builder(
-                              padding: const EdgeInsets.only(bottom: 120),
+                              padding: const EdgeInsets.fromLTRB(16, 0, 16, 120),
                               itemCount: groups.fold<int>(
                                 0,
                                 (count, g) => count + 1 + g.expenses.length,
@@ -228,6 +229,7 @@ class _ExpenseHistoryScreenState extends ConsumerState<ExpenseHistoryScreen> {
                                           vehicleMap[expense.vehicleId]
                                               ?.displayName ??
                                           'Unknown vehicle',
+                                      totalVehicles: vehicles.length,
                                     );
                                   }
                                   offset += group.expenses.length;
@@ -774,10 +776,14 @@ class _MonthHeader extends StatelessWidget {
 
 class _ExpenseTile extends ConsumerWidget {
   final Expense expense;
-
   final String vehicleName;
+  final int totalVehicles;
 
-  const _ExpenseTile({required this.expense, required this.vehicleName});
+  const _ExpenseTile({
+    required this.expense,
+    required this.vehicleName,
+    required this.totalVehicles,
+  });
 
   Future<void> _delete(BuildContext context, WidgetRef ref) async {
     try {
@@ -804,7 +810,6 @@ class _ExpenseTile extends ConsumerWidget {
     }
   }
 
-  /// Primary label (category): e.g. "Fuel" or the service type.
   String get _categoryLabel {
     if (expense.kind == ExpenseKind.fuel) return 'Fuel';
     final serviceType = expense.maintenanceRecord?.serviceType;
@@ -813,28 +818,50 @@ class _ExpenseTile extends ConsumerWidget {
         : 'Maintenance';
   }
 
+  String get _title => _categoryLabel;
+
+  String? get _vehicleSubLabel => totalVehicles > 1 ? vehicleName : null;
+
   String get _dateLine {
     final parsed = DateTime.tryParse(expense.date);
     if (parsed == null) return expense.date;
-
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final date = DateTime(parsed.year, parsed.month, parsed.day);
-    final diffDays = today.difference(date).inDays;
-
-    if (diffDays == 0) return 'Today';
-    if (diffDays == 1) return 'Yesterday';
+    final diff = today.difference(date).inDays;
+    if (diff == 0) return 'Today';
+    if (diff == 1) return 'Yesterday';
     return DateFormat('d MMM').format(date);
   }
 
-  /// Secondary detail line (date + extra context).
-  String get _detail {
+  String get _subLabel {
     if (expense.kind == ExpenseKind.fuel) {
       final log = expense.fuelLog!;
       return '$_dateLine · ${log.liters.toStringAsFixed(1)} L · '
           '${log.isFullTank ? 'Full' : 'Partial'}';
     }
     return _dateLine;
+  }
+
+  Widget _buildIcon() {
+    final isFull = expense.fuelLog?.isFullTank ?? false;
+    final bgColor = expense.kind == ExpenseKind.fuel
+        ? (isFull ? AppColors.successBg : AppColors.primary.withValues(alpha: 0.12))
+        : AppColors.surfaceDark.withValues(alpha: 0.08);
+
+    return Container(
+      width: 40,
+      height: 40,
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Center(
+        child: expense.kind == ExpenseKind.fuel
+            ? FuelPumpIcon(isFullTank: isFull, size: 20, darkInk: !isFull)
+            : const Icon(Icons.build_outlined, color: AppColors.surfaceDark, size: 20),
+      ),
+    );
   }
 
   @override
@@ -869,119 +896,36 @@ class _ExpenseTile extends ConsumerWidget {
         padding: const EdgeInsets.only(right: 20),
         child: const Icon(Icons.delete_outline, color: Colors.white),
       ),
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-        decoration: appCardDecoration.copyWith(
-          borderRadius: const BorderRadius.all(Radius.circular(16)),
-        ),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            borderRadius: BorderRadius.circular(16),
-            onTap: () async {
-              if (expense.kind == ExpenseKind.fuel) {
-                await showQuickFuelEntrySheet(
-                  context,
-                  existing: expense.fuelLog,
-                );
-                ref.invalidate(fuelLogsProvider(expense.vehicleId));
-              } else {
-                await Navigator.of(context).push(
-                  MaterialPageRoute(
-                    fullscreenDialog: true,
-                    builder: (_) => MaintenanceFormScreen(
-                      vehicleId: expense.vehicleId,
-                      existing: expense.maintenanceRecord,
-                    ),
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 10),
+        child: ActivityEntryCard(
+          icon: _buildIcon(),
+          title: _title,
+          titleSub: _vehicleSubLabel,
+          subLabel: _subLabel,
+          amountCents: expense.costCents,
+          currency: expense.currency,
+          onTap: () async {
+            if (expense.kind == ExpenseKind.fuel) {
+              await showQuickFuelEntrySheet(
+                context,
+                existing: expense.fuelLog,
+              );
+              ref.invalidate(fuelLogsProvider(expense.vehicleId));
+            } else {
+              await Navigator.of(context).push(
+                MaterialPageRoute(
+                  fullscreenDialog: true,
+                  builder: (_) => MaintenanceFormScreen(
+                    vehicleId: expense.vehicleId,
+                    existing: expense.maintenanceRecord,
                   ),
-                );
-                ref.invalidate(maintenanceRecordsProvider(expense.vehicleId));
-              }
-              ref.invalidate(allExpensesProvider);
-            },
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  // Category icon
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: expense.kind == ExpenseKind.fuel
-                          ? (expense.fuelLog?.isFullTank ?? false)
-                                ? AppColors.successBg
-                                : AppColors.primary.withValues(alpha: 0.12)
-                          : AppColors.surfaceDark.withValues(alpha: 0.08),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Center(
-                      child: expense.kind == ExpenseKind.fuel
-                          ? FuelPumpIcon(
-                              isFullTank: expense.fuelLog?.isFullTank ?? false,
-                              size: 20,
-                              darkInk: !(expense.fuelLog?.isFullTank ?? false),
-                            )
-                          : const Icon(
-                              Icons.build_outlined,
-                              color: AppColors.surfaceDark,
-                              size: 20,
-                            ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-
-                  // Text content
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Category is the primary label.
-                        Text(
-                          _categoryLabel,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          vehicleName,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.textMuted,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        // Detail line: date + extras.
-                        Text(
-                          _detail,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: AppColors.textMuted,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-
-                  // Cost
-                  Text(
-                    formatCents(expense.costCents, currency: expense.currency),
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
+                ),
+              );
+              ref.invalidate(maintenanceRecordsProvider(expense.vehicleId));
+            }
+            ref.invalidate(allExpensesProvider);
+          },
         ),
       ),
     );
