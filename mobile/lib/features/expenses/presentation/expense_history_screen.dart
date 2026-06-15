@@ -9,7 +9,7 @@ import '../../../shared/utils/formatting.dart';
 import '../../../shared/widgets/breakdown_bar.dart';
 import '../../../shared/widgets/fuel_pump_icon.dart';
 import '../../fuel/data/fuel_repository.dart';
-import '../../fuel/presentation/fuel_log_form_screen.dart';
+import '../../fuel/presentation/widgets/quick_fuel_entry_sheet.dart';
 import '../../maintenance/data/maintenance_repository.dart';
 import '../../maintenance/presentation/maintenance_form_screen.dart';
 import '../../profile/data/user_repository.dart';
@@ -65,9 +65,20 @@ class _ExpenseHistoryScreenState extends ConsumerState<ExpenseHistoryScreen> {
                       ),
                     ),
                   ),
-                  _SummaryRangeToggle(
-                    value: _summaryRange,
-                    onChanged: (v) => setState(() => _summaryRange = v),
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                    ),
+                    child: IconButton(
+                      key: const Key('expense-filter-button'),
+                      onPressed: () {},
+                      icon: const Icon(Icons.tune_rounded, size: 22),
+                      color: AppColors.textPrimary,
+                      tooltip: 'Filter',
+                    ),
                   ),
                 ],
               ),
@@ -103,6 +114,9 @@ class _ExpenseHistoryScreenState extends ConsumerState<ExpenseHistoryScreen> {
                         expenses: summaryExpenses,
                         userCurrency: userCurrency,
                         kindFilter: _kindFilter,
+                        summaryRange: _summaryRange,
+                        onSummaryRangeChanged: (v) =>
+                            setState(() => _summaryRange = v),
                       ),
 
                       // ---- Kind + vehicle filter bar ----
@@ -150,7 +164,6 @@ class _ExpenseHistoryScreenState extends ConsumerState<ExpenseHistoryScreen> {
                             ),
                           ),
                           data: (vehicles) {
-                            final showVehicleName = vehicles.length > 1;
                             final vehicleMap = {
                               for (final v in vehicles) v.id: v,
                             };
@@ -194,11 +207,10 @@ class _ExpenseHistoryScreenState extends ConsumerState<ExpenseHistoryScreen> {
                                     final expense = group.expenses[tileIndex];
                                     return _ExpenseTile(
                                       expense: expense,
-                                      vehicleName: showVehicleName
-                                          ? (vehicleMap[expense.vehicleId]
-                                                    ?.displayName ??
-                                                'Unknown vehicle')
-                                          : null,
+                                      vehicleName:
+                                          vehicleMap[expense.vehicleId]
+                                              ?.displayName ??
+                                          'Unknown vehicle',
                                     );
                                   }
                                   offset += group.expenses.length;
@@ -235,11 +247,15 @@ class _SummaryCard extends StatelessWidget {
   final List<Expense> expenses;
   final String userCurrency;
   final ExpenseKind? kindFilter;
+  final _SummaryRange summaryRange;
+  final ValueChanged<_SummaryRange> onSummaryRangeChanged;
 
   const _SummaryCard({
     required this.expenses,
     required this.userCurrency,
     required this.kindFilter,
+    required this.summaryRange,
+    required this.onSummaryRangeChanged,
   });
 
   @override
@@ -257,14 +273,25 @@ class _SummaryCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'TOTAL SPENT',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 1.6,
-                  color: AppColors.textMuted,
-                ),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'TOTAL SPENT',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1.6,
+                        color: AppColors.textMuted,
+                      ),
+                    ),
+                  ),
+                  _SummaryRangeToggle(
+                    value: summaryRange,
+                    onChanged: onSummaryRangeChanged,
+                  ),
+                ],
               ),
               const SizedBox(height: 8),
               Text(
@@ -279,7 +306,6 @@ class _SummaryCard extends StatelessWidget {
                   height: 1.05,
                 ),
               ),
-              // Breakdown bar + legend — hidden when a single kind is filtered.
               if (kindFilter == null) ...[
                 const SizedBox(height: 14),
                 BreakdownBar(
@@ -297,23 +323,26 @@ class _SummaryCard extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 12),
-                Row(
-                  children: [
-                    _LegendDot(
-                      color: AppColors.primary,
-                      label: 'Fuel',
-                      amountText: formatCents(fuel, currency: userCurrency),
-                    ),
-                    const SizedBox(width: 16),
-                    _LegendDot(
-                      color: AppColors.surfaceDark,
-                      label: 'Maintenance',
-                      amountText: formatCents(
-                        maintenance,
-                        currency: userCurrency,
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      _LegendDot(
+                        color: AppColors.primary,
+                        label: 'Fuel',
+                        amountText: formatCents(fuel, currency: userCurrency),
                       ),
-                    ),
-                  ],
+                      const SizedBox(width: 16),
+                      _LegendDot(
+                        color: AppColors.surfaceDark,
+                        label: 'Maintenance',
+                        amountText: formatCents(
+                          maintenance,
+                          currency: userCurrency,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ],
@@ -337,32 +366,27 @@ class _LegendDot extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Flexible(
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 10,
-            height: 10,
-            decoration: BoxDecoration(
-              color: color,
-              borderRadius: BorderRadius.circular(3),
-            ),
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 10,
+          height: 10,
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(3),
           ),
-          const SizedBox(width: 6),
-          Flexible(
-            child: Text(
-              '$label  $amountText',
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
-              ),
-            ),
+        ),
+        const SizedBox(width: 6),
+        Text(
+          '$label  $amountText',
+          style: const TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textPrimary,
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -572,7 +596,7 @@ class _KindSegment extends StatelessWidget {
             duration: const Duration(milliseconds: 180),
             curve: Curves.easeOut,
             style: TextStyle(
-              fontSize: 15,
+              fontSize: 13,
               fontWeight: FontWeight.w700,
               color: selected ? Colors.white : const Color(0xFF8A8AA3),
             ),
@@ -702,8 +726,7 @@ class _MonthHeader extends StatelessWidget {
 class _ExpenseTile extends ConsumerWidget {
   final Expense expense;
 
-  /// Null when the user has only one vehicle (name is suppressed).
-  final String? vehicleName;
+  final String vehicleName;
 
   const _ExpenseTile({required this.expense, required this.vehicleName});
 
@@ -741,20 +764,32 @@ class _ExpenseTile extends ConsumerWidget {
         : 'Maintenance';
   }
 
+  String get _dateLine {
+    final parsed = DateTime.tryParse(expense.date);
+    if (parsed == null) return expense.date;
+
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final date = DateTime(parsed.year, parsed.month, parsed.day);
+    final diffDays = today.difference(date).inDays;
+
+    if (diffDays == 0) return 'Today';
+    if (diffDays == 1) return 'Yesterday';
+    return DateFormat('d MMM').format(date);
+  }
+
   /// Secondary detail line (date + extra context).
   String get _detail {
     if (expense.kind == ExpenseKind.fuel) {
       final log = expense.fuelLog!;
-      return '${expense.date} · ${log.liters.toStringAsFixed(1)} L · '
+      return '$_dateLine · ${log.liters.toStringAsFixed(1)} L · '
           '${log.isFullTank ? 'Full' : 'Partial'}';
     }
-    return expense.date;
+    return _dateLine;
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final isMultiVehicle = vehicleName != null;
-
     return Dismissible(
       key: ValueKey(expense.id),
       direction: DismissDirection.endToStart,
@@ -786,7 +821,7 @@ class _ExpenseTile extends ConsumerWidget {
         child: const Icon(Icons.delete_outline, color: Colors.white),
       ),
       child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
         decoration: appCardDecoration.copyWith(
           borderRadius: const BorderRadius.all(Radius.circular(16)),
         ),
@@ -795,29 +830,28 @@ class _ExpenseTile extends ConsumerWidget {
           child: InkWell(
             borderRadius: BorderRadius.circular(16),
             onTap: () async {
-              await Navigator.of(context).push(
-                MaterialPageRoute(
-                  fullscreenDialog: true,
-                  builder: (_) => expense.kind == ExpenseKind.fuel
-                      ? FuelLogFormScreen(
-                          vehicleId: expense.vehicleId,
-                          existing: expense.fuelLog,
-                        )
-                      : MaintenanceFormScreen(
-                          vehicleId: expense.vehicleId,
-                          existing: expense.maintenanceRecord,
-                        ),
-                ),
-              );
               if (expense.kind == ExpenseKind.fuel) {
+                await showQuickFuelEntrySheet(
+                  context,
+                  existing: expense.fuelLog,
+                );
                 ref.invalidate(fuelLogsProvider(expense.vehicleId));
               } else {
+                await Navigator.of(context).push(
+                  MaterialPageRoute(
+                    fullscreenDialog: true,
+                    builder: (_) => MaintenanceFormScreen(
+                      vehicleId: expense.vehicleId,
+                      existing: expense.maintenanceRecord,
+                    ),
+                  ),
+                );
                 ref.invalidate(maintenanceRecordsProvider(expense.vehicleId));
               }
               ref.invalidate(allExpensesProvider);
             },
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
@@ -827,7 +861,9 @@ class _ExpenseTile extends ConsumerWidget {
                     height: 40,
                     decoration: BoxDecoration(
                       color: expense.kind == ExpenseKind.fuel
-                          ? AppColors.primary.withValues(alpha: 0.12)
+                          ? (expense.fuelLog?.isFullTank ?? false)
+                                ? AppColors.successBg
+                                : AppColors.primary.withValues(alpha: 0.12)
                           : AppColors.surfaceDark.withValues(alpha: 0.08),
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -851,17 +887,26 @@ class _ExpenseTile extends ConsumerWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Category is the primary label
+                        // Category is the primary label.
                         Text(
                           _categoryLabel,
                           style: const TextStyle(
-                            fontSize: 14,
+                            fontSize: 16,
                             fontWeight: FontWeight.w700,
                             color: AppColors.textPrimary,
                           ),
                         ),
-                        const SizedBox(height: 3),
-                        // Detail line: date + extras
+                        const SizedBox(height: 2),
+                        Text(
+                          vehicleName,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textMuted,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        // Detail line: date + extras.
                         Text(
                           _detail,
                           style: const TextStyle(
@@ -869,18 +914,6 @@ class _ExpenseTile extends ConsumerWidget {
                             color: AppColors.textMuted,
                           ),
                         ),
-                        // Vehicle name only when multiple vehicles
-                        if (isMultiVehicle) ...[
-                          const SizedBox(height: 2),
-                          Text(
-                            vehicleName!,
-                            style: const TextStyle(
-                              fontSize: 11,
-                              color: AppColors.textMuted,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
                       ],
                     ),
                   ),

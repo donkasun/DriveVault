@@ -11,6 +11,7 @@ import '../../../vehicles/domain/vehicle.dart';
 import '../../../vehicles/presentation/vehicles_provider.dart';
 import '../../data/fuel_repository.dart';
 import '../../domain/fuel_entry_calc.dart';
+import '../../domain/fuel_log.dart';
 import '../fuel_log_form_screen.dart';
 import 'fuel_numeric_keypad.dart';
 
@@ -24,13 +25,15 @@ import 'fuel_numeric_keypad.dart';
 Future<void> showQuickFuelEntrySheet(
   BuildContext context, {
   String? vehicleId,
+  FuelLog? existing,
 }) {
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
     useRootNavigator: true, // cover the floating tab bar
     backgroundColor: Colors.transparent,
-    builder: (_) => QuickFuelEntrySheet(vehicleId: vehicleId),
+    builder: (_) =>
+        QuickFuelEntrySheet(vehicleId: vehicleId, existing: existing),
   );
 }
 
@@ -40,7 +43,8 @@ Future<void> showQuickFuelEntrySheet(
 
 class QuickFuelEntrySheet extends ConsumerStatefulWidget {
   final String? vehicleId;
-  const QuickFuelEntrySheet({super.key, this.vehicleId});
+  final FuelLog? existing;
+  const QuickFuelEntrySheet({super.key, this.vehicleId, this.existing});
 
   @override
   ConsumerState<QuickFuelEntrySheet> createState() =>
@@ -78,11 +82,37 @@ class _QuickFuelEntrySheetState extends ConsumerState<QuickFuelEntrySheet> {
   bool _saving = false;
   String? _error;
   bool _calcSeeded = false;
+  bool _existingSeeded = false;
 
   @override
   void initState() {
     super.initState();
-    _selectedVehicleId = widget.vehicleId;
+    _selectedVehicleId = widget.vehicleId ?? widget.existing?.vehicleId;
+    if (widget.existing != null) _isFullTank = widget.existing!.isFullTank;
+  }
+
+  void _seedFromExisting(FuelLog log, DistanceUnit unit) {
+    if (_existingSeeded) return;
+    _existingSeeded = true;
+    _calcSeeded = true; // block _seedFromLatest from overwriting
+
+    final parsed = DateTime.tryParse(log.date);
+    if (parsed != null) _date = parsed;
+
+    final odoDisplay = kmToDisplay(log.odometer, unit).round();
+    _odometerCtrl.text = odoDisplay.toString();
+
+    final liters = log.liters;
+    final total = log.priceCents / 100;
+    final perLiter = liters > 0 ? total / liters : null;
+
+    _litersCtrl.text = liters.toStringAsFixed(2);
+    _totalCtrl.text = total.toStringAsFixed(2);
+    if (perLiter != null) _perLiterCtrl.text = perLiter.toStringAsFixed(2);
+
+    _calc = FuelEntryCalc(initialPerLiter: perLiter);
+    _calc.setField(FuelField.liters, liters);
+    _calc.setField(FuelField.total, total);
   }
 
   @override
@@ -208,11 +238,14 @@ class _QuickFuelEntrySheetState extends ConsumerState<QuickFuelEntrySheet> {
         'priceCents': priceCents,
         'odometer': odometerKm,
         'isFullTank': _isFullTank,
-        'notes': null,
+        'notes': widget.existing?.notes,
       };
-      await ref
-          .read(fuelRepositoryProvider)
-          .createFuelLog(_selectedVehicleId!, data);
+      final repo = ref.read(fuelRepositoryProvider);
+      if (widget.existing != null) {
+        await repo.updateFuelLog(widget.existing!.id, data);
+      } else {
+        await repo.createFuelLog(_selectedVehicleId!, data);
+      }
 
       ref.invalidate(fuelLogsProvider(_selectedVehicleId!));
       ref.invalidate(fuelStatsProvider(_selectedVehicleId!));
@@ -299,7 +332,9 @@ class _QuickFuelEntrySheetState extends ConsumerState<QuickFuelEntrySheet> {
       userUnit: userUnit,
     );
 
-    if (_selectedVehicleId != null) {
+    if (widget.existing != null) {
+      _seedFromExisting(widget.existing!, unit);
+    } else if (_selectedVehicleId != null) {
       final logsAsync = ref.watch(fuelLogsProvider(_selectedVehicleId!));
       if (logsAsync.hasValue) {
         _seedFromLatest(logsAsync.value!, selected);
@@ -346,7 +381,7 @@ class _QuickFuelEntrySheetState extends ConsumerState<QuickFuelEntrySheet> {
         children: [
           Expanded(
             child: Text(
-              'Log fuel',
+              widget.existing != null ? 'Edit fuel log' : 'Log fuel',
               style: Theme.of(context).textTheme.titleMedium,
             ),
           ),
@@ -545,14 +580,17 @@ class _QuickFuelEntrySheetState extends ConsumerState<QuickFuelEntrySheet> {
                       color: AppColors.textMuted,
                     ),
                   ),
-                Text(
-                  isEmpty ? (hint ?? '—') : text,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: isEmpty
-                        ? AppColors.textMuted
-                        : AppColors.textPrimary,
+                Flexible(
+                  child: Text(
+                    isEmpty ? (hint ?? '—') : text,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: isEmpty
+                          ? AppColors.textMuted
+                          : AppColors.textPrimary,
+                    ),
                   ),
                 ),
                 if (isFocused && !isAuto)

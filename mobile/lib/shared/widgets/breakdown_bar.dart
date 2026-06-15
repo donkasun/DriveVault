@@ -57,39 +57,41 @@ class BreakdownBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final total = segments.fold<int>(0, (sum, s) => sum + s.valueCents);
 
+    // Clamp the corner radius to half the height so the rounded rect never
+    // becomes degenerate (radius ≫ height) — Impeller can otherwise clip the
+    // whole bar to nothing on iOS.
+    final cornerRadius = radius.clamp(0.0, height / 2);
+
     // All-zero / empty → show a neutral placeholder track.
     if (total == 0 || segments.isEmpty) {
-      return SizedBox(
+      return Container(
         height: height,
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: AppColors.divider,
-            borderRadius: BorderRadius.circular(radius),
-          ),
+        decoration: BoxDecoration(
+          color: AppColors.divider,
+          borderRadius: BorderRadius.circular(cornerRadius),
         ),
       );
     }
 
-    return SizedBox(
+    return Container(
       height: height,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(radius),
-        child: Row(
-          children: [
-            for (int i = 0; i < segments.length; i++)
-              _buildSegment(segments[i], total, i, segments.length),
-          ],
-        ),
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(cornerRadius),
+      ),
+      child: Row(
+        // Stretch so each childless segment fills the bar height — without
+        // this the segments collapse to zero height and paint nothing.
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (int i = 0; i < segments.length; i++)
+            _buildSegment(segments[i], total),
+        ],
       ),
     );
   }
 
-  Widget _buildSegment(
-    BreakdownSegment segment,
-    int total,
-    int index,
-    int count,
-  ) {
+  Widget _buildSegment(BreakdownSegment segment, int total) {
     final fraction = segment.valueCents / total;
 
     // Skip zero-value segments to avoid hairline artefacts.
@@ -97,7 +99,9 @@ class BreakdownBar extends StatelessWidget {
 
     return Expanded(
       flex: (fraction * 1000).round(),
-      child: ColoredBox(color: segment.color),
+      child: DecoratedBox(
+        decoration: BoxDecoration(color: segment.color),
+      ),
     );
   }
 }

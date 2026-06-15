@@ -60,15 +60,16 @@ class _FloatingTabBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 72,
+      height: 82,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
       decoration: BoxDecoration(
-        color: Colors.black87,
-        borderRadius: BorderRadius.circular(36),
-        boxShadow: [
+        color: AppColors.surfaceDark,
+        borderRadius: BorderRadius.circular(40),
+        boxShadow: const [
           BoxShadow(
-            color: Colors.black26,
-            blurRadius: 20,
-            offset: Offset(0, 6),
+            color: Color(0x3F000000),
+            blurRadius: 28,
+            offset: Offset(0, 10),
           ),
         ],
       ),
@@ -91,7 +92,6 @@ class _TabBarContentState extends State<_TabBarContent> {
   /// Guard against opening multiple quick-add sheets simultaneously.
   bool _quickAddOpen = false;
 
-  static const _addSlotWidthFactor = 0.72;
   static const _iconAssets = [
     'assets/icons/home.svg',
     'assets/icons/garage.svg',
@@ -99,101 +99,159 @@ class _TabBarContentState extends State<_TabBarContent> {
     'assets/icons/settings.svg',
   ];
   static const _labels = ['Home', 'Garage', 'Expenses', 'Settings'];
-  static const _tabSlots = [0, 1, 3, 4];
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final slotWidth = constraints.maxWidth / 5;
-        final pillWidth = slotWidth - 16;
-        final pillLeft = _tabSlots[widget.currentIndex] * slotWidth + 8;
+    // Layout: Home · Garage · [center +] · Expenses · Settings.
+    // The four tabs flex evenly; the raised add button sits in the middle.
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Expanded(child: _tab(0)),
+        Expanded(child: _tab(1)),
+        _centerAddButton(),
+        Expanded(child: _tab(2)),
+        Expanded(child: _tab(3)),
+      ],
+    );
+  }
 
-        return Stack(
-          children: [
-            // Single pill that slides between tabs
-            AnimatedPositioned(
-              duration: const Duration(milliseconds: 300),
-              curve: Curves.easeInOut,
-              left: pillLeft,
-              top: 8,
-              bottom: 8,
-              width: pillWidth,
-              child: Container(
-                decoration: BoxDecoration(
-                  color: AppColors.primary,
-                  borderRadius: BorderRadius.circular(100),
+  Widget _tab(int index) {
+    final active = index == widget.currentIndex;
+    return GestureDetector(
+      onTap: () => widget.onTap(index),
+      behavior: HitTestBehavior.opaque,
+      child: Center(
+        child: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 220),
+          switchInCurve: Curves.easeOutCubic,
+          switchOutCurve: Curves.easeInCubic,
+          transitionBuilder: (child, animation) {
+            return FadeTransition(
+              opacity: animation,
+              child: ScaleTransition(scale: animation, child: child),
+            );
+          },
+          child: active
+              ? _ActiveTab(
+                  key: ValueKey('active-$index'),
+                  iconAsset: _iconAssets[index],
+                  label: _labels[index],
+                )
+              : _InactiveTab(
+                  key: ValueKey('inactive-$index'),
+                  iconAsset: _iconAssets[index],
+                  label: _labels[index],
                 ),
-              ),
+        ),
+      ),
+    );
+  }
+
+  Widget _centerAddButton() {
+    return Transform.translate(
+      offset: const Offset(0, -10),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 6),
+        child: _AddButton(
+          key: const Key('fab_quick_add'),
+          onPressed: _quickAddOpen
+              ? null
+              : () async {
+                  if (_quickAddOpen) return;
+                  setState(() => _quickAddOpen = true);
+                  try {
+                    await showQuickAddSheet(context);
+                  } finally {
+                    if (mounted) {
+                      setState(() => _quickAddOpen = false);
+                    }
+                  }
+                },
+        ),
+      ),
+    );
+  }
+}
+
+class _ActiveTab extends StatelessWidget {
+  final String iconAsset;
+  final String label;
+
+  const _ActiveTab({super.key, required this.iconAsset, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    // Yellow rounded chip carrying the icon + its label, per the mockup.
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+      decoration: BoxDecoration(
+        color: AppColors.primary,
+        borderRadius: BorderRadius.circular(22),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SvgPicture.asset(
+            iconAsset,
+            width: 22,
+            height: 22,
+            colorFilter: const ColorFilter.mode(
+              AppColors.textPrimary,
+              BlendMode.srcIn,
             ),
-            // Tab items rendered above the pill, with a center add slot.
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                for (var index = 0; index < _labels.length; index++) ...[
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () => widget.onTap(index),
-                      behavior: HitTestBehavior.opaque,
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          SvgPicture.asset(
-                            _iconAssets[index],
-                            width: 22,
-                            height: 22,
-                            colorFilter: ColorFilter.mode(
-                              index == widget.currentIndex
-                                  ? AppColors.onPrimary
-                                  : Colors.grey.shade500,
-                              BlendMode.srcIn,
-                            ),
-                          ),
-                          const SizedBox(height: 3),
-                          Text(
-                            _labels[index],
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: index == widget.currentIndex
-                                  ? FontWeight.w600
-                                  : FontWeight.w400,
-                              color: index == widget.currentIndex
-                                  ? AppColors.onPrimary
-                                  : Colors.grey.shade500,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  if (index == 1)
-                    SizedBox(
-                      width: slotWidth * _addSlotWidthFactor,
-                      child: Center(
-                        child: _AddButton(
-                          key: const Key('fab_quick_add'),
-                          onPressed: _quickAddOpen
-                              ? null
-                              : () async {
-                                  if (_quickAddOpen) return;
-                                  setState(() => _quickAddOpen = true);
-                                  try {
-                                    await showQuickAddSheet(context);
-                                  } finally {
-                                    if (mounted) {
-                                      setState(() => _quickAddOpen = false);
-                                    }
-                                  }
-                                },
-                        ),
-                      ),
-                    ),
-                ],
-              ],
+          ),
+          const SizedBox(height: 3),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary,
+              height: 1,
             ),
-          ],
-        );
-      },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InactiveTab extends StatelessWidget {
+  final String iconAsset;
+  final String label;
+
+  const _InactiveTab({super.key, required this.iconAsset, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        SvgPicture.asset(
+          iconAsset,
+          width: 20,
+          height: 20,
+          colorFilter: const ColorFilter.mode(
+            AppColors.textOnDarkMuted,
+            BlendMode.srcIn,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textOnDarkMuted,
+            height: 1,
+          ),
+        ),
+      ],
     );
   }
 }
@@ -205,17 +263,19 @@ class _AddButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Prominent, raised yellow circle — the central "add anything" action.
     return Material(
       color: AppColors.primary,
       shape: const CircleBorder(),
-      elevation: 0,
+      elevation: 10,
+      shadowColor: AppColors.primary.withValues(alpha: 0.55),
       child: InkWell(
         customBorder: const CircleBorder(),
         onTap: onPressed,
         child: const SizedBox(
-          width: 40,
-          height: 40,
-          child: Icon(Icons.add, color: AppColors.onPrimary, size: 22),
+          width: 72,
+          height: 72,
+          child: Icon(Icons.add, color: AppColors.textPrimary, size: 34),
         ),
       ),
     );

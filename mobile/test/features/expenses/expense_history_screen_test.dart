@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -10,6 +11,7 @@ import 'package:drivevault/features/fuel/domain/fuel_log.dart';
 import 'package:drivevault/features/maintenance/domain/maintenance_record.dart';
 import 'package:drivevault/features/profile/data/user_repository.dart';
 import 'package:drivevault/features/profile/domain/user.dart';
+import 'package:drivevault/shared/widgets/breakdown_bar.dart';
 import 'package:drivevault/features/vehicles/domain/vehicle.dart';
 import 'package:drivevault/features/vehicles/presentation/vehicles_provider.dart';
 
@@ -133,17 +135,22 @@ void main() {
     expect(find.text('TOTAL SPENT'), findsOneWidget);
     expect(find.text('All time'), findsOneWidget);
     expect(find.text('Month'), findsOneWidget);
+    expect(find.byKey(const Key('expense-filter-button')), findsOneWidget);
     expect(find.text('All'), findsOneWidget);
     // 'Fuel' appears in the kind filter AND in the tile primary label.
     expect(find.text('Fuel'), findsWidgets);
     // 'Maintenance' appears in the kind filter toggle AND in the tile.
     expect(find.text('Maintenance'), findsWidgets);
+    expect(find.text(_vehicle1.displayName), findsWidgets);
 
     // Tap Maintenance filter — legend text (legend shows formatted amounts).
+    expect(find.byType(BreakdownBar), findsOneWidget);
+
     await tester.tap(find.text('Maintenance').first);
     await tester.pumpAndSettle();
 
     // After filtering to Maintenance only, fuel legend row is hidden.
+    expect(find.byType(BreakdownBar), findsNothing);
     expect(find.text('Fuel  \$180.00'), findsNothing);
     expect(find.text('Maintenance  \$250.00'), findsNothing);
   });
@@ -186,8 +193,8 @@ void main() {
     expect(juneTop.dy, lessThan(mayTop.dy));
   });
 
-  // ---- New: vehicle name hidden for single-vehicle users ----
-  testWidgets('hides vehicle name when user has only one vehicle', (
+  // ---- New: vehicle name appears even for single-vehicle users ----
+  testWidgets('shows vehicle name when user has only one vehicle', (
     tester,
   ) async {
     final expenses = <Expense>[
@@ -198,8 +205,38 @@ void main() {
     await tester.pumpWidget(_buildScreen(expenses: expenses));
     await tester.pumpAndSettle();
 
-    // The vehicle's display name must NOT appear in the list.
-    expect(find.text(_vehicle1.displayName), findsNothing);
+    expect(find.text(_vehicle1.displayName), findsWidgets);
+  });
+
+  // ---- New: relative date formatting ----
+  testWidgets('formats dates as Today, Yesterday, and day month', (
+    tester,
+  ) async {
+    final now = DateTime.now();
+    final today =
+        '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+    final yesterdayDate = now.subtract(const Duration(days: 1));
+    final yesterday =
+        '${yesterdayDate.year}-${yesterdayDate.month.toString().padLeft(2, '0')}-${yesterdayDate.day.toString().padLeft(2, '0')}';
+    final olderDate = now.subtract(const Duration(days: 4));
+    final older =
+        '${olderDate.year}-${olderDate.month.toString().padLeft(2, '0')}-${olderDate.day.toString().padLeft(2, '0')}';
+
+    final expenses = <Expense>[
+      Expense.fromFuelLog(_fuelLog('f-today', today, 1000)),
+      Expense.fromFuelLog(_fuelLog('f-yesterday', yesterday, 2000)),
+      Expense.fromFuelLog(_fuelLog('f-older', older, 3000)),
+    ];
+
+    await tester.pumpWidget(_buildScreen(expenses: expenses));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Today'), findsWidgets);
+    expect(find.textContaining('Yesterday'), findsWidgets);
+    expect(
+      find.textContaining(DateFormat('d MMM').format(DateTime.parse(older))),
+      findsWidgets,
+    );
   });
 
   // ---- New: All-time vs Month toggle filters in-memory ----
