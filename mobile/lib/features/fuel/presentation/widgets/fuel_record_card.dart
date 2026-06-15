@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/network/api_exceptions.dart';
@@ -10,6 +9,7 @@ import '../../../../shared/widgets/fuel_pump_icon.dart';
 import '../../data/fuel_repository.dart';
 import '../../domain/fuel_log.dart';
 import '../../../profile/data/user_repository.dart';
+import 'quick_fuel_entry_sheet.dart';
 
 String _relativeDate(String dateStr) {
   final date = DateTime.tryParse(dateStr);
@@ -118,10 +118,7 @@ class FuelRecordCard extends ConsumerWidget {
           amountCents: log.priceCents,
           currency: currency,
           onTap: () async {
-            await context.push(
-              '/garage/vehicle/$vehicleId/fuel/edit',
-              extra: log,
-            );
+            await showQuickFuelEntrySheet(context, existing: log);
             onRefresh();
           },
         ),

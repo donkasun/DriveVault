@@ -11,8 +11,6 @@ import '../../features/auth/presentation/verify_email_screen.dart';
 import '../../features/auth/presentation/splash_screen.dart';
 import '../../features/dashboard/presentation/dashboard_screen.dart';
 import '../../features/documents/presentation/document_upload_screen.dart';
-import '../../features/fuel/domain/fuel_log.dart';
-import '../../features/fuel/presentation/fuel_log_form_screen.dart';
 import '../../features/maintenance/domain/maintenance_record.dart';
 import '../../features/maintenance/presentation/maintenance_form_screen.dart';
 import '../../features/profile/presentation/profile_screen.dart';
@@ -91,14 +89,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 path: '/home',
                 builder: (context, state) => const DashboardScreen(),
                 routes: [
-                  // Quick-add fuel log from Dashboard (no vehicleId pre-set)
-                  GoRoute(
-                    path: 'fuel/add',
-                    pageBuilder: (context, state) => const MaterialPage(
-                      fullscreenDialog: true,
-                      child: FuelLogFormScreen(),
-                    ),
-                  ),
                   // Full activity history (from dashboard "See all" button)
                   GoRoute(
                     path: 'activity',
@@ -129,30 +119,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                         builder: (context, state) => VehicleFuelRecordsScreen(
                           vehicleId: state.pathParameters['id']!,
                         ),
-                      ),
-                      // Fuel log — add
-                      GoRoute(
-                        path: 'fuel/add',
-                        pageBuilder: (context, state) => MaterialPage(
-                          fullscreenDialog: true,
-                          child: FuelLogFormScreen(
-                            vehicleId: state.pathParameters['id']!,
-                          ),
-                        ),
-                      ),
-                      // Fuel log — edit (FuelLog passed via extra)
-                      GoRoute(
-                        path: 'fuel/edit',
-                        pageBuilder: (context, state) {
-                          final log = state.extra as FuelLog?;
-                          return MaterialPage(
-                            fullscreenDialog: true,
-                            child: FuelLogFormScreen(
-                              vehicleId: state.pathParameters['id']!,
-                              existing: log,
-                            ),
-                          );
-                        },
                       ),
                       // Maintenance — add
                       GoRoute(

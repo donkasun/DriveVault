@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../dashboard/presentation/dashboard_provider.dart';
 import '../../fuel/data/fuel_repository.dart';
 import '../../fuel/presentation/widgets/fuel_record_card.dart';
+import '../../fuel/presentation/widgets/quick_fuel_entry_sheet.dart';
 import '../data/vehicle_repository.dart';
 import 'vehicles_provider.dart';
 
@@ -31,7 +31,7 @@ class VehicleFuelRecordsScreen extends ConsumerWidget {
         actions: [
           TextButton(
             onPressed: () =>
-                context.push('/garage/vehicle/$vehicleId/fuel/add'),
+                showQuickFuelEntrySheet(context, vehicleId: vehicleId),
             child: const Text('Add fuel'),
           ),
         ],

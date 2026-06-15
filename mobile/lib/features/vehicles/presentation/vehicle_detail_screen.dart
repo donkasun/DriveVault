@@ -15,6 +15,7 @@ import '../../documents/presentation/document_viewer_screen.dart';
 import '../../fuel/data/fuel_repository.dart';
 import '../../fuel/domain/fuel_stats.dart';
 import '../../fuel/presentation/widgets/fuel_record_card.dart';
+import '../../fuel/presentation/widgets/quick_fuel_entry_sheet.dart';
 import '../../maintenance/data/maintenance_repository.dart';
 import '../../maintenance/domain/maintenance_record.dart';
 import '../../profile/data/user_repository.dart';
@@ -137,7 +138,7 @@ class _VehicleDetailBody extends ConsumerWidget {
                 vehicleDistanceUnit: vehicle.distanceUnit,
               ),
               _MaintenanceSection(vehicleId: vehicle.id),
-              _DocumentsSection(vehicleId: vehicle.id),
+              _DocumentsSection(vehicleId: vehicle.id, docsStatus: vehicle.docsStatus),
               const SizedBox(height: 120),
             ]),
           ),
@@ -381,6 +382,23 @@ class _StatsCard extends ConsumerWidget {
     );
     final spent = formatCents(stats?.totalSpentCents ?? 0, currency: currency);
 
+    // Split "78,855 km" → number="78,855", suffix="km"
+    (String, String?) splitSuffix(String v) {
+      if (v == '—') return ('—', null);
+      final i = v.lastIndexOf(' ');
+      return i == -1 ? (v, null) : (v.substring(0, i), v.substring(i + 1));
+    }
+
+    // Split "Rs 19,393" → prefix="Rs", number="19,393"
+    (String?, String) splitPrefix(String v) {
+      final i = v.indexOf(' ');
+      return i == -1 ? (null, v) : (v.substring(0, i), v.substring(i + 1));
+    }
+
+    final (mileageNum, mileageUnit) = splitSuffix(mileage);
+    final (economyNum, economyUnit) = splitSuffix(economy);
+    final (spentPrefix, spentNum) = splitPrefix(spent);
+
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
       decoration: appCardDecoration,
@@ -388,11 +406,11 @@ class _StatsCard extends ConsumerWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _StatCol(value: mileage, label: 'MILEAGE'),
+            _StatCol(number: mileageNum, unitSuffix: mileageUnit, label: 'MILEAGE'),
             _VDivider(),
-            _StatCol(value: economy, label: 'ECONOMY'),
+            _StatCol(number: economyNum, unitSuffix: economyUnit, label: 'ECONOMY'),
             _VDivider(),
-            _StatCol(value: spent, label: 'SPENT'),
+            _StatCol(number: spentNum, unitPrefix: spentPrefix, label: 'SPENT'),
             _VDivider(),
             _DocsStatCol(docsStatus: vehicle.docsStatus),
           ],
@@ -403,35 +421,58 @@ class _StatsCard extends ConsumerWidget {
 }
 
 class _StatCol extends StatelessWidget {
-  final String value;
+  final String number;
+  final String? unitPrefix;
+  final String? unitSuffix;
   final String label;
 
-  const _StatCol({required this.value, required this.label});
+  const _StatCol({
+    required this.number,
+    required this.label,
+    this.unitPrefix,
+    this.unitSuffix,
+  });
+
+  static const _unitStyle = TextStyle(
+    fontSize: 11,
+    fontWeight: FontWeight.w400,
+    color: AppColors.textMuted,
+  );
+
+  static const _numberStyle = TextStyle(
+    fontSize: 14,
+    fontWeight: FontWeight.w700,
+    color: AppColors.textPrimary,
+  );
 
   @override
   Widget build(BuildContext context) {
     return Expanded(
+      flex: 2,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Text(
-              value,
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary,
-              ),
+            RichText(
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
+              text: TextSpan(
+                children: [
+                  if (unitPrefix != null)
+                    TextSpan(text: '$unitPrefix ', style: _unitStyle),
+                  TextSpan(text: number, style: _numberStyle),
+                  if (unitSuffix != null)
+                    TextSpan(text: ' $unitSuffix', style: _unitStyle),
+                ],
+              ),
             ),
             const SizedBox(height: 3),
             Text(
               label,
               style: const TextStyle(
-                fontSize: 9,
-                fontWeight: FontWeight.w600,
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
                 color: AppColors.textMuted,
                 letterSpacing: 0.5,
               ),
@@ -450,13 +491,33 @@ class _DocsStatCol extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isOk = docsStatus.state == 'valid';
+    final icon = isOk ? Icons.check_circle_outline_rounded : Icons.warning_amber_rounded;
+    final color = isOk ? AppColors.success : AppColors.danger;
+    final label = isOk ? 'Done' : '${docsStatus.needsActionCount}';
+
     return Expanded(
+      flex: 1,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            StatusPill.fromDocsStatus(docsStatus),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: 15, color: color),
+                const SizedBox(width: 4),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: color,
+                  ),
+                ),
+              ],
+            ),
             const SizedBox(height: 3),
             const Text(
               'DOCS',
@@ -479,7 +540,10 @@ class _VDivider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(width: 1, color: AppColors.divider);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Container(width: 1, color: AppColors.divider),
+    );
   }
 }
 
@@ -591,7 +655,7 @@ class _FuelSection extends ConsumerWidget {
           count: logCount,
           buttonLabel: 'Add fuel',
           onAdd: () async {
-            await context.push('/garage/vehicle/$vehicleId/fuel/add');
+            await showQuickFuelEntrySheet(context, vehicleId: vehicleId);
           },
         ),
         // Stats card
@@ -826,8 +890,9 @@ class _MaintenanceTile extends ConsumerWidget {
 
 class _DocumentsSection extends ConsumerWidget {
   final String vehicleId;
+  final DocsStatus docsStatus;
 
-  const _DocumentsSection({required this.vehicleId});
+  const _DocumentsSection({required this.vehicleId, required this.docsStatus});
 
   /// Sort: overdue first, then soon (fewest days first), then ok, then no expiry.
   List<Document> _sorted(List<Document> docs) {
@@ -857,6 +922,7 @@ class _DocumentsSection extends ConsumerWidget {
             await context.push('/garage/vehicle/$vehicleId/documents/upload');
           },
         ),
+        _DocsStatusBanner(docsStatus: docsStatus),
         docsAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, _) => Padding(
@@ -880,6 +946,60 @@ class _DocumentsSection extends ConsumerWidget {
           },
         ),
       ],
+    );
+  }
+}
+
+class _DocsStatusBanner extends StatelessWidget {
+  final DocsStatus docsStatus;
+
+  const _DocsStatusBanner({required this.docsStatus});
+
+  @override
+  Widget build(BuildContext context) {
+    final (icon, label, iconColor, bgColor) = switch (docsStatus.state) {
+      'valid' => (
+        Icons.check_circle_outline_rounded,
+        'All Good',
+        AppColors.success,
+        AppColors.successBg,
+      ),
+      'needs_action' => (
+        Icons.warning_amber_rounded,
+        '${docsStatus.needsActionCount} ${docsStatus.needsActionCount == 1 ? 'doc' : 'docs'} need attention',
+        const Color(0xFFB45309),
+        const Color(0xFFFCF1DC),
+      ),
+      _ => (
+        Icons.info_outline_rounded,
+        'No documents',
+        AppColors.textMuted,
+        AppColors.divider,
+      ),
+    };
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: iconColor),
+          const SizedBox(width: 7),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: iconColor,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
