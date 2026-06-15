@@ -113,13 +113,14 @@ class StatusPill extends StatelessWidget {
     DocsStatus status, {
     Key? key,
     VoidCallback? onTap,
+    bool onDark = false,
   }) {
     final (glyph, label, tone) = switch (status.state) {
       'valid' => ('✓', 'Docs valid', PillTone.ok),
       'needs_action' => (
         '⚠',
         '${status.needsActionCount} need action',
-        status.needsActionCount >= 3 ? PillTone.overdue : PillTone.soon,
+        PillTone.overdue,
       ),
       _ => (null as String?, 'No docs', PillTone.neutral),
     };
@@ -129,6 +130,7 @@ class StatusPill extends StatelessWidget {
       tone: tone,
       glyph: glyph,
       onTap: onTap,
+      onDark: onDark,
     );
   }
 

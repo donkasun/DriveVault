@@ -8,6 +8,7 @@ import '../../../shared/constants/currencies.dart';
 import '../../../shared/utils/formatting.dart';
 import '../../../shared/widgets/breakdown_bar.dart';
 import '../../../shared/widgets/fuel_pump_icon.dart';
+import '../../../shared/widgets/sheet_close_button.dart';
 import '../../fuel/data/fuel_repository.dart';
 import '../../fuel/presentation/widgets/quick_fuel_entry_sheet.dart';
 import '../../maintenance/data/maintenance_repository.dart';
@@ -35,6 +36,20 @@ class _ExpenseHistoryScreenState extends ConsumerState<ExpenseHistoryScreen> {
   ExpenseKind? _kindFilter; // null = All
   String? _vehicleIdFilter; // null = All vehicles
   _SummaryRange _summaryRange = _SummaryRange.allTime;
+
+  void _showFilterSheet(BuildContext context) {
+    final vehicles = ref.read(vehiclesProvider).asData?.value ?? [];
+    showModalBottomSheet<void>(
+      context: context,
+      useRootNavigator: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _ExpenseFilterSheet(
+        vehicles: vehicles,
+        selectedVehicleId: _vehicleIdFilter,
+        onVehicleChanged: (id) => setState(() => _vehicleIdFilter = id),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -65,19 +80,43 @@ class _ExpenseHistoryScreenState extends ConsumerState<ExpenseHistoryScreen> {
                       ),
                     ),
                   ),
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                    ),
-                    child: IconButton(
-                      key: const Key('expense-filter-button'),
-                      onPressed: () {},
-                      icon: const Icon(Icons.tune_rounded, size: 22),
-                      color: AppColors.textPrimary,
-                      tooltip: 'Filter',
+                  GestureDetector(
+                    key: const Key('expense-filter-button'),
+                    onTap: () => _showFilterSheet(context),
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        Container(
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            color: _vehicleIdFilter != null
+                                ? AppColors.textPrimary
+                                : Colors.white,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            Icons.tune_rounded,
+                            size: 22,
+                            color: _vehicleIdFilter != null
+                                ? Colors.white
+                                : AppColors.textPrimary,
+                          ),
+                        ),
+                        if (_vehicleIdFilter != null)
+                          Positioned(
+                            top: -2,
+                            right: -2,
+                            child: Container(
+                              width: 10,
+                              height: 10,
+                              decoration: const BoxDecoration(
+                                color: AppColors.primary,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
                   ),
                 ],
@@ -119,34 +158,12 @@ class _ExpenseHistoryScreenState extends ConsumerState<ExpenseHistoryScreen> {
                             setState(() => _summaryRange = v),
                       ),
 
-                      // ---- Kind + vehicle filter bar ----
+                      // ---- Kind filter bar ----
                       Padding(
                         padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            _KindFilterBar(
-                              value: _kindFilter,
-                              onChanged: (v) => setState(() => _kindFilter = v),
-                            ),
-                            vehiclesAsync.maybeWhen(
-                              data: (vehicles) {
-                                if (vehicles.length <= 1) {
-                                  return const SizedBox.shrink();
-                                }
-                                return Padding(
-                                  padding: const EdgeInsets.only(top: 10),
-                                  child: _VehicleFilterPill(
-                                    vehicles: vehicles,
-                                    selectedId: _vehicleIdFilter,
-                                    onChanged: (v) =>
-                                        setState(() => _vehicleIdFilter = v),
-                                  ),
-                                );
-                              },
-                              orElse: () => const SizedBox.shrink(),
-                            ),
-                          ],
+                        child: _KindFilterBar(
+                          value: _kindFilter,
+                          onChanged: (v) => setState(() => _kindFilter = v),
                         ),
                       ),
 
@@ -550,67 +567,158 @@ class _KindSegment extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Vehicle filter pill (only when >1 vehicle)
+// Filter bottom sheet
 // ---------------------------------------------------------------------------
 
-class _VehicleFilterPill extends StatelessWidget {
+class _ExpenseFilterSheet extends StatelessWidget {
   final List<Vehicle> vehicles;
-  final String? selectedId;
-  final ValueChanged<String?> onChanged;
+  final String? selectedVehicleId;
+  final ValueChanged<String?> onVehicleChanged;
 
-  const _VehicleFilterPill({
+  const _ExpenseFilterSheet({
     required this.vehicles,
-    required this.selectedId,
-    required this.onChanged,
+    required this.selectedVehicleId,
+    required this.onVehicleChanged,
   });
 
   @override
   Widget build(BuildContext context) {
-    final label = selectedId == null
-        ? 'All vehicles'
-        : vehicles
-              .firstWhere(
-                (v) => v.id == selectedId,
-                orElse: () => vehicles.first,
-              )
-              .displayName;
-    final selected = selectedId != null;
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(999),
-        onTap: () {
-          if (selectedId == null) {
-            onChanged(vehicles.first.id);
-          } else {
-            final idx = vehicles.indexWhere((v) => v.id == selectedId);
-            if (idx < vehicles.length - 1) {
-              onChanged(vehicles[idx + 1].id);
-            } else {
-              onChanged(null);
-            }
-          }
-        },
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          decoration: BoxDecoration(
-            color: selected ? AppColors.textPrimary : const Color(0xFFF4F5FA),
-            borderRadius: BorderRadius.circular(999),
-          ),
-          child: Center(
-            child: Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: selected ? Colors.white : AppColors.textMuted,
+    return Container(
+      decoration: const BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Drag handle
+            Center(
+              child: Container(
+                margin: const EdgeInsets.only(top: 10, bottom: 2),
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.divider,
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
             ),
+            // Header
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 8, 8),
+              child: Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'Filter',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                  ),
+                  SheetCloseButton(onPressed: () => Navigator.of(context).pop()),
+                ],
+              ),
+            ),
+            if (vehicles.length > 1) ...[
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+                child: Text(
+                  'VEHICLE',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.2,
+                    color: AppColors.textMuted,
+                  ),
+                ),
+              ),
+              // All vehicles row
+              _VehicleFilterRow(
+                label: 'All vehicles',
+                selected: selectedVehicleId == null,
+                onTap: () {
+                  onVehicleChanged(null);
+                  Navigator.of(context).pop();
+                },
+              ),
+              for (final v in vehicles)
+                _VehicleFilterRow(
+                  label: v.displayName,
+                  subtitle: v.registrationNumber,
+                  selected: selectedVehicleId == v.id,
+                  onTap: () {
+                    onVehicleChanged(v.id);
+                    Navigator.of(context).pop();
+                  },
+                ),
+            ],
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _VehicleFilterRow extends StatelessWidget {
+  final String label;
+  final String? subtitle;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _VehicleFilterRow({
+    required this.label,
+    this.subtitle,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+        decoration: BoxDecoration(
+          border: Border(
+            bottom: BorderSide(color: AppColors.divider, width: 0.5),
           ),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: selected
+                          ? AppColors.textPrimary
+                          : AppColors.textPrimary,
+                    ),
+                  ),
+                  if (subtitle != null)
+                    Text(
+                      subtitle!,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textMuted,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            if (selected)
+              const Icon(Icons.check_rounded, size: 20, color: AppColors.success),
+          ],
         ),
       ),
     );

@@ -305,7 +305,7 @@ class _LoadedContent extends ConsumerWidget {
           // 3. Recent activity
           if (data.recentActivity.isNotEmpty) ...[
             _RecentActivitySection(
-              items: data.recentActivity,
+              items: data.recentActivity.take(5).toList(),
               currency: currency,
             ),
           ],

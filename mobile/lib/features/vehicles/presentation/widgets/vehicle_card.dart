@@ -58,18 +58,8 @@ class VehicleCard extends ConsumerWidget {
     final year = vehicle.year?.toString();
     final reg = vehicle.registrationNumber;
 
-    // Build "year · reg" subtitle — show whatever is available
-    String? subtitle;
-    if (year != null && reg != null) {
-      subtitle = '$year · $reg';
-    } else if (year != null) {
-      subtitle = year;
-    } else if (reg != null) {
-      subtitle = reg;
-    }
-
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      margin: const EdgeInsets.fromLTRB(20, 0, 20, 16),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           begin: Alignment.topCenter,
@@ -79,16 +69,15 @@ class VehicleCard extends ConsumerWidget {
         borderRadius: BorderRadius.circular(18),
       ),
       clipBehavior: Clip.hardEdge,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // ── Top row: name/reg/pill  +  thumbnail ─────────────────────
-            Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ── Top section: name/reg/pill + thumbnail ─────────────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+            child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Left: name stack
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -101,46 +90,79 @@ class VehicleCard extends ConsumerWidget {
                           fontWeight: FontWeight.w700,
                         ),
                       ),
-                      if (subtitle != null) ...[
+                      if (year != null || reg != null) ...[
                         const SizedBox(height: 3),
-                        Text(
-                          subtitle,
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.55),
-                            fontSize: 13,
-                          ),
+                        Row(
+                          children: [
+                            if (year != null)
+                              Text(
+                                year,
+                                style: TextStyle(
+                                  color: Colors.white.withValues(alpha: 0.62),
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            if (year != null && reg != null) ...[
+                              const SizedBox(width: 8),
+                              Container(
+                                width: 3,
+                                height: 3,
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.38),
+                                  borderRadius: BorderRadius.circular(9),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                            ],
+                            if (reg != null)
+                              Text(
+                                reg,
+                                style: TextStyle(
+                                  color: Colors.white.withValues(alpha: 0.62),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  fontFamily: 'monospace',
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                          ],
                         ),
                       ],
                       const SizedBox(height: 6),
-                      StatusPill.fromDocsStatus(vehicle.docsStatus),
+                      StatusPill.fromDocsStatus(vehicle.docsStatus, onDark: true),
                     ],
                   ),
                 ),
                 const SizedBox(width: 12),
-                // Right: thumbnail
                 _Thumbnail(photoUrl: vehicle.photoUrl),
               ],
             ),
-            const SizedBox(height: 14),
+          ),
 
-            // ── Stats row (no icons) ──────────────────────────────────────
-            Row(
+          // ── Divider ───────────────────────────────────────────────────
+          const Divider(color: Color(0xFF34333F), height: 1, thickness: 1),
+
+          // ── Stats section ─────────────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+            child: Row(
               children: [
                 _StatItem(value: mileageStr, label: 'MILEAGE'),
                 _StatItem(value: economyStr, label: 'ECONOMY'),
                 _StatItem(value: totalSpentStr, label: 'SPENT'),
               ],
             ),
-            const SizedBox(height: 12),
+          ),
 
-            // ── Divider ───────────────────────────────────────────────────
-            const Divider(color: Colors.white12, height: 1),
-            const SizedBox(height: 12),
+          // ── Divider ───────────────────────────────────────────────────
+          const Divider(color: Color(0xFF34333F), height: 1, thickness: 1),
 
-            // ── Actions row ───────────────────────────────────────────────
-            Row(
+          // ── Actions row ───────────────────────────────────────────────
+          SizedBox(
+            height: 50,
+            child: Row(
               children: [
-                // Log fuel
                 Expanded(
                   child: GestureDetector(
                     onTap: () => showQuickFuelEntrySheet(
@@ -154,15 +176,15 @@ class VehicleCard extends ConsumerWidget {
                           Icon(
                             Icons.local_gas_station,
                             color: AppColors.primary,
-                            size: 16,
+                            size: 18,
                           ),
-                          const SizedBox(width: 5),
+                          const SizedBox(width: 8),
                           const Text(
                             'Log fuel',
                             style: TextStyle(
                               color: AppColors.primary,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
                             ),
                           ),
                         ],
@@ -170,34 +192,27 @@ class VehicleCard extends ConsumerWidget {
                     ),
                   ),
                 ),
-                // Vertical divider
-                Container(
-                  width: 1,
-                  height: 20,
-                  color: Colors.white12,
-                ),
-                // Open
+                Container(width: 1, color: const Color(0xFF34333F)),
                 Expanded(
                   child: GestureDetector(
-                    onTap: () =>
-                        context.push('/garage/vehicle/${vehicle.id}'),
+                    onTap: () => context.push('/garage/vehicle/${vehicle.id}'),
                     child: Center(
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text(
-                            'Open',
-                            style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.7),
-                              fontSize: 13,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                          const SizedBox(width: 4),
                           Icon(
                             Icons.arrow_forward,
-                            color: Colors.white.withValues(alpha: 0.7),
-                            size: 14,
+                            color: AppColors.primary,
+                            size: 18,
+                          ),
+                          const SizedBox(width: 8),
+                          const Text(
+                            'Open',
+                            style: TextStyle(
+                              color: AppColors.primary,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
                         ],
                       ),
@@ -206,8 +221,8 @@ class VehicleCard extends ConsumerWidget {
                 ),
               ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -224,8 +239,8 @@ class _Thumbnail extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 72,
-      height: 72,
+      width: 88,
+      height: 64,
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(12),

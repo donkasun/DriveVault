@@ -479,7 +479,7 @@ Future<void> _pickDate() async {
           ),
           child: Row(
             children: [
-              _vehicleTypeIcon(selected?.vehicleType, size: 34),
+              _vehicleTypeIcon(selected?.vehicleType, size: 34, photoUrl: selected?.photoUrl),
               const SizedBox(width: 11),
               Expanded(
                 child: Column(
@@ -542,7 +542,19 @@ Future<void> _pickDate() async {
     );
   }
 
-  static Widget _vehicleTypeIcon(String? type, {double size = 34}) {
+  static Widget _vehicleTypeIcon(String? type, {double size = 34, String? photoUrl}) {
+    if (photoUrl != null) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(9),
+        child: Image.network(
+          photoUrl,
+          width: size,
+          height: size,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => _vehicleTypeIcon(type, size: size),
+        ),
+      );
+    }
     final icon = switch (type) {
       'motorcycle' => Icons.two_wheeler,
       'truck' || 'pickup' => Icons.local_shipping_outlined,
@@ -982,6 +994,7 @@ class _VehiclePickerSheet extends StatelessWidget {
                       _QuickFuelEntrySheetState._vehicleTypeIcon(
                         v.vehicleType,
                         size: 38,
+                        photoUrl: v.photoUrl,
                       ),
                       const SizedBox(width: 12),
                       Expanded(
