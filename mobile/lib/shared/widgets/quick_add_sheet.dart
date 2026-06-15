@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/theme/app_theme.dart';
+import 'sheet_close_button.dart';
 import '../../features/fuel/presentation/widgets/quick_fuel_entry_sheet.dart';
 import '../../features/maintenance/presentation/widgets/quick_maintenance_sheet.dart';
 import '../../features/vehicles/presentation/vehicles_provider.dart';
@@ -85,11 +86,9 @@ class _SheetBody extends StatelessWidget {
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                 ),
-                IconButton(
+                SheetCloseButton(
                   key: const Key('quick_add_close'),
-                  icon: const Icon(Icons.close, color: AppColors.textMuted),
                   onPressed: () => Navigator.of(context).pop(),
-                  visualDensity: VisualDensity.compact,
                 ),
               ],
             ),

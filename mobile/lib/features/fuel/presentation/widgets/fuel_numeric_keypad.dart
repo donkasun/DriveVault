@@ -69,13 +69,12 @@ class FuelNumericKeypad extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const keys = [
-      ['7', '8', '9'],
-      ['4', '5', '6'],
       ['1', '2', '3'],
+      ['4', '5', '6'],
+      ['7', '8', '9'],
       ['.', '0', '⌫'],
     ];
-    return Container(
-      color: AppColors.background,
+    return Padding(
       padding: const EdgeInsets.fromLTRB(8, 4, 8, 4),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -109,36 +108,44 @@ class _KeyButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDelete = label == '⌫';
-    return Material(
-      key: isDelete ? const ValueKey('keypad_backspace') : null,
-      color: isDelete ? AppColors.background : AppColors.surface,
-      borderRadius: BorderRadius.circular(10),
-      child: InkWell(
-        onTap: onTap,
+    return DecoratedBox(
+      decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(10),
-        child: Container(
-          height: 48,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(
-              color: isDelete ? Colors.transparent : AppColors.divider,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withAlpha(20),
+            blurRadius: 3,
+            spreadRadius: 0.5,
+            offset: Offset.zero,
+          ),
+        ],
+      ),
+      child: Material(
+        key: isDelete ? const ValueKey('keypad_backspace') : null,
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(10),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(10),
+          child: SizedBox(
+            height: 48,
+            child: Center(
+              child: isDelete
+                  ? const Icon(
+                      Icons.backspace_outlined,
+                      size: 20,
+                      color: AppColors.textPrimary,
+                    )
+                  : Text(
+                      label,
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
             ),
           ),
-          child: isDelete
-              ? const Icon(
-                  Icons.backspace_outlined,
-                  size: 20,
-                  color: AppColors.textPrimary,
-                )
-              : Text(
-                  label,
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
         ),
       ),
     );
