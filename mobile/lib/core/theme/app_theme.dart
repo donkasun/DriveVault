@@ -15,17 +15,20 @@ class AppColors {
   static const Color textPrimary = Color(0xFF1A1A2E);
   static const Color textMuted = Color(0xFF9898A6);
   static const Color textOnDark = Color(0xFFFFFFFF);
-  static const Color textOnDarkMuted = Color(0xFF9898A6);
+  // rgba(244,243,248,0.62) — design --mut token for muted text on dark surfaces
+  static const Color textOnDarkMuted = Color(0x9EF4F3F8);
 
   // Utility
   static const Color divider = Color(0xFFE2E2EA);
-  static const Color success = Color(0xFF22C55E);
-  static const Color warning = Color(0xFFF59E0B);
-  static const Color danger = Color(0xFFEF4444);
-
-  static const Color successBg = Color(0xFFDCFCE7);
-  static const Color warningBg = Color(0xFFFEF3C7);
-  static const Color dangerBg = Color(0xFFFEE2E2);
+  // Status colours — match the design's pill palette exactly so the same
+  // tokens can be used for pills, icons, banners, and dots without
+  // repeating hex literals throughout the codebase.
+  static const Color success = Color(0xFF34D399);   // design ok ink
+  static const Color warning = Color(0xFFFBBF24);   // design --warn / soon ink
+  static const Color danger  = Color(0xFFFF7A7A);   // design --bad / overdue ink
+  static const Color successBg = Color(0x2922C55E); // rgba(34,197,94,  0.16)
+  static const Color warningBg = Color(0x2EF59E0B); // rgba(245,158,11, 0.18)
+  static const Color dangerBg  = Color(0x2EEF4444); // rgba(239,68,68,  0.18)
 
   // Design-language tokens
   static const Color dashedBorder = Color(0xFFC2C4CF);

@@ -99,7 +99,7 @@ void main() {
     await tester.pumpWidget(_wrapWithProvider(const GarageScreen(), [vehicle]));
     await tester.pumpAndSettle();
 
-    expect(find.text('Toyota Hilux 2020'), findsOneWidget);
+    expect(find.text('2020 Toyota Hilux'), findsOneWidget);
     expect(find.text('ABC-1234'), findsOneWidget);
   });
 

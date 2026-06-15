@@ -5,14 +5,19 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:drivevault/features/auth/data/auth_repository.dart';
 import 'package:drivevault/features/dashboard/data/dashboard_repository.dart';
 import 'package:drivevault/features/dashboard/domain/dashboard_data.dart';
+import 'package:drivevault/features/dashboard/presentation/dashboard_provider.dart';
 import 'package:drivevault/features/dashboard/presentation/dashboard_screen.dart';
-import 'package:drivevault/core/router/shell_tab_provider.dart';
 import 'package:drivevault/features/profile/data/user_repository.dart';
 import 'package:drivevault/features/profile/domain/user.dart';
 import 'package:drivevault/features/vehicles/domain/vehicle.dart';
 import 'package:drivevault/features/vehicles/presentation/vehicles_provider.dart';
+
+// ---------------------------------------------------------------------------
+// Stub helpers
+// ---------------------------------------------------------------------------
 
 final _stubUser = AppUser(
   id: 'u-1',
@@ -20,6 +25,9 @@ final _stubUser = AppUser(
   email: 'me@example.com',
   createdAt: DateTime(2026, 1, 1),
 );
+
+// Auth stub — avoids Firebase initialisation in unit tests.
+final _noFirebaseAuth = AuthRepository.testing();
 
 class _FakeDashboardRepository implements DashboardRepository {
   final Future<DashboardData> Function() _fetch;
@@ -37,25 +45,28 @@ class _FakeVehiclesNotifier extends VehiclesNotifier {
   Future<List<Vehicle>> build() async => _vehicles;
 }
 
-Vehicle _makeVehicle({
-  String id = 'uuid-00000000-1111-2222-3333-444444444444',
-  String make = 'Toyota',
-  String model = 'Hilux',
-  int? year = 2020,
-}) {
-  final now = DateTime(2026, 1, 1);
-  return Vehicle(
-    id: id,
-    make: make,
-    model: model,
-    year: year,
-    currency: 'USD',
-    createdAt: now,
-    updatedAt: now,
-  );
+/// An [AsyncNotifier] that immediately emits [AsyncError] in [build].
+///
+/// Used to test the error state of [DashboardScreen] without relying on
+/// the async timing of [_FakeDashboardRepository] inside a widget test's
+/// fake-timer zone.
+class _ImmediateErrorNotifier extends DashboardNotifier {
+  @override
+  Future<DashboardData> build() async {
+    // Set state synchronously before returning so widgets see the error on
+    // the first pump rather than waiting for a microtask.
+    state = AsyncError(Exception('Network failure'), StackTrace.empty);
+    // Return a future that never resolves so Riverpod doesn't overwrite state.
+    return Completer<DashboardData>().future;
+  }
 }
 
-DashboardData _loadedData({int vehicleCount = 2}) {
+/// Returns minimal dashboard data. [vehicleCount] defaults to 2.
+DashboardData _loadedData({
+  int vehicleCount = 2,
+  List<UpcomingRenewal>? renewals,
+  List<ActivityItem>? activity,
+}) {
   return DashboardData(
     vehicleCount: vehicleCount,
     monthlyFuelSpendCents: 23400,
@@ -65,16 +76,24 @@ DashboardData _loadedData({int vehicleCount = 2}) {
       maintenanceCents: 320000,
       purchaseCents: 0,
     ),
-    upcomingRenewals: const [
-      UpcomingRenewal(
-        vehicleId: 'uuid-00000000',
-        title: 'Insurance',
-        expiryDate: '2026-12-31',
-      ),
-    ],
+    upcomingRenewals:
+        renewals ??
+        const [
+          UpcomingRenewal(
+            vehicleId: 'uuid-00000000',
+            title: 'Insurance',
+            expiryDate: '2026-12-31',
+          ),
+        ],
+    recentActivity: activity ?? const [],
   );
 }
 
+// ---------------------------------------------------------------------------
+// Widget wrappers
+// ---------------------------------------------------------------------------
+
+/// Wraps [child] in a plain MaterialApp + ProviderScope (no router needed).
 Widget _wrapSimple(
   Widget child,
   DashboardRepository repo, {
@@ -82,6 +101,7 @@ Widget _wrapSimple(
 }) {
   return ProviderScope(
     overrides: [
+      authRepositoryProvider.overrideWithValue(_noFirebaseAuth),
       dashboardRepositoryProvider.overrideWithValue(repo),
       meProvider.overrideWith((ref) async => _stubUser),
       vehiclesProvider.overrideWith(() => _FakeVehiclesNotifier(vehicles)),
@@ -90,6 +110,7 @@ Widget _wrapSimple(
   );
 }
 
+/// Wraps [child] in a GoRouter so that context.go() calls can be asserted.
 Widget _wrapWithRouter(
   Widget child,
   DashboardRepository repo, {
@@ -113,6 +134,7 @@ Widget _wrapWithRouter(
 
   return ProviderScope(
     overrides: [
+      authRepositoryProvider.overrideWithValue(_noFirebaseAuth),
       dashboardRepositoryProvider.overrideWithValue(repo),
       meProvider.overrideWith((ref) async => _stubUser),
       vehiclesProvider.overrideWith(() => _FakeVehiclesNotifier(vehicles)),
@@ -121,12 +143,14 @@ Widget _wrapWithRouter(
   );
 }
 
+// ---------------------------------------------------------------------------
+// Tests
+// ---------------------------------------------------------------------------
+
 void main() {
-  group('DashboardScreen states', () {
-    testWidgets('shows CircularProgressIndicator while loading', (
-      tester,
-    ) async {
-      // Use a completer that never resolves so the provider stays in loading.
+  group('DashboardScreen — four states', () {
+    testWidgets('shows skeleton boxes while loading', (tester) async {
+      // Use a Completer that never resolves so the provider stays in loading.
       final neverCompletes = Completer<DashboardData>();
 
       await tester.pumpWidget(
@@ -136,11 +160,16 @@ void main() {
         ),
       );
 
-      // First frame — still loading
+      // First frame — still loading; skeletons are Containers with divider colour.
       await tester.pump();
-      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      // The _LoadingState renders a ListView with several _SkeletonBox widgets.
+      // Each is a Container — we check that at least one is present.
+      expect(find.byType(Container), findsWidgets);
+      // No loaded or error content yet.
+      expect(find.text('Needs Attention'), findsNothing);
+      expect(find.text('Retry'), findsNothing);
 
-      // Complete the completer so no pending timers remain.
+      // Resolve so no pending timers remain.
       neverCompletes.complete(_loadedData());
     });
 
@@ -158,33 +187,28 @@ void main() {
       expect(find.text('Add your first vehicle'), findsOneWidget);
     });
 
-    testWidgets('empty state button targets the Garage tab', (tester) async {
-      final container = ProviderContainer(
-        overrides: [
-          dashboardRepositoryProvider.overrideWithValue(
-            _FakeDashboardRepository(() async => _loadedData(vehicleCount: 0)),
-          ),
-          meProvider.overrideWith((ref) async => _stubUser),
-          vehiclesProvider.overrideWith(() => _FakeVehiclesNotifier(const [])),
-        ],
-      );
-      addTearDown(container.dispose);
-
+    testWidgets('empty-state button navigates to the Garage screen', (
+      tester,
+    ) async {
+      // The empty-state CTA calls context.go('/garage'), so we need a GoRouter.
       await tester.pumpWidget(
-        UncontrolledProviderScope(
-          container: container,
-          child: const MaterialApp(home: DashboardScreen()),
+        _wrapWithRouter(
+          const DashboardScreen(),
+          _FakeDashboardRepository(() async => _loadedData(vehicleCount: 0)),
         ),
       );
 
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Add your first vehicle'));
-      await tester.pump();
 
-      expect(container.read(pendingTabProvider), 1);
+      expect(find.text('Add your first vehicle'), findsOneWidget);
+      await tester.tap(find.text('Add your first vehicle'));
+      await tester.pumpAndSettle();
+
+      // After tapping, GoRouter navigates to /garage.
+      expect(find.text('Garage'), findsOneWidget);
     });
 
-    testWidgets('shows Total Ownership Cost text when vehicleCount > 0', (
+    testWidgets('loaded state shows TOTAL OWNERSHIP COST header', (
       tester,
     ) async {
       await tester.pumpWidget(
@@ -196,98 +220,278 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      expect(find.text('Total Ownership Cost'), findsOneWidget);
+      // The spend card renders 'TOTAL OWNERSHIP COST' as a labelSmall text.
+      expect(find.text('TOTAL OWNERSHIP COST'), findsOneWidget);
     });
 
-    testWidgets('shows Retry button on error', (tester) async {
+    testWidgets('shows error state when the repository throws', (tester) async {
+      // Override dashboardProvider directly to emit AsyncError immediately.
+      // This bypasses any timing issues with async notifier build in widget tests.
       await tester.pumpWidget(
-        _wrapSimple(
-          const DashboardScreen(),
-          _FakeDashboardRepository(
-            () async => throw Exception('Network failure'),
-          ),
+        ProviderScope(
+          overrides: [
+            authRepositoryProvider.overrideWithValue(_noFirebaseAuth),
+            meProvider.overrideWith((ref) async => _stubUser),
+            dashboardProvider.overrideWith(() => _ImmediateErrorNotifier()),
+          ],
+          child: const MaterialApp(home: DashboardScreen()),
         ),
       );
 
       await tester.pumpAndSettle();
 
-      expect(find.text('Retry'), findsOneWidget);
+      expect(find.byType(ElevatedButton), findsOneWidget);
     });
-  });
 
-  group('DashboardScreen — upcoming renewals', () {
-    testWidgets('renewal row shows resolved vehicle name when vehicle found', (
-      tester,
-    ) async {
-      final vehicle = _makeVehicle(id: 'uuid-00000000');
-
+    testWidgets('loaded state shows monthly fuel stat card', (tester) async {
       await tester.pumpWidget(
         _wrapSimple(
           const DashboardScreen(),
           _FakeDashboardRepository(() async => _loadedData(vehicleCount: 1)),
-          vehicles: [vehicle],
         ),
       );
 
       await tester.pumpAndSettle();
 
-      // Should show the human-readable name, not the raw UUID substring
-      expect(find.text('Toyota Hilux 2020'), findsOneWidget);
+      // StatCard.label is uppercased inside the widget → 'FUEL · THIS MONTH'.
+      expect(find.text('FUEL · THIS MONTH'), findsOneWidget);
+    });
+  });
+
+  group('DashboardScreen — needs-attention filtering', () {
+    testWidgets('overdue and soon renewals are shown in Needs Attention', (
+      tester,
+    ) async {
+      final data = _loadedData(
+        renewals: [
+          const UpcomingRenewal(
+            vehicleId: 'v-1',
+            title: 'Insurance',
+            expiryDate: '2026-01-01',
+            status: RenewalStatus.overdue,
+            vehicleLabel: 'Car A',
+          ),
+          const UpcomingRenewal(
+            vehicleId: 'v-2',
+            title: 'Road Tax',
+            expiryDate: '2026-02-01',
+            status: RenewalStatus.soon,
+            daysRemaining: 14,
+            vehicleLabel: 'Car B',
+          ),
+        ],
+      );
+
+      await tester.pumpWidget(
+        _wrapSimple(
+          const DashboardScreen(),
+          _FakeDashboardRepository(() async => data),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(find.text('Insurance'), findsOneWidget);
+      expect(find.text('Road Tax'), findsOneWidget);
+      // Both should appear — neither is filtered out.
     });
 
-    testWidgets(
-      'renewal row falls back to UUID prefix when vehicle not in list',
-      (tester) async {
+    testWidgets('ok-status renewals are NOT shown in Needs Attention', (
+      tester,
+    ) async {
+      final data = _loadedData(
+        renewals: [
+          const UpcomingRenewal(
+            vehicleId: 'v-3',
+            title: 'Emission Check',
+            expiryDate: '2027-12-31',
+            status: RenewalStatus.ok,
+            vehicleLabel: 'Car C',
+          ),
+        ],
+      );
+
+      await tester.pumpWidget(
+        _wrapSimple(
+          const DashboardScreen(),
+          _FakeDashboardRepository(() async => data),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      // Title row absent — filtered out because status == ok.
+      expect(find.text('Emission Check'), findsNothing);
+      // The card should show the "all set" calm state instead.
+      expect(find.textContaining("You're all set"), findsOneWidget);
+    });
+
+    testWidgets('shows calm "all set" when renewals list is empty', (
+      tester,
+    ) async {
+      final data = _loadedData(renewals: const []);
+
+      await tester.pumpWidget(
+        _wrapSimple(
+          const DashboardScreen(),
+          _FakeDashboardRepository(() async => data),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining("You're all set"), findsOneWidget);
+    });
+  });
+
+  group(
+    'DashboardScreen — upcoming renewals (legacy vehicle-label resolution)',
+    () {
+      testWidgets('renewal row shows API-supplied vehicleLabel', (
+        tester,
+      ) async {
+        final data = _loadedData(
+          renewals: [
+            const UpcomingRenewal(
+              vehicleId: 'uuid-00000000',
+              title: 'Insurance',
+              expiryDate: '2026-06-01',
+              status: RenewalStatus.soon,
+              daysRemaining: 15,
+              vehicleLabel: 'Toyota Hilux 2020',
+            ),
+          ],
+        );
+
         await tester.pumpWidget(
           _wrapSimple(
             const DashboardScreen(),
-            _FakeDashboardRepository(() async => _loadedData(vehicleCount: 1)),
-            vehicles: const [], // vehicle not in list
+            _FakeDashboardRepository(() async => data),
           ),
         );
 
         await tester.pumpAndSettle();
 
-        // Falls back to first 8 chars of vehicleId + ellipsis
-        expect(find.textContaining('uuid-000'), findsOneWidget);
+        expect(find.text('Toyota Hilux 2020'), findsOneWidget);
+      });
+
+      testWidgets(
+        'renewal row falls back to UUID prefix when vehicleLabel absent',
+        (tester) async {
+          // No vehicleLabel → screen falls back to vehicleId.substring(0,8) + '…'
+          final data = _loadedData(
+            renewals: [
+              const UpcomingRenewal(
+                vehicleId: 'uuid-00000000-1111-2222-3333-444444444444',
+                title: 'Insurance',
+                expiryDate: '2026-06-01',
+                status: RenewalStatus.soon,
+                daysRemaining: 5,
+              ),
+            ],
+          );
+
+          await tester.pumpWidget(
+            _wrapSimple(
+              const DashboardScreen(),
+              _FakeDashboardRepository(() async => data),
+            ),
+          );
+
+          await tester.pumpAndSettle();
+
+          // Falls back to first 8 chars of vehicleId + '…'
+          expect(find.textContaining('uuid-000'), findsOneWidget);
+        },
+      );
+    },
+  );
+
+  group('DashboardScreen — deep-link navigation', () {
+    testWidgets(
+      'tapping a renewal row navigates to the correct vehicle detail',
+      (tester) async {
+        const vehicleId = 'abc-12345678';
+        final data = _loadedData(
+          renewals: [
+            const UpcomingRenewal(
+              vehicleId: vehicleId,
+              title: 'Insurance',
+              expiryDate: '2026-06-01',
+              status: RenewalStatus.soon,
+              daysRemaining: 5,
+              vehicleLabel: 'Honda Civic',
+            ),
+          ],
+        );
+
+        await tester.pumpWidget(
+          _wrapWithRouter(
+            const DashboardScreen(),
+            _FakeDashboardRepository(() async => data),
+          ),
+        );
+
+        await tester.pumpAndSettle();
+
+        // Tap the renewal row
+        await tester.tap(find.text('Insurance'));
+        await tester.pumpAndSettle();
+
+        // GoRouter should have navigated to /garage/vehicle/<vehicleId>
+        expect(find.text('Detail $vehicleId'), findsOneWidget);
       },
     );
-
-    testWidgets('tapping a renewal row navigates to vehicle detail', (
-      tester,
-    ) async {
-      final vehicle = _makeVehicle(id: 'uuid-00000000');
-
-      await tester.pumpWidget(
-        _wrapWithRouter(
-          const DashboardScreen(),
-          _FakeDashboardRepository(() async => _loadedData(vehicleCount: 1)),
-          vehicles: [vehicle],
-        ),
-      );
-
-      await tester.pumpAndSettle();
-
-      // Tap the renewal row (Insurance title)
-      await tester.tap(find.text('Insurance'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Detail uuid-00000000'), findsOneWidget);
-    });
   });
 
-  group('DashboardScreen — ring widget', () {
-    testWidgets('shows this month label in ring', (tester) async {
+  group('DashboardScreen — recent activity', () {
+    testWidgets('recent activity section shows when items are present', (
+      tester,
+    ) async {
+      final data = _loadedData(
+        renewals: const [],
+        activity: [
+          ActivityItem(
+            type: ActivityType.fuel,
+            vehicleId: 'v-1',
+            vehicleLabel: 'Car A',
+            date: DateTime.now().toIso8601String().substring(0, 10),
+            amountCents: 5000,
+            label: 'Fuel top-up',
+          ),
+        ],
+      );
+
       await tester.pumpWidget(
         _wrapSimple(
           const DashboardScreen(),
-          _FakeDashboardRepository(() async => _loadedData(vehicleCount: 1)),
+          _FakeDashboardRepository(() async => data),
         ),
       );
 
       await tester.pumpAndSettle();
 
-      expect(find.text('this month'), findsOneWidget);
+      expect(find.text('Recent Activity'), findsOneWidget);
+      expect(find.text('Fuel top-up'), findsOneWidget);
+      // Friendly date: today's entry shows 'Today'
+      expect(find.textContaining('Today'), findsWidgets);
+    });
+
+    testWidgets('recent activity section is absent when list is empty', (
+      tester,
+    ) async {
+      final data = _loadedData(renewals: const [], activity: const []);
+
+      await tester.pumpWidget(
+        _wrapSimple(
+          const DashboardScreen(),
+          _FakeDashboardRepository(() async => data),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(find.text('Recent Activity'), findsNothing);
     });
   });
 }

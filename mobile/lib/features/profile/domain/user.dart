@@ -11,6 +11,9 @@ class AppUser {
 
   /// Account-wide distance display preference ("km" or "mi").
   final String distanceUnit;
+
+  /// User-level toggle for reminder notifications.
+  final bool renewalRemindersEnabled;
   final DateTime createdAt;
 
   const AppUser({
@@ -21,6 +24,7 @@ class AppUser {
     this.photoUrl,
     this.currency = 'USD',
     this.distanceUnit = 'km',
+    this.renewalRemindersEnabled = true,
     required this.createdAt,
   });
 
@@ -33,6 +37,7 @@ class AppUser {
       photoUrl: json['photoUrl'] as String?,
       currency: json['currency'] as String? ?? 'USD',
       distanceUnit: json['distanceUnit'] as String? ?? 'km',
+      renewalRemindersEnabled: json['renewalRemindersEnabled'] as bool? ?? true,
       createdAt: DateTime.parse(json['createdAt'] as String),
     );
   }

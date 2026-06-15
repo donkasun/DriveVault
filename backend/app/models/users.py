@@ -5,7 +5,7 @@ Created lazily on first authenticated request.
 
 import uuid
 
-from sqlalchemy import Index, Text, TIMESTAMP, func
+from sqlalchemy import Boolean, Index, Text, TIMESTAMP, func, text
 from sqlalchemy.dialects.postgresql import CHAR, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -24,6 +24,9 @@ class User(Base):
     photo_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     currency: Mapped[str] = mapped_column(CHAR(3), server_default="LKR", nullable=False)
     distance_unit: Mapped[str] = mapped_column(Text, server_default="km", nullable=False)
+    renewal_reminders_enabled: Mapped[bool] = mapped_column(
+        Boolean, server_default=text("true"), nullable=False
+    )
     created_at: Mapped[object] = mapped_column(  # type: ignore[assignment]
         TIMESTAMP(timezone=True), server_default=func.now(), nullable=False
     )

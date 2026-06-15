@@ -1,21 +1,19 @@
-import 'dart:math' as math;
-
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
-import '../../../core/router/shell_tab_provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../auth/presentation/widgets/verify_email_banner.dart';
-import '../../fuel/presentation/widgets/quick_fuel_entry_sheet.dart';
 import '../../../shared/constants/currencies.dart';
-import '../../../shared/widgets/app_button.dart';
 import '../../../shared/utils/formatting.dart';
+import '../../../shared/widgets/activity_entry_card.dart';
+import '../../../shared/widgets/breakdown_bar.dart';
+import '../../../shared/widgets/fuel_pump_icon.dart';
+import '../../../shared/widgets/status_pill.dart';
+import '../../../shared/widgets/app_button.dart';
+import '../../activity/presentation/activity_screen.dart';
 import '../../profile/data/user_repository.dart';
-import '../../vehicles/domain/vehicle.dart';
-import '../../vehicles/presentation/vehicles_provider.dart';
 import '../domain/dashboard_data.dart';
 import 'dashboard_provider.dart';
 
@@ -26,7 +24,8 @@ class DashboardScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final dashboardAsync = ref.watch(dashboardProvider);
     // Account-wide currency preference (defaults to LKR until /me loads).
-    final currency = ref.watch(meProvider).asData?.value.currency ?? kFallbackCurrency;
+    final currency =
+        ref.watch(meProvider).asData?.value.currency ?? kFallbackCurrency;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -37,7 +36,7 @@ class DashboardScreen extends ConsumerWidget {
           Expanded(
             child: SafeArea(
               child: dashboardAsync.when(
-                loading: () => const Center(child: CircularProgressIndicator()),
+                loading: () => const _LoadingState(),
                 error: (error, _) => _ErrorState(
                   message: error.toString(),
                   onRetry: () => ref.read(dashboardProvider.notifier).refresh(),
@@ -58,52 +57,56 @@ class DashboardScreen extends ConsumerWidget {
 // Header
 // ---------------------------------------------------------------------------
 
-class _Header extends StatelessWidget {
+class _Header extends ConsumerWidget {
   const _Header();
 
   @override
-  Widget build(BuildContext context) {
-    User? user;
-    try {
-      user = FirebaseAuth.instance.currentUser;
-    } catch (_) {
-      // Firebase not initialized in test environments — user stays null.
-    }
-    final displayName = user?.displayName ?? 'there';
-    final photoUrl = user?.photoURL;
-    final initials = _initials(displayName);
+  Widget build(BuildContext context, WidgetRef ref) {
+    final appUser = ref.watch(meProvider).asData?.value;
+
+    final rawName = appUser?.displayName?.trim() ?? '';
+    final hasName = rawName.isNotEmpty;
+    final photoUrl = appUser?.photoUrl;
+    final initials = hasName ? _initials(rawName) : '?';
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               _greeting(),
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(color: Colors.black54),
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: AppColors.textMuted,
+              ),
             ),
-            Text(
-              displayName,
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-            ),
+            if (hasName)
+              Text(
+                rawName,
+                style: const TextStyle(
+                  fontSize: 26,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.6,
+                  color: AppColors.textPrimary,
+                ),
+              ),
           ],
         ),
         photoUrl != null
-            ? CircleAvatar(radius: 20, backgroundImage: NetworkImage(photoUrl))
+            ? CircleAvatar(radius: 23, backgroundImage: NetworkImage(photoUrl))
             : CircleAvatar(
-                radius: 20,
+                radius: 23,
                 backgroundColor: AppColors.primary,
                 child: Text(
                   initials,
                   style: const TextStyle(
                     color: AppColors.onPrimary,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 18,
                   ),
                 ),
               ),
@@ -113,21 +116,70 @@ class _Header extends StatelessWidget {
 
   String _greeting() {
     final hour = DateTime.now().hour;
-    if (hour < 12) return 'Good morning';
-    if (hour < 17) return 'Good afternoon';
-    return 'Good evening';
+    if (hour < 12) return 'Good morning,';
+    if (hour < 17) return 'Good afternoon,';
+    return 'Welcome back,';
   }
 
   String _initials(String name) {
     final parts = name.trim().split(RegExp(r'\s+'));
-    if (parts.isEmpty) return '?';
+    if (parts.isEmpty || parts[0].isEmpty) return '?';
     if (parts.length == 1) return parts[0][0].toUpperCase();
     return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
   }
 }
 
 // ---------------------------------------------------------------------------
-// State: Loading, Error, Empty
+// State: Loading (skeletons)
+// ---------------------------------------------------------------------------
+
+class _LoadingState extends StatelessWidget {
+  const _LoadingState();
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
+      physics: const NeverScrollableScrollPhysics(),
+      children: [
+        _SkeletonBox(height: 56, borderRadius: 12),
+        const SizedBox(height: 20),
+        _SkeletonBox(height: 100, borderRadius: 16),
+        const SizedBox(height: 16),
+        _SkeletonBox(height: 80, borderRadius: 16),
+        const SizedBox(height: 16),
+        _SkeletonBox(height: 60, borderRadius: 12),
+        const SizedBox(height: 8),
+        _SkeletonBox(height: 60, borderRadius: 12),
+        const SizedBox(height: 24),
+        _SkeletonBox(height: 72, borderRadius: 12),
+        const SizedBox(height: 8),
+        _SkeletonBox(height: 72, borderRadius: 12),
+      ],
+    );
+  }
+}
+
+class _SkeletonBox extends StatelessWidget {
+  final double height;
+  final double borderRadius;
+
+  const _SkeletonBox({required this.height, this.borderRadius = 8});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: height,
+      decoration: BoxDecoration(
+        color: AppColors.divider,
+        borderRadius: BorderRadius.circular(borderRadius),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// State: Error
 // ---------------------------------------------------------------------------
 
 class _ErrorState extends StatelessWidget {
@@ -144,12 +196,12 @@ class _ErrorState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.error_outline, size: 48, color: Colors.red),
+            Icon(Icons.error_outline, size: 48, color: AppColors.danger),
             const SizedBox(height: 16),
             Text(
               message,
               textAlign: TextAlign.center,
-              style: const TextStyle(color: Colors.red),
+              style: TextStyle(color: AppColors.danger),
             ),
             const SizedBox(height: 16),
             ElevatedButton(onPressed: onRetry, child: const Text('Retry')),
@@ -160,38 +212,95 @@ class _ErrorState extends StatelessWidget {
   }
 }
 
+// ---------------------------------------------------------------------------
+// State: Empty (no vehicles)
+// ---------------------------------------------------------------------------
+
 class _EmptyState extends ConsumerWidget {
   const _EmptyState();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
+      children: [
+        const _Header(),
+        const SizedBox(height: 20),
+        _WelcomeCard(),
+      ],
+    );
+  }
+}
+
+class _WelcomeCard extends StatelessWidget {
+  const _WelcomeCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Icon(
-              Icons.directions_car_outlined,
-              size: 64,
-              color: Colors.black38,
+            // Dark header with garage icon
+            Container(
+              height: 120,
+              color: AppColors.surfaceDark,
+              child: Center(
+                child: Icon(
+                  Icons.garage_outlined,
+                  size: 48,
+                  color: Colors.white.withValues(alpha: 0.25),
+                ),
+              ),
             ),
-            const SizedBox(height: 16),
-            const Text(
-              'No vehicles yet',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Add your first vehicle to start tracking.',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.black54),
-            ),
-            const SizedBox(height: 24),
-            AppButton(
-              label: 'Add your first vehicle',
-              onPressed: () =>
-                  ref.read(pendingTabProvider.notifier).switchTo(1),
+            // Content section
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  const Text(
+                    'Welcome to DriveVault',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.4,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Add your first vehicle to start tracking fuel, costs and paperwork — all in one place.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w400,
+                      color: AppColors.textMuted,
+                      height: 1.45,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  AppButton(
+                    label: 'Add your first vehicle',
+                    icon: const Icon(Icons.add),
+                    onPressed: () => context.go('/garage/add-vehicle'),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
@@ -204,390 +313,464 @@ class _EmptyState extends ConsumerWidget {
 // State: Loaded
 // ---------------------------------------------------------------------------
 
-class _LoadedContent extends StatelessWidget {
+class _LoadedContent extends ConsumerWidget {
   final DashboardData data;
   final String currency;
 
   const _LoadedContent({required this.data, required this.currency});
 
   @override
-  Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
-      children: [
-        const _Header(),
-        const SizedBox(height: 20),
-        _TotalCostCard(data: data, currency: currency),
-        const SizedBox(height: 16),
-        const _QuickActions(),
-        const SizedBox(height: 16),
-        _StatRow(data: data, currency: currency),
-        if (data.upcomingRenewals.isNotEmpty) ...[
-          const SizedBox(height: 24),
-          _UpcomingRenewalsSection(renewals: data.upcomingRenewals),
-        ],
-      ],
-    );
-  }
-}
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Filter to only the renewals needing attention (overdue or soon).
+    final attentionRenewals = data.upcomingRenewals
+        .where(
+          (r) =>
+              r.status == RenewalStatus.overdue ||
+              r.status == RenewalStatus.soon,
+        )
+        .toList();
 
-// ---------------------------------------------------------------------------
-// Quick actions
-// ---------------------------------------------------------------------------
-
-class _QuickActions extends StatelessWidget {
-  const _QuickActions();
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: OutlinedButton.icon(
-            icon: const Icon(Icons.local_gas_station, size: 18),
-            label: const Text('Add Fuel Log'),
-            style: OutlinedButton.styleFrom(
-              backgroundColor: Colors.black87,
-              foregroundColor: AppColors.primary,
-              side: BorderSide.none,
-              padding: const EdgeInsets.symmetric(vertical: 14),
-            ),
-            onPressed: () => showQuickFuelEntrySheet(context),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Total Ownership Cost card
-// ---------------------------------------------------------------------------
-
-class _TotalCostCard extends StatelessWidget {
-  final DashboardData data;
-  final String currency;
-
-  const _TotalCostCard({required this.data, required this.currency});
-
-  @override
-  Widget build(BuildContext context) {
-    // Ring is decorative: no honest monthly denominator exists in the API data
-    // (costBreakdown is all-time, not monthly). Show a full arc with the
-    // monthly fuel spend amount centred inside.
-    final monthlySpendLabel = formatCents(
-      data.monthlyFuelSpendCents,
-      currency: currency,
-    );
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: appCardDecoration.copyWith(
-        borderRadius: const BorderRadius.all(Radius.circular(16)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
+    return RefreshIndicator(
+      onRefresh: () => ref.read(dashboardProvider.notifier).refresh(),
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  formatCents(data.totalOwnershipCostCents, currency: currency),
-                  style: const TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF15151C),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                const Text(
-                  'Total Ownership Cost',
-                  style: TextStyle(fontSize: 14, color: Colors.black54),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'across ${data.vehicleCount} vehicle(s)',
-                  style: const TextStyle(fontSize: 12, color: Colors.black38),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 16),
-          SizedBox(
-            width: 80,
-            height: 80,
-            child: CustomPaint(
-              painter: _SpendRingPainter(),
-              child: Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      monthlySpendLabel,
-                      style: const TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF15151C),
-                      ),
-                      textAlign: TextAlign.center,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 1),
-                    const Text(
-                      'this month',
-                      style: TextStyle(fontSize: 8, color: Colors.black38),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
+          const _Header(),
+          const SizedBox(height: 20),
 
-/// Decorative filled-arc ring showing green arc on grey track.
-/// Full arc (no meaningful percentage denominator available from the API).
-class _SpendRingPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-    final radius = (size.width - 10) / 2;
-    const strokeWidth = 8.0;
-    const startAngle = -math.pi / 2;
+          // 1. Needs attention (only shown when there are items)
+          if (attentionRenewals.isNotEmpty) ...[
+            _NeedsAttentionCard(renewals: attentionRenewals),
+            const SizedBox(height: 16),
+          ],
 
-    final trackPaint = Paint()
-      ..color = const Color(0xFFE8F5E9)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = strokeWidth
-      ..strokeCap = StrokeCap.round;
+          // 2. One honest spend card (total + breakdown bar + monthly secondary)
+          _SpendCard(data: data, currency: currency),
+          const SizedBox(height: 16),
 
-    final arcPaint = Paint()
-      ..color = AppColors.success
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = strokeWidth
-      ..strokeCap = StrokeCap.round;
-
-    final rect = Rect.fromCircle(center: center, radius: radius);
-
-    // Grey track — full circle
-    canvas.drawArc(rect, startAngle, 2 * math.pi, false, trackPaint);
-
-    // Green arc — decorative full circle (no fake percentage)
-    canvas.drawArc(rect, startAngle, 2 * math.pi, false, arcPaint);
-  }
-
-  @override
-  bool shouldRepaint(_SpendRingPainter old) => false;
-}
-
-// ---------------------------------------------------------------------------
-// Two stat cards row
-// ---------------------------------------------------------------------------
-
-class _StatRow extends StatelessWidget {
-  final DashboardData data;
-  final String currency;
-
-  const _StatRow({required this.data, required this.currency});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: _StatCard(
-            label: 'Fuel · This Month',
-            value: formatCents(data.monthlyFuelSpendCents, currency: currency),
-            icon: Icons.local_gas_station,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _StatCard(
-            label: 'Maintenance',
-            value: formatCents(
-              data.costBreakdown.maintenanceCents,
+          // 3. Recent activity
+          if (data.recentActivity.isNotEmpty) ...[
+            _RecentActivitySection(
+              items: data.recentActivity.take(5).toList(),
               currency: currency,
             ),
-            icon: Icons.build_outlined,
-          ),
-        ),
-      ],
+          ],
+        ],
+      ),
     );
   }
 }
 
-class _StatCard extends StatelessWidget {
-  final String label;
-  final String value;
-  final IconData icon;
+// ---------------------------------------------------------------------------
+// 1. Needs Attention card
+// ---------------------------------------------------------------------------
 
-  const _StatCard({
-    required this.label,
-    required this.value,
-    required this.icon,
-  });
+class _NeedsAttentionCard extends StatelessWidget {
+  final List<UpcomingRenewal> renewals;
+
+  const _NeedsAttentionCard({required this.renewals});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: appCardDecoration.copyWith(
-        borderRadius: const BorderRadius.all(Radius.circular(16)),
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: AppColors.surfaceDark,
+        borderRadius: BorderRadius.circular(18),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 20, color: AppColors.primary),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF15151C),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(18, 16, 18, 12),
+            child: Row(
+              children: [
+                Container(
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: AppColors.danger,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.danger.withValues(alpha: 0.25),
+                        blurRadius: 0,
+                        spreadRadius: 4,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 10),
+                const Text(
+                  'Needs attention',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                  ),
+                ),
+                const Spacer(),
+                if (renewals.isNotEmpty)
+                  Text(
+                    '${renewals.length} item${renewals.length == 1 ? '' : 's'}',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textOnDarkMuted,
+                    ),
+                  ),
+              ],
             ),
           ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: const TextStyle(fontSize: 12, color: Colors.black54),
-          ),
+          for (final renewal in renewals) ...[
+            const Divider(height: 1, color: Color(0xFF34333F)),
+            _RenewalAttentionRow(renewal: renewal),
+          ],
         ],
       ),
     );
   }
 }
 
-// ---------------------------------------------------------------------------
-// Upcoming renewals section
-// ---------------------------------------------------------------------------
 
-class _UpcomingRenewalsSection extends ConsumerWidget {
-  final List<UpcomingRenewal> renewals;
+class _RenewalAttentionRow extends StatelessWidget {
+  final UpcomingRenewal renewal;
 
-  const _UpcomingRenewalsSection({required this.renewals});
+  const _RenewalAttentionRow({required this.renewal});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    // Watch the vehicles list to resolve vehicle names from IDs
-    final vehiclesAsync = ref.watch(vehiclesProvider);
-    final vehicles = vehiclesAsync.asData?.value ?? const <Vehicle>[];
+  Widget build(BuildContext context) {
+    // Prefer the API-supplied vehicleLabel; fall back to vehicleId prefix.
+    final vehicleLabel = renewal.vehicleLabel?.isNotEmpty == true
+        ? renewal.vehicleLabel!
+        : '${renewal.vehicleId.substring(0, 8)}…';
 
+    final status = renewal.status ?? RenewalStatus.soon;
+
+    return InkWell(
+      onTap: () => context.go('/garage/vehicle/${renewal.vehicleId}'),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+        child: Row(
+          children: [
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.16),
+                borderRadius: BorderRadius.circular(13),
+              ),
+              child: const Icon(
+                Icons.directions_car_outlined,
+                size: 20,
+                color: AppColors.primary,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    renewal.title,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                    ),
+                  ),
+                  Text(
+                    vehicleLabel,
+                    style: const TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.textOnDarkMuted,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            StatusPill.fromRenewalStatus(
+              status,
+              daysRemaining: renewal.daysRemaining,
+              onDark: true,
+            ),
+            const SizedBox(width: 6),
+            const Icon(
+              Icons.chevron_right,
+              size: 18,
+              color: Color(0x61EBEBF5), // rgba(235,235,245,0.38)
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 2. Spend card — one number, one meaning
+// ---------------------------------------------------------------------------
+
+class _SpendCard extends StatelessWidget {
+  final DashboardData data;
+  final String currency;
+
+  const _SpendCard({required this.data, required this.currency});
+
+  @override
+  Widget build(BuildContext context) {
+    final totalLabel = formatCents(
+      data.totalOwnershipCostCents,
+      currency: currency,
+    );
+    final monthlyLabel = formatCents(
+      data.monthlyFuelSpendCents,
+      currency: currency,
+    );
+
+    final segments = [
+      BreakdownSegment(
+        label: 'Fuel',
+        valueCents: data.costBreakdown.fuelCents,
+        color: AppColors.primary,
+      ),
+      BreakdownSegment(
+        label: 'Maintenance',
+        valueCents: data.costBreakdown.maintenanceCents,
+        color: AppColors.surfaceDark,
+      ),
+    ];
+    String fmt(int c) => formatCents(c, currency: currency);
+
+    const labelStyle = TextStyle(
+      fontSize: 11,
+      fontWeight: FontWeight.w700,
+      letterSpacing: 1.0,
+      color: AppColors.textMuted,
+    );
+
+    return DecoratedBox(
+      decoration: appCardDecoration,
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Two columns: each has its own label stacked above its value.
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Left — total ownership cost
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('TOTAL OWNERSHIP COST', style: labelStyle),
+                      const SizedBox(height: 2),
+                      Text(
+                        totalLabel,
+                        style: const TextStyle(
+                          fontSize: 32,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -1,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 1),
+                      Text(
+                        'across ${data.vehicleCount} vehicle${data.vehicleCount == 1 ? '' : 's'}',
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          color: AppColors.textMuted,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // Right — this month (right-aligned)
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    const Text('THIS MONTH', style: labelStyle),
+                    const SizedBox(height: 4),
+                    Text(
+                      monthlyLabel,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            BreakdownBarWithLegend(segments: segments, formatAmount: fmt, barHeight: 10),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 3. Recent activity section
+// ---------------------------------------------------------------------------
+
+class _RecentActivitySection extends StatelessWidget {
+  final List<ActivityItem> items;
+  final String currency;
+
+  const _RecentActivitySection({required this.items, required this.currency});
+
+  @override
+  Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Upcoming Renewals',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: Color(0xFF15151C),
+        const Padding(
+          padding: EdgeInsets.only(bottom: 12),
+          child: Text(
+            'Recent activity',
+            style: TextStyle(
+              fontSize: 19,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.4,
+              color: AppColors.textPrimary,
+            ),
           ),
         ),
-        const SizedBox(height: 12),
-        ...renewals.map((r) => _RenewalRow(renewal: r, vehicles: vehicles)),
+        for (final item in items) ...[
+          _ActivityCard(item: item, currency: currency),
+          const SizedBox(height: 10),
+        ],
+        const _SeeAllExpensesButton(),
       ],
     );
   }
 }
 
-class _RenewalRow extends StatelessWidget {
-  final UpcomingRenewal renewal;
-  final List<Vehicle> vehicles;
+class _ActivityCard extends StatelessWidget {
+  final ActivityItem item;
+  final String currency;
 
-  const _RenewalRow({required this.renewal, required this.vehicles});
-
-  /// Returns "Make Model Year" for the renewal's vehicleId, or the first 8
-  /// characters of the ID if the vehicle is not found in the list.
-  String _vehicleDisplayName() {
-    try {
-      final v = vehicles.firstWhere((v) => v.id == renewal.vehicleId);
-      return [
-        v.make,
-        v.model,
-        v.year?.toString(),
-      ].where((s) => s != null && s.isNotEmpty).join(' ');
-    } catch (_) {
-      return '${renewal.vehicleId.substring(0, 8)}…';
-    }
-  }
+  const _ActivityCard({required this.item, required this.currency});
 
   @override
   Widget build(BuildContext context) {
-    final color = expiryColor(renewal.expiryDate);
-    final formatted = _formatDate(renewal.expiryDate);
-    final vehicleName = _vehicleDisplayName();
+    final friendlyDate = _friendlyDate(item.date);
 
+    final String subLabel;
+    if (item.type == ActivityType.fuel && item.liters != null) {
+      subLabel =
+          '$friendlyDate · ${item.liters!.toStringAsFixed(1)} L · ${item.isFull == true ? 'Full tank' : 'Partial'}';
+    } else {
+      subLabel = '$friendlyDate · ${item.label}';
+    }
+
+    return ActivityEntryCard(
+      icon: _iconWidget(),
+      title: item.vehicleLabel,
+      subLabel: subLabel,
+      amountCents: item.amountCents,
+      currency: currency,
+    );
+  }
+
+  Widget _iconWidget() {
+    if (item.type == ActivityType.fuel) {
+      final isFull = item.isFull ?? true;
+      final bg = isFull
+          ? AppColors.successBg
+          : AppColors.primary.withValues(alpha: 0.12);
+      return Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Center(
+          child: FuelPumpIcon(isFullTank: isFull, size: 20, darkInk: !isFull),
+        ),
+      );
+    }
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      decoration: appCardDecoration.copyWith(
-        borderRadius: const BorderRadius.all(Radius.circular(12)),
-      ),
-      child: InkWell(
+      width: 40,
+      height: 40,
+      decoration: BoxDecoration(
+        color: _bgForType(item.type),
         borderRadius: BorderRadius.circular(12),
-        onTap: () => context.go('/garage/vehicle/${renewal.vehicleId}'),
+      ),
+      child: Icon(_iconForType(item.type), size: 20, color: _colorForType(item.type)),
+    );
+  }
+
+  IconData _iconForType(ActivityType type) => switch (type) {
+    ActivityType.fuel        => Icons.local_gas_station,
+    ActivityType.maintenance => Icons.build_outlined,
+    ActivityType.document    => Icons.description_outlined,
+  };
+
+  Color _bgForType(ActivityType type) => switch (type) {
+    ActivityType.fuel        => AppColors.successBg,
+    ActivityType.maintenance => AppColors.surfaceDark.withValues(alpha: 0.08),
+    ActivityType.document    => AppColors.successBg,
+  };
+
+  Color _colorForType(ActivityType type) => switch (type) {
+    ActivityType.fuel        => AppColors.success,
+    ActivityType.maintenance => AppColors.surfaceDark,
+    ActivityType.document    => AppColors.success,
+  };
+
+  String _friendlyDate(String dateStr) {
+    final dt = DateTime.tryParse(dateStr);
+    if (dt == null) return dateStr;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final diff = today.difference(DateTime(dt.year, dt.month, dt.day)).inDays;
+    if (diff == 0) return 'Today';
+    if (diff == 1) return 'Yesterday';
+    return DateFormat('d MMM').format(dt);
+  }
+}
+
+class _SeeAllExpensesButton extends StatelessWidget {
+  const _SeeAllExpensesButton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: GestureDetector(
+        onTap: () => Navigator.of(context, rootNavigator: true).push(
+          MaterialPageRoute(
+            fullscreenDialog: true,
+            builder: (_) => const ActivityScreen(),
+          ),
+        ),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
           child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      renewal.title,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                        color: Color(0xFF15151C),
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      vehicleName,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        color: Colors.black38,
-                      ),
-                    ),
-                  ],
+            mainAxisSize: MainAxisSize.min,
+            children: const [
+              Text(
+                'See all activity',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textMuted,
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 4,
-                ),
-                decoration: BoxDecoration(
-                  color: color.withAlpha(30),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  formatted,
-                  style: TextStyle(
-                    color: color,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
+              SizedBox(width: 4),
+              Icon(Icons.chevron_right, size: 16, color: AppColors.textMuted),
             ],
           ),
         ),
       ),
     );
-  }
-
-  String _formatDate(String dateStr) {
-    final dt = DateTime.tryParse(dateStr);
-    if (dt == null) return dateStr;
-    return DateFormat('dd MMM yyyy').format(dt);
   }
 }

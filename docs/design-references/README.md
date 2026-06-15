@@ -48,6 +48,13 @@ Reference: furniture app UI (yellow product highlights, dark nav pill, soft card
 - Card radius ~16–18px; tab bar radius ~26px; generous padding
 - Bold 800-weight titles, small uppercase muted labels (letter-spacing)
 
+**Typography scale**
+- Display / screen title: 28–29px, weight 800
+- Section title: 18–19px, weight 800
+- Row title: 15–17px, weight 700
+- Body / caption: 13–14px, weight 500
+- Overline label: 11px, weight 700, uppercase with letter-spacing
+
 **Signature components**
 - **Floating dark pill tab bar** (Garage · Home · Profile) — active tab = white circle + colored icon
 - **Dark vehicle card** — vehicle photo overlapping the top edge, name + year/registration,

@@ -13,15 +13,24 @@ import '../../vehicles/domain/vehicle.dart';
 import '../../vehicles/presentation/vehicles_provider.dart';
 import '../data/maintenance_repository.dart';
 import '../domain/maintenance_record.dart';
+import '../domain/service_type_suggestions.dart';
 
 class MaintenanceFormScreen extends ConsumerStatefulWidget {
   final String vehicleId;
   final MaintenanceRecord? existing;
+  final String? initialServiceType;
+  final String? initialCost;
+  final String? initialOdometer;
+  final String? initialDate;
 
   const MaintenanceFormScreen({
     super.key,
     required this.vehicleId,
     this.existing,
+    this.initialServiceType,
+    this.initialCost,
+    this.initialOdometer,
+    this.initialDate,
   });
 
   @override
@@ -42,31 +51,25 @@ class _MaintenanceFormScreenState extends ConsumerState<MaintenanceFormScreen> {
 
   static const _categories = ['maintenance', 'repair', 'inspection', 'other'];
 
-  static const _serviceTypeSuggestions = [
-    'Oil Change',
-    'Tyre Rotation',
-    'Brake Service',
-    'Air Filter',
-    'Battery',
-    'Coolant',
-    'Inspection',
-  ];
-
   bool get _isEdit => widget.existing != null;
 
   @override
   void initState() {
     super.initState();
     final e = widget.existing;
-    _dateCtrl = TextEditingController(text: e?.date ?? _today());
-    _serviceTypeCtrl = TextEditingController(text: e?.serviceType ?? '');
+    _dateCtrl = TextEditingController(
+        text: e?.date ?? widget.initialDate ?? _today());
+    _serviceTypeCtrl = TextEditingController(
+        text: e?.serviceType ?? widget.initialServiceType ?? '');
     _odometerCtrl = TextEditingController(
-      text: e?.odometer != null ? e!.odometer.toString() : '',
+      text: e?.odometer != null
+          ? e!.odometer.toString()
+          : (widget.initialOdometer ?? ''),
     );
     _costCtrl = TextEditingController(
       text: e?.costCents != null
           ? (e!.costCents! / 100).toStringAsFixed(2)
-          : '',
+          : (widget.initialCost ?? ''),
     );
     _workshopCtrl = TextEditingController(text: e?.workshop ?? '');
     _notesCtrl = TextEditingController(text: e?.notes ?? '');
@@ -256,7 +259,7 @@ class _MaintenanceFormScreenState extends ConsumerState<MaintenanceFormScreen> {
             Wrap(
               spacing: 8,
               runSpacing: 4,
-              children: _serviceTypeSuggestions.map((suggestion) {
+              children: kServiceTypeSuggestions.map((suggestion) {
                 return ActionChip(
                   label: Text(suggestion),
                   onPressed: () {

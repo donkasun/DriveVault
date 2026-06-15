@@ -13,6 +13,9 @@ class AppConfig {
     defaultValue: _localhostDefault,
   );
 
+  /// Application version from `pubspec.yaml`.
+  static const String appVersion = '1.0.0+1';
+
   /// Versioned API prefix (matches docs/03-api-contract.md).
   static const String apiV1Prefix = '/api/v1';
 

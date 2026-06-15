@@ -17,7 +17,7 @@
   auto-populate the odometer field. (OCR = ML Kit, Phase 3; the manual field works without it.)
 - 🟢 **Now — Auto-fill unit price** — pre-fill the unit price from the latest fuel record for
   that vehicle (if one exists). Just a starting value the user can edit (prices vary each time).
-- 🟡 **1.5 — Fuel variant per vehicle** — record which fuel variant the user is using per
+- ~~**1.5 — Fuel variant per vehicle**~~ (DROPPED 2026-06-13 — removed in migration f2001 / commit 57d26e7) — record which fuel variant the user is using per
   vehicle. At fuel-record time the user can change the variant (e.g. between specific grades),
   *not* whether it's petrol or diesel — that's fixed per vehicle.
 - 🟢 **Now — Vehicle dropdown in Add Fuel Log** — the add-fuel-log page has a vehicle dropdown
@@ -32,7 +32,7 @@
 
 ## 2. Settings
 
-- 🟡 **1.5 — Currency preference** — let the user select their currency preference.
+- ~~**1.5 — Currency preference**~~ (SUPERSEDED 2026-06-13 — currency hard-locked to `LKR`, no user selection; migration f3001 / `LOCKED_CURRENCY`) — let the user select their currency preference.
   Single currency per user → no currency dropdown in fuel/service records (backend defaults
   currency from the user preference).
 - 🟡 **1.5 — Distance preference** — user-level distance unit (km/mile); default for all vehicles.

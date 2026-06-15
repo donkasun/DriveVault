@@ -18,18 +18,22 @@ class UserRepository {
   Future<AppUser> updatePreferences({
     String? currency,
     String? distanceUnit,
+    bool? renewalRemindersEnabled,
   }) async {
     final body = <String, dynamic>{
-      'currency': ?currency,
-      'distanceUnit': ?distanceUnit,
-    };
+      'currency': currency,
+      'distanceUnit': distanceUnit,
+      'renewalRemindersEnabled': renewalRemindersEnabled,
+    }..removeWhere((_, v) => v == null);
     final data = await _apiClient.patch('/me', body: body);
     return AppUser.fromJson(data);
   }
 
   /// Update display name via `PATCH /api/v1/me`. Returns the updated user.
   Future<AppUser> updateProfile({String? displayName}) async {
-    final body = <String, dynamic>{'displayName': ?displayName};
+    final body = <String, dynamic>{
+      'displayName': displayName,
+    }..removeWhere((_, v) => v == null);
     final data = await _apiClient.patch('/me', body: body);
     return AppUser.fromJson(data);
   }

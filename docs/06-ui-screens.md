@@ -62,11 +62,11 @@ Sign-out → back to `/login`.
 /expenses                          Expense history across all vehicles
 
 ⚙️ SETTINGS branch
-/settings                          Profile / Settings
-  /settings/edit                   Edit profile (modal)
+/profile                           Profile / Settings
+  /profile/edit                    Edit profile (modal)
 ```
 
-- **Tabs (left→right):** Garage · **Home** · Expenses · Settings. Home is the default after login.
+- **Tabs (left→right):** **Home** · Garage · Expenses · Settings. Home is the default after login.
 - Updated 2026-06-12: 4-tab shell approved (Expenses tab added; Profile renamed Settings).
 - **Forms = full-screen modal dialogs** (`fullscreenDialog: true`), Cancel/Save app bar.
 - **Cross-tab deep-link:** Home never duplicates vehicle screens — it switches to the Garage
@@ -182,7 +182,9 @@ Sections top-to-bottom:
 
 ### Profile / Settings  (`GET /me`)
 - **Data:** display name, email, avatar.
-- **Actions:** edit profile (modal, `PATCH /me`) · (default currency?) · **Sign out** → `/login`.
+- **Actions:** edit profile (modal, `PATCH /me`) · **Sign out** → `/login`.
+- **Future work:** allow changing the account email once the verification + auth flow
+  supports it safely; keep email read-only for now.
 
 ---
 
@@ -205,8 +207,10 @@ Sections top-to-bottom:
 ---
 
 ## Open / deferred
-- Default **currency** handling (app-wide vs per-record) — schema stores per record; UI default TBD.
+- **Currency** is locked to `LKR` app-wide (forced server-side via `LOCKED_CURRENCY`); no currency UI and no picker.
 - Apple sign-in — enabled later (needs Apple Developer setup).
+- Email changes on Profile / Settings are deferred until the auth flow is ready to handle
+  re-verification and backend updates safely.
 - 🎨 **Layouts locked** for the three core screens (Home, Garage, Vehicle detail). Auth,
   modal forms, and Profile follow the same design language (`design-references/`) — detailed
   layouts can be refined when those screens are built.

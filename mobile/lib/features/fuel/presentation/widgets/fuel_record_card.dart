@@ -1,14 +1,29 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
 import '../../../../core/network/api_exceptions.dart';
 import '../../../../core/theme/app_theme.dart';
-import '../../../../shared/utils/formatting.dart';
+import '../../../../shared/widgets/activity_entry_card.dart';
 import '../../../../shared/widgets/fuel_pump_icon.dart';
 import '../../data/fuel_repository.dart';
 import '../../domain/fuel_log.dart';
 import '../../../profile/data/user_repository.dart';
+import 'quick_fuel_entry_sheet.dart';
+
+String _relativeDate(String dateStr) {
+  final date = DateTime.tryParse(dateStr);
+  if (date == null) return dateStr;
+  final now = DateTime.now();
+  final today = DateTime(now.year, now.month, now.day);
+  final d = DateTime(date.year, date.month, date.day);
+  final diff = today.difference(d).inDays;
+  if (diff == 0) return 'Today';
+  if (diff == 1) return 'Yesterday';
+  return DateFormat('d MMM').format(date);
+}
+
+final _numFmt = NumberFormat('#,##0', 'en_US');
 
 class FuelRecordCard extends ConsumerWidget {
   final FuelLog log;
@@ -42,9 +57,28 @@ class FuelRecordCard extends ConsumerWidget {
     }
   }
 
+  Widget _buildIcon() {
+    final isFull = log.isFullTank;
+    return Container(
+      width: 40,
+      height: 40,
+      decoration: BoxDecoration(
+        color: isFull
+            ? AppColors.successBg
+            : AppColors.primary.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Center(
+        child: FuelPumpIcon(isFullTank: isFull, size: 20, darkInk: !isFull),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final currency = ref.watch(meProvider).asData?.value.currency ?? 'USD';
+    final subLabel =
+        '${log.liters.toStringAsFixed(1)} L · ${_numFmt.format(log.odometer)} km · ${log.isFullTank ? 'Full' : 'Partial'}';
 
     return Dismissible(
       key: ValueKey(log.id),
@@ -75,78 +109,18 @@ class FuelRecordCard extends ConsumerWidget {
         padding: const EdgeInsets.only(right: 16),
         child: const Icon(Icons.delete_outline, color: Colors.white),
       ),
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-        decoration: appCardDecoration.copyWith(
-          borderRadius: const BorderRadius.all(Radius.circular(16)),
-        ),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            borderRadius: BorderRadius.circular(16),
-            onTap: () async {
-              await context.push(
-                '/garage/vehicle/$vehicleId/fuel/edit',
-                extra: log,
-              );
-              onRefresh();
-            },
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  FuelPumpIcon(isFullTank: log.isFullTank, size: 24),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          log.date,
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '${log.liters.toStringAsFixed(1)} L',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: AppColors.textMuted,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(
-                        formatCents(log.priceCents, currency: currency),
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        log.isFullTank ? 'Full tank' : 'Partial',
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: AppColors.textMuted,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+        child: ActivityEntryCard(
+          icon: _buildIcon(),
+          title: _relativeDate(log.date),
+          subLabel: subLabel,
+          amountCents: log.priceCents,
+          currency: currency,
+          onTap: () async {
+            await showQuickFuelEntrySheet(context, existing: log);
+            onRefresh();
+          },
         ),
       ),
     );

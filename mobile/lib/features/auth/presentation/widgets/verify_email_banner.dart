@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:drivevault/core/theme/app_theme.dart';
 import '../../data/auth_repository.dart';
 
 /// In-memory, per-session dismissal of the verify-email banner. Resets on app
@@ -35,7 +36,7 @@ class VerifyEmailBanner extends ConsumerWidget {
     }
 
     return MaterialBanner(
-      backgroundColor: Colors.amber.shade100,
+      backgroundColor: AppColors.warningBg,
       content: const Text('Verify your email to secure your account.'),
       leading: const Icon(Icons.mark_email_unread_outlined),
       actions: [

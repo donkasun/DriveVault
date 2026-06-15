@@ -6,19 +6,20 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/utils/distance_unit.dart';
 import '../../../../shared/utils/formatting.dart';
-import '../../../documents/data/document_repository.dart';
+import '../../../../shared/widgets/status_pill.dart';
 import '../../../fuel/data/fuel_repository.dart';
 import '../../../fuel/presentation/widgets/quick_fuel_entry_sheet.dart';
-import '../../../maintenance/data/maintenance_repository.dart';
 import '../../../profile/data/user_repository.dart';
 import '../../domain/vehicle.dart';
 
-// Photo dimensions and overhang
-const double _photoWidth = 118.0;
-const double _photoHeight = 62.0;
-const double _photoOverhang = 26.0; // extends above card top edge
-const double _photoRadius = 10.0;
-
+/// Dark vehicle card used in the Garage list.
+///
+/// v3 redesign:
+/// - No full-width photo banner. Instead, a small 72×72 rounded thumbnail sits
+///   in the top-right of the card body.
+/// - Name + year·reg + docs status pill stacked on the left.
+/// - Three stats (no icons): Mileage · Economy · Spent.
+/// - Two actions split by a vertical divider: Log fuel (primary) / Open (ghost).
 class VehicleCard extends ConsumerWidget {
   final Vehicle vehicle;
 
@@ -28,13 +29,9 @@ class VehicleCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final meAsync = ref.watch(meProvider);
     final fuelStatsAsync = ref.watch(fuelStatsProvider(vehicle.id));
-    final maintenanceAsync = ref.watch(maintenanceRecordsProvider(vehicle.id));
-    final docsAsync = ref.watch(documentsProvider(vehicle.id));
 
     final user = meAsync.asData?.value;
     final stats = fuelStatsAsync.asData?.value;
-    final maintenanceRecords = maintenanceAsync.asData?.value;
-    final docs = docsAsync.asData?.value;
 
     // Resolve display unit
     final unit = effectiveUnit(
@@ -43,203 +40,246 @@ class VehicleCard extends ConsumerWidget {
     );
     final currency = user?.currency ?? 'USD';
 
-    // Compute stats
+    // Compute display strings
     final mileageStr = vehicle.currentMileage != null
         ? formatDistance(vehicle.currentMileage!, unit)
         : '—';
 
-    final economyStr = formatEconomy(stats?.avgConsumptionLPer100Km, unit);
+    // Single shared economy formatter — identical to what vehicle_detail shows
+    final economyStr = formatEconomyFromStats(
+      stats?.avgConsumptionLPer100Km,
+      unit,
+    );
 
-    final fuelSpent = stats?.totalSpentCents ?? 0;
-    final maintenanceSpent = maintenanceRecords
-            ?.fold<int>(0, (sum, r) => sum + (r.costCents ?? 0)) ??
-        0;
-    final totalSpentStr = formatCents(fuelSpent + maintenanceSpent, currency: currency);
+    final totalSpentCents = (stats?.totalSpentCents ?? 0);
+    final totalSpentStr = formatCents(totalSpentCents, currency: currency);
 
-    final docsCount = (docs?.length ?? 0).toString();
+    final name = vehicle.displayName;
+    final year = vehicle.year?.toString();
+    final reg = vehicle.registrationNumber;
 
-    // Vehicle name
-    final name = [vehicle.make, vehicle.model, vehicle.year?.toString()]
-        .where((s) => s != null && s.isNotEmpty)
-        .join(' ');
-
-    // Photo widget — either a real image or a placeholder
-    final photoWidget = vehicle.photoUrl != null
-        ? ClipRRect(
-            borderRadius: BorderRadius.circular(_photoRadius),
-            child: CachedNetworkImage(
-              imageUrl: vehicle.photoUrl!,
-              width: _photoWidth,
-              height: _photoHeight,
-              fit: BoxFit.cover,
-              placeholder: (context, url) => const _CarPlaceholder(),
-              errorWidget: (context, url, error) => const _CarPlaceholder(),
-            ),
-          )
-        : const _CarPlaceholder();
-
-    // Stack: card body underneath, photo overhanging at top-right.
-    // clipBehavior: Clip.none so the photo can extend above the card.
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        // ── Card body ──────────────────────────────────────────────────────
-        Container(
-          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [AppColors.cardGradientStart, AppColors.cardGradientEnd],
-            ),
-            borderRadius: BorderRadius.circular(18),
-          ),
-          child: Padding(
-            // Extra top padding so text content clears the overhanging photo area
-            padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
-            child: Column(
+    return Container(
+      margin: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [AppColors.cardGradientStart, AppColors.cardGradientEnd],
+        ),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      clipBehavior: Clip.hardEdge,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ── Top section: name/reg/pill + thumbnail ─────────────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+            child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // ── Header Row ───────────────────────────────────────────
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        name,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      if (year != null || reg != null) ...[
+                        const SizedBox(height: 3),
+                        Row(
+                          children: [
+                            if (year != null)
+                              Text(
+                                year,
+                                style: TextStyle(
+                                  color: Colors.white.withValues(alpha: 0.62),
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            if (year != null && reg != null) ...[
+                              const SizedBox(width: 8),
+                              Container(
+                                width: 3,
+                                height: 3,
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.38),
+                                  borderRadius: BorderRadius.circular(9),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                            ],
+                            if (reg != null)
+                              Text(
+                                reg,
+                                style: TextStyle(
+                                  color: Colors.white.withValues(alpha: 0.62),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  fontFamily: 'monospace',
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                          ],
+                        ),
+                      ],
+                      const SizedBox(height: 6),
+                      StatusPill.fromDocsStatus(vehicle.docsStatus, onDark: true),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                _Thumbnail(photoUrl: vehicle.photoUrl),
+              ],
+            ),
+          ),
+
+          // ── Divider ───────────────────────────────────────────────────
+          const Divider(color: Color(0xFF34333F), height: 1, thickness: 1),
+
+          // ── Stats section ─────────────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+            child: Row(
+              children: [
+                _StatItem(value: mileageStr, label: 'MILEAGE'),
+                _StatItem(value: economyStr, label: 'ECONOMY'),
+                _StatItem(value: totalSpentStr, label: 'SPENT'),
+              ],
+            ),
+          ),
+
+          // ── Divider ───────────────────────────────────────────────────
+          const Divider(color: Color(0xFF34333F), height: 1, thickness: 1),
+
+          // ── Actions row ───────────────────────────────────────────────
+          SizedBox(
+            height: 50,
+            child: Row(
+              children: [
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => showQuickFuelEntrySheet(
+                      context,
+                      vehicleId: vehicle.id,
+                    ),
+                    child: Center(
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text(
-                            name,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 17,
+                          Icon(
+                            Icons.local_gas_station,
+                            color: AppColors.primary,
+                            size: 18,
+                          ),
+                          const SizedBox(width: 8),
+                          const Text(
+                            'Log fuel',
+                            style: TextStyle(
+                              color: AppColors.primary,
+                              fontSize: 14,
                               fontWeight: FontWeight.w700,
                             ),
                           ),
-                          if (vehicle.registrationNumber != null) ...[
-                            const SizedBox(height: 4),
-                            Text(
-                              vehicle.registrationNumber!,
-                              style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.6),
-                                fontSize: 13,
-                              ),
-                            ),
-                          ],
                         ],
                       ),
                     ),
-                    // Reserve space so the header text doesn't run under the photo
-                    SizedBox(width: _photoWidth + 12),
-                  ],
+                  ),
                 ),
-                const SizedBox(height: 16),
-
-                // ── Stats Row ─────────────────────────────────────────────
-                Row(
-                  children: [
-                    _StatItem(
-                      icon: Icons.speed,
-                      value: mileageStr,
-                      label: 'Mileage',
+                Container(width: 1, color: const Color(0xFF34333F)),
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => context.push('/garage/vehicle/${vehicle.id}'),
+                    child: Center(
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.arrow_forward,
+                            color: AppColors.primary,
+                            size: 18,
+                          ),
+                          const SizedBox(width: 8),
+                          const Text(
+                            'Open',
+                            style: TextStyle(
+                              color: AppColors.primary,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                    _StatItem(
-                      icon: Icons.local_gas_station,
-                      value: economyStr,
-                      label: 'Economy',
-                    ),
-                    _StatItem(
-                      icon: Icons.attach_money,
-                      value: totalSpentStr,
-                      label: 'Spent',
-                    ),
-                    _StatItem(
-                      icon: Icons.description_outlined,
-                      value: docsCount,
-                      label: 'Docs',
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-
-                // ── Divider ───────────────────────────────────────────────
-                const Divider(color: Colors.white12, height: 1),
-                const SizedBox(height: 12),
-
-                // ── Quick-Action Row ──────────────────────────────────────
-                Row(
-                  children: [
-                    _ActionButton(
-                      icon: Icons.add_circle,
-                      label: 'Add Fuel',
-                      onTap: () =>
-                          showQuickFuelEntrySheet(context, vehicleId: vehicle.id),
-                    ),
-                    _ActionButton(
-                      icon: Icons.build,
-                      label: 'Service',
-                      onTap: () => context.push(
-                          '/garage/vehicle/${vehicle.id}/maintenance/add'),
-                    ),
-                    _ActionButton(
-                      icon: Icons.description,
-                      label: 'Docs',
-                      onTap: () => context.push(
-                          '/garage/vehicle/${vehicle.id}/documents/upload'),
-                    ),
-                    _ActionButton(
-                      icon: Icons.arrow_forward,
-                      label: 'Details',
-                      onTap: () => context.push('/garage/vehicle/${vehicle.id}'),
-                    ),
-                  ],
+                  ),
                 ),
               ],
             ),
           ),
-        ),
-
-        // ── Overhanging photo — positioned top-right of the card ──────────
-        Positioned(
-          top: 8 - _photoOverhang, // card margin top (8) minus overhang
-          right: 16 + 12, // card margin right (16) + inner padding (12)
-          child: photoWidget,
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
 
 // ── Private widgets ──────────────────────────────────────────────────────────
 
-class _CarPlaceholder extends StatelessWidget {
-  const _CarPlaceholder();
+/// Small rounded-square vehicle thumbnail (72×72).
+class _Thumbnail extends StatelessWidget {
+  final String? photoUrl;
+
+  const _Thumbnail({this.photoUrl});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: _photoWidth,
-      height: _photoHeight,
+      width: 88,
+      height: 64,
       decoration: BoxDecoration(
-        color: Colors.white12,
-        borderRadius: BorderRadius.circular(_photoRadius),
+        color: Colors.white.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
       ),
-      child: const Icon(
-        Icons.directions_car,
-        color: Colors.white38,
-        size: 32,
-      ),
+      clipBehavior: Clip.hardEdge,
+      child: photoUrl != null
+          ? CachedNetworkImage(
+              imageUrl: photoUrl!,
+              fit: BoxFit.cover,
+              placeholder: (_, _) => const Center(
+                child: SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white24,
+                  ),
+                ),
+              ),
+              errorWidget: (_, _, _) => const Icon(
+                Icons.broken_image_outlined,
+                color: Colors.white24,
+                size: 28,
+              ),
+            )
+          : const Icon(
+              Icons.directions_car_outlined,
+              color: Colors.white24,
+              size: 32,
+            ),
     );
   }
 }
 
 class _StatItem extends StatelessWidget {
-  final IconData icon;
   final String value;
   final String label;
 
   const _StatItem({
-    required this.icon,
     required this.value,
     required this.label,
   });
@@ -249,15 +289,14 @@ class _StatItem extends StatelessWidget {
     return Expanded(
       child: Column(
         mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: AppColors.primary, size: 18),
-          const SizedBox(height: 4),
           Text(
             value,
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
             ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
@@ -267,49 +306,11 @@ class _StatItem extends StatelessWidget {
             label,
             style: TextStyle(
               color: Colors.white.withValues(alpha: 0.5),
-              fontSize: 11,
+              fontSize: 10,
+              letterSpacing: 0.5,
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _ActionButton extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-
-  const _ActionButton({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(8),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 4),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, color: AppColors.primary, size: 22),
-              const SizedBox(height: 4),
-              Text(
-                label,
-                style: const TextStyle(
-                  color: AppColors.primary,
-                  fontSize: 11,
-                ),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }

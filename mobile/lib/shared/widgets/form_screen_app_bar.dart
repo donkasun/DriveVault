@@ -7,7 +7,7 @@ class FormScreenAppBar extends StatelessWidget implements PreferredSizeWidget {
   const FormScreenAppBar({
     super.key,
     required this.title,
-    required this.onSave,
+    this.onSave,
     this.onCancel,
     this.saving = false,
     this.cancelEnabled = true,
@@ -15,7 +15,7 @@ class FormScreenAppBar extends StatelessWidget implements PreferredSizeWidget {
   });
 
   final String title;
-  final VoidCallback onSave;
+  final VoidCallback? onSave;
   final VoidCallback? onCancel;
   final bool saving;
   final bool cancelEnabled;
@@ -61,8 +61,14 @@ class FormScreenAppBar extends StatelessWidget implements PreferredSizeWidget {
               : TextButton(
                   onPressed: onSave,
                   style: TextButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: AppColors.onPrimary,
+                    backgroundColor: onSave != null
+                        ? AppColors.primary
+                        : AppColors.divider,
+                    foregroundColor: onSave != null
+                        ? AppColors.onPrimary
+                        : AppColors.textMuted,
+                    disabledBackgroundColor: AppColors.divider,
+                    disabledForegroundColor: AppColors.textMuted,
                     padding: _saveButtonPadding,
                     minimumSize: Size.zero,
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,

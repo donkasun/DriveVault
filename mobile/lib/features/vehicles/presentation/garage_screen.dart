@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/dashed_border.dart';
 import 'vehicles_provider.dart';
@@ -16,9 +15,6 @@ class GarageScreen extends ConsumerWidget {
     final vehiclesAsync = ref.watch(vehiclesProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Your Garage'),
-      ),
       body: vehiclesAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => Center(
@@ -48,20 +44,57 @@ class GarageScreen extends ConsumerWidget {
           }
 
           return ListView.builder(
-            // Extra top padding so overflow photos aren't clipped by the list
-            padding: const EdgeInsets.only(top: 34, bottom: 100),
-            itemCount: vehicles.length + 1,
+            padding: const EdgeInsets.only(top: 0, bottom: 100),
+            itemCount: vehicles.length + 2, // header + vehicles + add card
             itemBuilder: (context, index) {
-              if (index < vehicles.length) {
-                return VehicleCard(vehicle: vehicles[index]);
+              if (index == 0) {
+                return _GarageHeader(count: vehicles.length);
               }
-              // Dashed "Add Vehicle" card at bottom
+              final vehicleIndex = index - 1;
+              if (vehicleIndex < vehicles.length) {
+                return VehicleCard(vehicle: vehicles[vehicleIndex]);
+              }
               return _AddVehicleCard(
                 onTap: () => context.push('/garage/add-vehicle'),
               );
             },
           );
         },
+      ),
+    );
+  }
+}
+
+class _GarageHeader extends StatelessWidget {
+  final int count;
+  const _GarageHeader({required this.count});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 66, 20, 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Your garage',
+            style: TextStyle(
+              fontSize: 29,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.6,
+              color: Color(0xFF13121C),
+              height: 1.05,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '$count ${count == 1 ? 'vehicle' : 'vehicles'}',
+            style: const TextStyle(
+              fontSize: 14,
+              color: Color(0xFF73738A),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -74,33 +107,82 @@ class _EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.garage_outlined, size: 72, color: Colors.grey),
-            const SizedBox(height: 16),
-            const Text(
-              'No vehicles yet',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.fromLTRB(20, 66, 20, 0),
+          child: Text(
+            'Your garage',
+            style: TextStyle(
+              fontSize: 29,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.6,
+              color: Color(0xFF13121C),
+              height: 1.05,
             ),
-            const SizedBox(height: 8),
-            const Text(
-              'Add your first vehicle to get started',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey),
-            ),
-            const SizedBox(height: 24),
-            AppButton(
-              label: 'Add your first vehicle',
-              onPressed: onAddTap,
-              icon: const Icon(Icons.add),
-            ),
-          ],
+          ),
         ),
-      ),
+        Expanded(
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 80,
+                    height: 80,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(22),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.06),
+                          blurRadius: 12,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
+                    ),
+                    child: const Icon(
+                      Icons.garage_outlined,
+                      size: 38,
+                      color: Color(0xFF73738A),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  const Text(
+                    'Your garage is empty',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.3,
+                      color: Color(0xFF13121C),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Add a vehicle to track its fuel, services and documents.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w400,
+                      color: Color(0xFF73738A),
+                      height: 1.45,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  AppButton(
+                    label: 'Add vehicle',
+                    onPressed: onAddTap,
+                    icon: const Icon(Icons.add),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -113,39 +195,32 @@ class _AddVehicleCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
       child: GestureDetector(
         onTap: onTap,
         child: CustomPaint(
           foregroundPainter: DashedBorderPainter(
-            color: AppColors.dashedBorder,
+            color: const Color(0xFFE6E6EE),
             radius: 18,
-            strokeWidth: 1.5,
+            strokeWidth: 2,
           ),
           child: Container(
-            height: 80,
+            height: 66,
             decoration: BoxDecoration(
-              color: const Color(0xFFFAFAFB),
+              color: Colors.white.withValues(alpha: 0.5),
               borderRadius: BorderRadius.circular(18),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(
-                  '+',
-                  style: const TextStyle(
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 20,
-                  ),
-                ),
-                const SizedBox(width: 6),
+                const Icon(Icons.add, color: Color(0xFF73738A), size: 20),
+                const SizedBox(width: 9),
                 const Text(
-                  'Add Vehicle',
+                  'Add vehicle',
                   style: TextStyle(
-                    color: AppColors.primary,
+                    color: Color(0xFF73738A),
                     fontWeight: FontWeight.w700,
-                    fontSize: 15,
+                    fontSize: 16,
                   ),
                 ),
               ],

@@ -60,6 +60,11 @@ class _VehicleFormScreenState extends ConsumerState<VehicleFormScreen> {
 
   bool get _isEditMode => widget.vehicle != null;
 
+  bool get _canSave =>
+      !_isSaving &&
+      _makeCtrl.text.trim().isNotEmpty &&
+      _modelCtrl.text.trim().isNotEmpty;
+
   /// Maps the nullable [_fuelType] to the sentinel string used by the picker.
   String get _fuelTypeDisplay => _fuelType ?? _kFuelTypeNone;
 
@@ -85,7 +90,12 @@ class _VehicleFormScreenState extends ConsumerState<VehicleFormScreen> {
     _distanceUnit = v?.distanceUnit;
     _photoUrl = v?.photoUrl;
     _photoPublicId = v?.photoPublicId;
+
+    _makeCtrl.addListener(_onRequiredFieldChanged);
+    _modelCtrl.addListener(_onRequiredFieldChanged);
   }
+
+  void _onRequiredFieldChanged() => setState(() {});
 
   @override
   void dispose() {
@@ -98,7 +108,6 @@ class _VehicleFormScreenState extends ConsumerState<VehicleFormScreen> {
   }
 
   Future<void> _pickAndUploadPhoto() async {
-    // Show source picker bottom sheet (camera / photo library).
     final source = await showModalBottomSheet<ImageSource>(
       context: context,
       useRootNavigator: true,
@@ -128,10 +137,7 @@ class _VehicleFormScreenState extends ConsumerState<VehicleFormScreen> {
     if (source == null) return;
 
     final picker = ImagePicker();
-    final pickedFile = await picker.pickImage(
-      source: source,
-      imageQuality: 85,
-    );
+    final pickedFile = await picker.pickImage(source: source, imageQuality: 85);
     if (pickedFile == null) return;
 
     final bytes = await pickedFile.readAsBytes();
@@ -174,16 +180,12 @@ class _VehicleFormScreenState extends ConsumerState<VehicleFormScreen> {
     if (_vehicleType != null) data['vehicleType'] = _vehicleType;
 
     if (_isEditMode) {
-      // In edit mode, only include a nullable field when its value has actually
-      // changed from the original — prevents a PATCH from clobbering server
-      // values when the user edits an unrelated field.
       final orig = widget.vehicle!;
       if (_fuelType != orig.fuelType) data['fuelType'] = _fuelType;
       if (_distanceUnit != orig.distanceUnit) {
         data['distanceUnit'] = _distanceUnit;
       }
     } else {
-      // In create mode, include only non-null values.
       if (_fuelType != null) data['fuelType'] = _fuelType;
       if (_distanceUnit != null) data['distanceUnit'] = _distanceUnit;
     }
@@ -196,7 +198,6 @@ class _VehicleFormScreenState extends ConsumerState<VehicleFormScreen> {
         await ref
             .read(vehiclesProvider.notifier)
             .updateVehicle(widget.vehicle!.id, data);
-        // Refresh the detail screen, which watches the single-vehicle provider.
         ref.invalidate(vehicleProvider(widget.vehicle!.id));
       } else {
         await ref.read(vehiclesProvider.notifier).create(data);
@@ -215,8 +216,7 @@ class _VehicleFormScreenState extends ConsumerState<VehicleFormScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final userUnit =
-        ref.watch(meProvider).asData?.value.distanceUnit ?? 'km';
+    final userUnit = ref.watch(meProvider).asData?.value.distanceUnit ?? 'km';
     final distanceUnitDisplay =
         _distanceUnit ?? widget.vehicle?.distanceUnit ?? userUnit;
     final odometerUnitLabel = distanceUnitDisplay == 'mi' ? 'mi' : 'km';
@@ -226,16 +226,16 @@ class _VehicleFormScreenState extends ConsumerState<VehicleFormScreen> {
         title: _isEditMode ? 'Edit Vehicle' : 'Add Vehicle',
         saving: _isSaving,
         onCancel: () => context.pop(),
-        onSave: _save,
+        onSave: _canSave ? _save : null,
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
         child: Form(
           key: _formKey,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Photo area
+              // ── Photo ────────────────────────────────────────────────────
               _PhotoArea(
                 photoUrl: _photoUrl,
                 isUploading: _isUploading,
@@ -243,87 +243,91 @@ class _VehicleFormScreenState extends ConsumerState<VehicleFormScreen> {
               ),
               const SizedBox(height: 24),
 
-              // Required fields
+              // ── Vehicle Details ──────────────────────────────────────────
               _SectionLabel('Vehicle Details'),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _makeCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Make *',
-                  hintText: 'e.g. Toyota',
-                  border: OutlineInputBorder(),
-                ),
-                textCapitalization: TextCapitalization.words,
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Make is required';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _modelCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Model *',
-                  hintText: 'e.g. Hilux',
-                  border: OutlineInputBorder(),
-                ),
-                textCapitalization: TextCapitalization.words,
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Model is required';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _yearCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Year',
-                  hintText: 'e.g. 2020',
-                  border: OutlineInputBorder(),
-                ),
-                keyboardType: TextInputType.number,
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) return null;
-                  final year = int.tryParse(value.trim());
-                  if (year == null || year < 1886 || year > 2100) {
-                    return 'Enter a valid year';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 12),
-              BottomSheetPickerField<String>(
-                label: 'Vehicle Type',
-                sheetTitle: 'Select vehicle type',
-                value: _vehicleType,
-                options: _vehicleTypes,
-                labelBuilder: (type) =>
-                    type[0].toUpperCase() + type.substring(1),
-                onChanged: (value) => setState(() => _vehicleType = value),
-              ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 10),
 
-              _SectionLabel('Odometer'),
-              const SizedBox(height: 12),
+              // Make + Model side by side
+              Row(
+                children: [
+                  Expanded(
+                    child: _field(
+                      controller: _makeCtrl,
+                      label: 'Make',
+                      hint: 'Toyota',
+                      required: true,
+                      capitalization: TextCapitalization.words,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _field(
+                      controller: _modelCtrl,
+                      label: 'Model',
+                      hint: 'Hilux',
+                      required: true,
+                      capitalization: TextCapitalization.words,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+
+              // Year + Type side by side
+              Row(
+                children: [
+                  Expanded(
+                    child: _field(
+                      controller: _yearCtrl,
+                      label: 'Year',
+                      hint: '2020',
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      validator: (v) {
+                        if (v == null || v.trim().isEmpty) return null;
+                        final yr = int.tryParse(v.trim());
+                        if (yr == null || yr < 1886 || yr > 2100) {
+                          return 'Invalid year';
+                        }
+                        return null;
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: BottomSheetPickerField<String>(
+                      label: 'Type',
+                      sheetTitle: 'Select vehicle type',
+                      value: _vehicleType,
+                      options: _vehicleTypes,
+                      labelBuilder: (type) =>
+                          type[0].toUpperCase() + type.substring(1),
+                      onChanged: (value) =>
+                          setState(() => _vehicleType = value),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+
+              // Current mileage full-width with unit suffix
               TextFormField(
                 controller: _mileageCtrl,
                 decoration: InputDecoration(
-                  labelText: 'Current Mileage ($odometerUnitLabel)',
+                  labelText: 'Current Mileage',
                   hintText: 'e.g. 48000',
                   border: const OutlineInputBorder(),
+                  suffixText: odometerUnitLabel,
                 ),
                 keyboardType: TextInputType.number,
                 inputFormatters: [FilteringTextInputFormatter.digitsOnly],
               ),
               const SizedBox(height: 24),
 
-              _SectionLabel('Registration & Identity'),
-              const SizedBox(height: 12),
+              // ── Registration & Fuel ──────────────────────────────────────
+              _SectionLabel('Registration & Fuel'),
+              const SizedBox(height: 10),
+
               TextFormField(
                 controller: _regCtrl,
                 decoration: const InputDecoration(
@@ -333,57 +337,99 @@ class _VehicleFormScreenState extends ConsumerState<VehicleFormScreen> {
                 ),
                 textCapitalization: TextCapitalization.characters,
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 10),
 
-              _SectionLabel('Fuel & Units'),
-              const SizedBox(height: 12),
-              BottomSheetPickerField<String>(
-                label: 'Fuel Type',
-                sheetTitle: 'Select fuel type',
-                value: _fuelTypeDisplay,
-                options: _fuelTypeOptions,
-                labelBuilder: (type) => type == _kFuelTypeNone
-                    ? 'Not specified'
-                    : type[0].toUpperCase() + type.substring(1),
-                onChanged: _setFuelType,
+              Row(
+                children: [
+                  Expanded(
+                    child: BottomSheetPickerField<String>(
+                      label: 'Fuel Type',
+                      sheetTitle: 'Select fuel type',
+                      value: _fuelTypeDisplay,
+                      options: _fuelTypeOptions,
+                      labelBuilder: (type) => type == _kFuelTypeNone
+                          ? 'Not specified'
+                          : type[0].toUpperCase() + type.substring(1),
+                      onChanged: _setFuelType,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: BottomSheetPickerField<String>(
+                      label: 'Distance Unit',
+                      sheetTitle: 'Select distance unit',
+                      value: distanceUnitDisplay,
+                      options: _distanceUnitOptions,
+                      labelBuilder: (unit) =>
+                          unit == 'km' ? 'km' : 'mi',
+                      onChanged: (value) =>
+                          setState(() => _distanceUnit = value),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 12),
-              BottomSheetPickerField<String>(
-                label: 'Distance Unit',
-                sheetTitle: 'Select distance unit',
-                value: distanceUnitDisplay,
-                options: _distanceUnitOptions,
-                labelBuilder: (unit) =>
-                    unit == 'km' ? 'Kilometres (km)' : 'Miles (mi)',
-                onChanged: (value) => setState(() => _distanceUnit = value),
-              ),
-              const SizedBox(height: 100),
             ],
           ),
         ),
       ),
     );
   }
+
+  Widget _field({
+    required TextEditingController controller,
+    required String label,
+    String? hint,
+    bool required = false,
+    TextInputType? keyboardType,
+    List<TextInputFormatter>? inputFormatters,
+    TextCapitalization capitalization = TextCapitalization.none,
+    String? Function(String?)? validator,
+  }) {
+    return TextFormField(
+      controller: controller,
+      decoration: InputDecoration(
+        labelText: required ? '$label *' : label,
+        hintText: hint,
+        border: const OutlineInputBorder(),
+      ),
+      textCapitalization: capitalization,
+      keyboardType: keyboardType,
+      inputFormatters: inputFormatters,
+      validator: validator ??
+          (required
+              ? (v) => (v == null || v.trim().isEmpty)
+                    ? '$label is required'
+                    : null
+              : null),
+    );
+  }
 }
+
+// ---------------------------------------------------------------------------
+// Section label
+// ---------------------------------------------------------------------------
 
 class _SectionLabel extends StatelessWidget {
   final String text;
-
   const _SectionLabel(this.text);
 
   @override
   Widget build(BuildContext context) {
     return Text(
-      text,
+      text.toUpperCase(),
       style: const TextStyle(
-        fontSize: 14,
+        fontSize: 11,
         fontWeight: FontWeight.w700,
-        color: Colors.grey,
-        letterSpacing: 0.5,
+        color: AppColors.textMuted,
+        letterSpacing: 1.2,
       ),
     );
   }
 }
+
+// ---------------------------------------------------------------------------
+// Photo area
+// ---------------------------------------------------------------------------
 
 class _PhotoArea extends StatelessWidget {
   final String? photoUrl;
@@ -402,12 +448,12 @@ class _PhotoArea extends StatelessWidget {
       onTap: isUploading ? null : onTap,
       child: CustomPaint(
         foregroundPainter: const DashedBorderPainter(
-          color: AppColors.textMuted,
+          color: Color(0xFFA06800),
           radius: 16,
           strokeWidth: 1.5,
         ),
         child: Container(
-          height: 180,
+          height: 130,
           width: double.infinity,
           decoration: BoxDecoration(
             color: AppColors.photoUploadTint,
@@ -432,9 +478,9 @@ class _PhotoArea extends StatelessWidget {
                     CachedNetworkImage(
                       imageUrl: photoUrl!,
                       fit: BoxFit.cover,
-                      placeholder: (context, url) =>
+                      placeholder: (_, _) =>
                           const Center(child: CircularProgressIndicator()),
-                      errorWidget: (context, url, error) => const Icon(
+                      errorWidget: (_, _, _) => const Icon(
                         Icons.broken_image,
                         size: 48,
                         color: Colors.grey,
@@ -463,47 +509,26 @@ class _PhotoArea extends StatelessWidget {
               : Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    SizedBox(
-                      width: 48,
-                      height: 40,
-                      child: Stack(
-                        clipBehavior: Clip.none,
-                        children: [
-                          const Align(
-                            alignment: Alignment.center,
-                            child: Icon(
-                              Icons.photo_camera_outlined,
-                              size: 36,
-                              color: AppColors.textPrimary,
-                            ),
-                          ),
-                          Positioned(
-                            top: -2,
-                            left: 2,
-                            child: Container(
-                              width: 16,
-                              height: 16,
-                              decoration: const BoxDecoration(
-                                color: AppColors.textPrimary,
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(
-                                Icons.add,
-                                size: 12,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
-                        ],
+                    Container(
+                      width: 52,
+                      height: 52,
+                      decoration: BoxDecoration(
+                        color: AppColors.primary,
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: const Icon(
+                        Icons.photo_camera_rounded,
+                        size: 28,
+                        color: AppColors.textPrimary,
                       ),
                     ),
                     const SizedBox(height: 10),
                     const Text(
                       'Add vehicle photo',
                       style: TextStyle(
-                        color: AppColors.textPrimary,
+                        color: Color(0xFFA06800),
                         fontSize: 14,
-                        fontWeight: FontWeight.w500,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                   ],
@@ -513,4 +538,3 @@ class _PhotoArea extends StatelessWidget {
     );
   }
 }
-

@@ -93,7 +93,7 @@ Mirrors a Firebase Auth account. Created lazily on the user's first authenticate
 | email | text | NOT NULL |
 | display_name | text | nullable |
 | photo_url | text | nullable |
-| currency | char(3) | NOT NULL DEFAULT 'USD' — account-wide money preference |
+| currency | char(3) | NOT NULL DEFAULT 'LKR' — account-wide money preference |
 | distance_unit | text | NOT NULL DEFAULT 'km' — 'km' or 'mi', display-only |
 
 ### `vehicles`
@@ -109,7 +109,7 @@ Mirrors a Firebase Auth account. Created lazily on the user's first authenticate
 | vin | text | nullable |
 | purchase_date | date | nullable |
 | purchase_price_cents | bigint | nullable |
-| currency | char(3) | DEFAULT 'USD' |
+| currency | char(3) | DEFAULT 'LKR' |
 | current_mileage | int | nullable, km — synced automatically on fuel log create/delete |
 | photo_url | text | Cloudinary secure_url |
 | photo_public_id | text | Cloudinary public_id (for deletion) |
@@ -126,7 +126,7 @@ Mirrors a Firebase Auth account. Created lazily on the user's first authenticate
 | date | date | NOT NULL |
 | liters | numeric(8,3) | NOT NULL, CHECK > 0 |
 | price_cents | bigint | NOT NULL — **total amount paid** (not unit price) |
-| currency | char(3) | DEFAULT 'USD' |
+| currency | char(3) | DEFAULT 'LKR' |
 | odometer | int | NOT NULL, km — must be strictly greater than all previous readings |
 | is_full_tank | boolean | DEFAULT true |
 | notes | text | nullable |
@@ -144,7 +144,7 @@ On every fuel log create, the backend updates `vehicles.current_mileage` to `MAX
 | service_type | text | NOT NULL (free text, e.g. 'Oil Change') |
 | category | text | 'maintenance' / 'repair' / 'upgrade' / 'inspection' |
 | cost_cents | bigint | DEFAULT 0 |
-| currency | char(3) | DEFAULT 'USD' |
+| currency | char(3) | DEFAULT 'LKR' |
 | workshop | text | nullable |
 | notes | text | nullable |
 | source | text | DEFAULT 'manual' (Phase 3 will add 'ai_extraction') |
@@ -187,14 +187,15 @@ Base URL:
   "email": "user@example.com",
   "displayName": "Kasun",
   "photoUrl": null,
-  "currency": "USD",
+  "currency": "LKR",
   "distanceUnit": "km",
   "createdAt": "2026-06-08T10:00:00Z"
 }
 ```
 
 **`PATCH /api/v1/me`** — Update profile/preferences. Body (all optional):
-`{ "displayName": "...", "photoUrl": "...", "currency": "EUR", "distanceUnit": "mi" }`
+`{ "displayName": "...", "photoUrl": "...", "currency": "LKR", "distanceUnit": "mi" }`
+(A `currency` value is accepted but coerced to `LKR` server-side.)
 
 ### Vehicles
 
@@ -207,7 +208,7 @@ Base URL:
 ### Fuel Logs
 
 - `GET /api/v1/vehicles/{vehicleId}/fuel-logs` — List logs, newest first. Optional: `from`, `to` (YYYY-MM-DD).
-- `POST /api/v1/vehicles/{vehicleId}/fuel-logs` — Create. Required: `date`, `liters`, `priceCents` (total paid), `odometer`. Optional: `currency`, `isFullTank`, `notes`. Currency defaults to user preference if omitted. Odometer must exceed all existing readings.
+- `POST /api/v1/vehicles/{vehicleId}/fuel-logs` — Create. Required: `date`, `liters`, `priceCents` (total paid), `odometer`. Optional: `isFullTank`, `notes`. Any `currency` sent is ignored — the backend forces it to `LKR`. Odometer must exceed all existing readings.
 - `PATCH /api/v1/fuel-logs/{id}` — Update.
 - `DELETE /api/v1/fuel-logs/{id}` — Delete. Recomputes `current_mileage` on the vehicle.
 
@@ -328,7 +329,7 @@ There is **no backend `/expenses` endpoint**. The Expenses tab is entirely **cli
 1. Reads all vehicles from `vehiclesProvider`.
 2. For each vehicle, watches `fuelLogsProvider(vehicleId)` and `maintenanceRecordsProvider(vehicleId)`.
 3. Maps fuel logs → `Expense(kind: fuel, costCents: priceCents, currency: log.currency)`.
-4. Maps maintenance records → `Expense(kind: maintenance, costCents: costCents ?? 0, currency: record.currency ?? 'USD')`.
+4. Maps maintenance records → `Expense(kind: maintenance, costCents: costCents ?? 0, currency: record.currency ?? kFallbackCurrency)`.
 5. Merges all into one list, sorted newest-first by date.
 
 The Expenses screen has two filter chips: **All / Fuel / Maintenance** and an **All Vehicles / specific vehicle** picker. The total shown is the sum of `costCents` across the filtered list.
@@ -340,11 +341,10 @@ The Expenses screen has two filter chips: **All / Fuel / Maintenance** and an **
 Two **account-level preferences** stored on the `users` table and managed via `GET/PATCH /api/v1/me`.
 
 ### Currency (`currency`)
-- 3-letter ISO 4217 code (e.g. `USD`, `EUR`, `LKR`).
-- Default: `USD`.
-- Used as the **fallback currency** when `currency` is omitted from a `POST fuel-logs` or `POST maintenance` request body. The backend fills it in from the user's preference.
-- **Not** used for conversion — there is no multi-currency conversion. All amounts are stored and displayed in the currency of the individual record.
-- Editable on the Profile screen (Settings tab) via a bottom-sheet currency picker.
+- Stored as a 3-letter ISO 4217 code; in Phase 1 it is **always `LKR`**.
+- **Hard-locked:** every money-bearing write (`vehicles`, `fuel_logs`, `maintenance_records`) and `PATCH /me` is coerced to `LKR` server-side via `LOCKED_CURRENCY` (`backend/app/core/constants.py`). Any `currency` a client sends is overwritten.
+- **No user-facing picker** — the `CurrencySelector` widget exists but is currently unused. Multi-currency is deferred; the `currency` columns and currency list are retained so it can be re-enabled without a migration.
+- No FX/conversion exists.
 
 ### Distance Unit (`distanceUnit`)
 - `'km'` or `'mi'`. Default: `'km'`.
@@ -374,7 +374,7 @@ The card also has four quick-action buttons: Add Fuel, Service, Docs, Details.
 
 - All monetary values are stored as **integer cents** (`bigint`) in PostgreSQL.
 - Every money-bearing record (`fuel_logs`, `maintenance_records`, `vehicles`) carries its own `currency` field (3-letter ISO code).
-- On creation, if `currency` is omitted the backend fills it from `users.currency`.
+- Currency is **forced to `LKR`** on every write via `LOCKED_CURRENCY`; in Phase 1 every record's `currency` is `LKR`.
 - **There is no multi-currency conversion.** The app displays amounts in the currency stored on the record.
 - The `formatCents()` utility (`formatting.dart`) converts cents → display string using `intl`'s `NumberFormat.simpleCurrency`, falling back to `"CODE X.XX"` for unknown codes.
 - Example: `412000` cents with `currency='USD'` → `"$4,120.00"`. With `currency='LKR'` → `"Rs 4,120.00"`.
@@ -436,16 +436,12 @@ backend/app/
 
 ## 15. Known Discrepancies (Docs vs Code)
 
-These are doc inaccuracies as of 2026-06-13 — the code is the source of truth.
+These are doc inaccuracies as of 2026-06-14 — the code is the source of truth.
 
 | # | Location | Issue |
 |---|---|---|
-| 1 | `docs/03-api-contract.md` | Base URL still says `onrender.com` — actual prod is Cloud Run (`...us-central1.run.app`) |
-| 2 | `docs/06-ui-screens.md` | Routes say `/settings` and `/settings/edit` — router actually uses `/profile` and `/profile/edit` |
-| 3 | `docs/06-ui-screens.md` | Tab order says "Garage · Home · Expenses · Settings" — actual order is **Home · Garage · Expenses · Settings** (Home = branch 0, default) |
-| 4 | `docs/03-api-contract.md` | Note says "fuelVariant is accepted/stored by the backend" — it was fully removed from the SQLAlchemy model and schemas; no such column exists |
-| 5 | `mobile/lib/features/fuel/domain/fuel_log.dart` | `FuelLog.fromJson` does not parse `updatedAt` (the API returns it; the Dart model silently drops it) |
-| 6 | `backend/app/routers/dashboard.py` | `DashboardRead` schema is imported from `schemas/documents.py` — logically misplaced but functionally correct |
+| 1 | `mobile/lib/features/fuel/domain/fuel_log.dart` | `FuelLog.fromJson` does not parse `updatedAt` (the API returns it; the Dart model silently drops it) |
+| 2 | `backend/app/routers/dashboard.py` | `DashboardRead` schema is imported from `schemas/documents.py` — logically misplaced but functionally correct |
 
 ---
 
@@ -457,3 +453,4 @@ These are doc inaccuracies as of 2026-06-13 — the code is the source of truth.
 - **Apple sign-in** — needs Apple Developer setup, deferred.
 - **Vehicle health score** — Phase 5.
 - **Multi-currency conversion** — not planned; each record stores its own currency.
+- **User-selectable currency** — locked to `LKR` for now; the picker/coercions are a seam to re-enable later.

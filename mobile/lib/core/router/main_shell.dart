@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import '../theme/app_theme.dart';
+import '../../shared/widgets/quick_add_sheet.dart';
 import 'shell_tab_provider.dart';
 
 class MainShell extends ConsumerWidget {
@@ -59,15 +60,16 @@ class _FloatingTabBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 72,
+      height: 82,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
       decoration: BoxDecoration(
-        color: Colors.black87,
-        borderRadius: BorderRadius.circular(36),
-        boxShadow: [
+        color: AppColors.surfaceDark,
+        borderRadius: BorderRadius.circular(40),
+        boxShadow: const [
           BoxShadow(
-            color: Colors.black26,
-            blurRadius: 20,
-            offset: Offset(0, 6),
+            color: Color(0x3F000000),
+            blurRadius: 28,
+            offset: Offset(0, 10),
           ),
         ],
       ),
@@ -87,8 +89,11 @@ class _TabBarContent extends StatefulWidget {
 }
 
 class _TabBarContentState extends State<_TabBarContent> {
+  /// Guard against opening multiple quick-add sheets simultaneously.
+  bool _quickAddOpen = false;
+
   static const _iconAssets = [
-    'assets/icons/dashboard.svg',
+    'assets/icons/home.svg',
     'assets/icons/garage.svg',
     'assets/icons/expenses.svg',
     'assets/icons/settings.svg',
@@ -97,74 +102,182 @@ class _TabBarContentState extends State<_TabBarContent> {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final slotWidth = constraints.maxWidth / _labels.length;
-        final pillWidth = slotWidth - 16;
-        final pillLeft = widget.currentIndex * slotWidth + 8;
+    // Layout: Home · Garage · [center +] · Expenses · Settings.
+    // The four tabs flex evenly; the raised add button sits in the middle.
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Expanded(child: _tab(0)),
+        Expanded(child: _tab(1)),
+        _centerAddButton(),
+        Expanded(child: _tab(2)),
+        Expanded(child: _tab(3)),
+      ],
+    );
+  }
 
-        return Stack(
-          children: [
-            // Single pill that slides between tabs
-            AnimatedPositioned(
-              duration: const Duration(milliseconds: 300),
-              curve: Curves.easeInOut,
-              left: pillLeft,
-              top: 8,
-              bottom: 8,
-              width: pillWidth,
-              child: Container(
-                decoration: BoxDecoration(
-                  color: AppColors.primary,
-                  borderRadius: BorderRadius.circular(100),
+  Widget _tab(int index) {
+    final active = index == widget.currentIndex;
+    return GestureDetector(
+      onTap: () => widget.onTap(index),
+      behavior: HitTestBehavior.opaque,
+      child: Center(
+        child: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 220),
+          switchInCurve: Curves.easeOutCubic,
+          switchOutCurve: Curves.easeInCubic,
+          transitionBuilder: (child, animation) {
+            return FadeTransition(
+              opacity: animation,
+              child: ScaleTransition(scale: animation, child: child),
+            );
+          },
+          child: active
+              ? _ActiveTab(
+                  key: ValueKey('active-$index'),
+                  iconAsset: _iconAssets[index],
+                  label: _labels[index],
+                )
+              : _InactiveTab(
+                  key: ValueKey('inactive-$index'),
+                  iconAsset: _iconAssets[index],
+                  label: _labels[index],
                 ),
-              ),
+        ),
+      ),
+    );
+  }
+
+  Widget _centerAddButton() {
+    return Transform.translate(
+      offset: const Offset(0, -10),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 6),
+        child: _AddButton(
+          key: const Key('fab_quick_add'),
+          onPressed: _quickAddOpen
+              ? null
+              : () async {
+                  if (_quickAddOpen) return;
+                  setState(() => _quickAddOpen = true);
+                  try {
+                    await showQuickAddSheet(context);
+                  } finally {
+                    if (mounted) {
+                      setState(() => _quickAddOpen = false);
+                    }
+                  }
+                },
+        ),
+      ),
+    );
+  }
+}
+
+class _ActiveTab extends StatelessWidget {
+  final String iconAsset;
+  final String label;
+
+  const _ActiveTab({super.key, required this.iconAsset, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          decoration: BoxDecoration(
+            color: AppColors.primary,
+            borderRadius: BorderRadius.circular(40),
+          ),
+          child: SvgPicture.asset(
+            iconAsset,
+            width: 24,
+            height: 24,
+            colorFilter: const ColorFilter.mode(
+              AppColors.textPrimary,
+              BlendMode.srcIn,
             ),
-            // Tab items rendered above the pill
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: List.generate(_labels.length, (index) {
-                final isSelected = index == widget.currentIndex;
-                return Expanded(
-                  child: GestureDetector(
-                    onTap: () => widget.onTap(index),
-                    behavior: HitTestBehavior.opaque,
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        SvgPicture.asset(
-                          _iconAssets[index],
-                          width: 22,
-                          height: 22,
-                          colorFilter: ColorFilter.mode(
-                            isSelected
-                                ? AppColors.onPrimary
-                                : Colors.grey.shade500,
-                            BlendMode.srcIn,
-                          ),
-                        ),
-                        const SizedBox(height: 3),
-                        Text(
-                          _labels[index],
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: isSelected
-                                ? FontWeight.w600
-                                : FontWeight.w400,
-                            color: isSelected
-                                ? AppColors.onPrimary
-                                : Colors.grey.shade500,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              }),
-            ),
-          ],
-        );
-      },
+          ),
+        ),
+        const SizedBox(height: 3),
+        Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
+            color: AppColors.primary,
+            height: 1,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _InactiveTab extends StatelessWidget {
+  final String iconAsset;
+  final String label;
+
+  const _InactiveTab({super.key, required this.iconAsset, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        SvgPicture.asset(
+          iconAsset,
+          width: 20,
+          height: 20,
+          colorFilter: const ColorFilter.mode(
+            AppColors.textOnDarkMuted,
+            BlendMode.srcIn,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textOnDarkMuted,
+            height: 1,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _AddButton extends StatelessWidget {
+  final VoidCallback? onPressed;
+
+  const _AddButton({super.key, required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    // Prominent, raised yellow circle — the central "add anything" action.
+    return Material(
+      color: AppColors.primary,
+      shape: const CircleBorder(),
+      elevation: 10,
+      shadowColor: AppColors.primary.withValues(alpha: 0.55),
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: onPressed,
+        child: const SizedBox(
+          width: 72,
+          height: 72,
+          child: Icon(Icons.add, color: AppColors.textPrimary, size: 34),
+        ),
+      ),
     );
   }
 }
