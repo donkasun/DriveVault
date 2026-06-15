@@ -1,4 +1,3 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -9,7 +8,6 @@ import '../../auth/presentation/widgets/verify_email_banner.dart';
 import '../../../shared/constants/currencies.dart';
 import '../../../shared/utils/formatting.dart';
 import '../../../shared/widgets/breakdown_bar.dart';
-import '../../../shared/widgets/stat_card.dart';
 import '../../../shared/widgets/status_pill.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../../profile/data/user_repository.dart';
@@ -56,23 +54,16 @@ class DashboardScreen extends ConsumerWidget {
 // Header
 // ---------------------------------------------------------------------------
 
-class _Header extends StatelessWidget {
+class _Header extends ConsumerWidget {
   const _Header();
 
   @override
-  Widget build(BuildContext context) {
-    User? user;
-    try {
-      user = FirebaseAuth.instance.currentUser;
-    } catch (_) {
-      // Firebase not initialized in test environments — user stays null.
-    }
+  Widget build(BuildContext context, WidgetRef ref) {
+    final appUser = ref.watch(meProvider).asData?.value;
 
-    // Graceful fallback: never show "there" — use "Welcome back" when no name.
-    final rawName = user?.displayName?.trim() ?? '';
+    final rawName = appUser?.displayName?.trim() ?? '';
     final hasName = rawName.isNotEmpty;
-    final displayName = hasName ? rawName : null;
-    final photoUrl = user?.photoURL;
+    final photoUrl = appUser?.photoUrl;
     final initials = hasName ? _initials(rawName) : '?';
 
     return Row(
@@ -83,15 +74,15 @@ class _Header extends StatelessWidget {
           children: [
             Text(
               _greeting(),
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(color: AppColors.textMuted),
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: const Color(0xFF73738A),
+              ),
             ),
-            if (displayName != null)
+            if (hasName)
               Text(
-                displayName,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
+                rawName,
+                style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                  fontWeight: FontWeight.w800,
                   color: AppColors.textPrimary,
                 ),
               ),
@@ -140,7 +131,7 @@ class _LoadingState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
       physics: const NeverScrollableScrollPhysics(),
       children: [
         _SkeletonBox(height: 56, borderRadius: 12),
@@ -290,14 +281,16 @@ class _LoadedContent extends ConsumerWidget {
     return RefreshIndicator(
       onRefresh: () => ref.read(dashboardProvider.notifier).refresh(),
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
         children: [
           const _Header(),
           const SizedBox(height: 20),
 
-          // 1. Needs attention (leads the page — product's reason to exist)
-          _NeedsAttentionCard(renewals: attentionRenewals),
-          const SizedBox(height: 16),
+          // 1. Needs attention (only shown when there are items)
+          if (attentionRenewals.isNotEmpty) ...[
+            _NeedsAttentionCard(renewals: attentionRenewals),
+            const SizedBox(height: 16),
+          ],
 
           // 2. One honest spend card (total + breakdown bar + monthly secondary)
           _SpendCard(data: data, currency: currency),
@@ -328,7 +321,10 @@ class _NeedsAttentionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
-      decoration: appCardDecoration,
+      decoration: BoxDecoration(
+        color: AppColors.surfaceDark,
+        borderRadius: BorderRadius.circular(16),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -336,28 +332,34 @@ class _NeedsAttentionCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                const Icon(
-                  Icons.notifications_outlined,
-                  size: 16,
-                  color: AppColors.textMuted,
+                Container(
+                  width: 8,
+                  height: 8,
+                  decoration: const BoxDecoration(
+                    color: AppColors.danger,
+                    shape: BoxShape.circle,
+                  ),
                 ),
-                const SizedBox(width: 6),
+                const SizedBox(width: 8),
                 Text(
-                  'Needs Attention',
+                  'Needs attention',
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    color: AppColors.textPrimary,
+                    color: Colors.white,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
+                const Spacer(),
+                if (renewals.isNotEmpty)
+                  Text(
+                    '${renewals.length} item${renewals.length == 1 ? '' : 's'}',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: AppColors.textMuted,
+                    ),
+                  ),
               ],
             ),
-            if (renewals.isEmpty) ...[
-              const SizedBox(height: 16),
-              _AllSetState(),
-            ] else ...[
-              const SizedBox(height: 12),
-              ...renewals.map((r) => _RenewalAttentionRow(renewal: r)),
-            ],
+            const SizedBox(height: 12),
+            ...renewals.map((r) => _RenewalAttentionRow(renewal: r)),
           ],
         ),
       ),
@@ -365,33 +367,6 @@ class _NeedsAttentionCard extends StatelessWidget {
   }
 }
 
-class _AllSetState extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          width: 32,
-          height: 32,
-          decoration: const BoxDecoration(
-            color: AppColors.successBg,
-            shape: BoxShape.circle,
-          ),
-          child: const Icon(Icons.check, size: 18, color: AppColors.success),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Text(
-            "You're all set — no renewals due soon.",
-            style: Theme.of(
-              context,
-            ).textTheme.bodyMedium?.copyWith(color: AppColors.textMuted),
-          ),
-        ),
-      ],
-    );
-  }
-}
 
 class _RenewalAttentionRow extends StatelessWidget {
   final UpcomingRenewal renewal;
@@ -416,11 +391,20 @@ class _RenewalAttentionRow extends StatelessWidget {
           padding: const EdgeInsets.symmetric(vertical: 4),
           child: Row(
             children: [
-              StatusPill.fromRenewalStatus(
-                status,
-                daysRemaining: renewal.daysRemaining,
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(
+                  Icons.directions_car_outlined,
+                  size: 20,
+                  color: AppColors.textMuted,
+                ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -429,16 +413,24 @@ class _RenewalAttentionRow extends StatelessWidget {
                       renewal.title,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary,
+                        color: Colors.white,
                       ),
                     ),
                     Text(
                       vehicleLabel,
-                      style: Theme.of(context).textTheme.bodySmall,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppColors.textMuted,
+                      ),
                     ),
                   ],
                 ),
               ),
+              const SizedBox(width: 8),
+              StatusPill.fromRenewalStatus(
+                status,
+                daysRemaining: renewal.daysRemaining,
+              ),
+              const SizedBox(width: 6),
               const Icon(
                 Icons.chevron_right,
                 size: 18,
@@ -468,7 +460,7 @@ class _SpendCard extends StatelessWidget {
       data.totalOwnershipCostCents,
       currency: currency,
     );
-    final monthlyFuelLabel = formatCents(
+    final monthlyLabel = formatCents(
       data.monthlyFuelSpendCents,
       currency: currency,
     );
@@ -484,11 +476,6 @@ class _SpendCard extends StatelessWidget {
         valueCents: data.costBreakdown.maintenanceCents,
         color: AppColors.surfaceDark,
       ),
-      BreakdownSegment(
-        label: 'Purchase',
-        valueCents: data.costBreakdown.purchaseCents,
-        color: AppColors.textMuted,
-      ),
     ];
 
     return DecoratedBox(
@@ -498,23 +485,52 @@ class _SpendCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Section label
-            Text(
-              'TOTAL OWNERSHIP COST',
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: AppColors.textMuted,
-                letterSpacing: 0.8,
-              ),
+            // Two-column header: label row
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Text(
+                    'TOTAL OWNERSHIP COST',
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: AppColors.textMuted,
+                      letterSpacing: 0.8,
+                    ),
+                  ),
+                ),
+                Text(
+                  'THIS MONTH',
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: AppColors.textMuted,
+                    letterSpacing: 0.8,
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 4),
 
-            // The one big number
-            Text(
-              totalLabel,
-              style: Theme.of(context).textTheme.displayMedium?.copyWith(
-                fontWeight: FontWeight.w800,
-                color: AppColors.textPrimary,
-              ),
+            // Two-column amounts
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.baseline,
+              textBaseline: TextBaseline.alphabetic,
+              children: [
+                Expanded(
+                  child: Text(
+                    totalLabel,
+                    style: Theme.of(context).textTheme.displayMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                ),
+                Text(
+                  monthlyLabel,
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ],
             ),
             Text(
               'across ${data.vehicleCount} vehicle${data.vehicleCount == 1 ? '' : 's'}',
@@ -528,14 +544,6 @@ class _SpendCard extends StatelessWidget {
 
             // Legend
             _BreakdownLegend(segments: segments, currency: currency),
-            const SizedBox(height: 16),
-
-            // This-month fuel secondary stat
-            StatCard(
-              label: 'Fuel · This month',
-              value: monthlyFuelLabel,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            ),
           ],
         ),
       ),
@@ -602,25 +610,17 @@ class _RecentActivitySection extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.only(bottom: 10),
           child: Text(
-            'Recent Activity',
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary,
+            'RECENT ACTIVITY',
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: const Color(0xFF73738A),
+              letterSpacing: 0.8,
             ),
           ),
         ),
-        DecoratedBox(
-          decoration: appCardDecoration,
-          child: Column(
-            children: [
-              for (int i = 0; i < items.length; i++) ...[
-                _ActivityRow(item: items[i], currency: currency),
-                if (i < items.length - 1)
-                  const Divider(height: 1, indent: 52, endIndent: 16),
-              ],
-            ],
-          ),
-        ),
+        for (final item in items) ...[
+          _ActivityRow(item: item, currency: currency),
+          const SizedBox(height: 8),
+        ],
       ],
     );
   }
@@ -639,50 +639,85 @@ class _ActivityRow extends StatelessWidget {
     final iconColor = _colorForType(item.type);
     final friendlyDate = _friendlyDate(item.date);
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Row(
-        children: [
-          // Type icon
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(color: iconBg, shape: BoxShape.circle),
-            child: Icon(icon, size: 18, color: iconColor),
-          ),
-          const SizedBox(width: 12),
-
-          // Label + vehicle + date
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  item.label,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '${item.vehicleLabel} · $friendlyDate',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ],
+    return Container(
+      decoration: appCardDecoration.copyWith(
+        borderRadius: const BorderRadius.all(Radius.circular(16)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            // Type icon — rounded-rect to match expense tiles
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: iconBg,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, size: 20, color: iconColor),
             ),
-          ),
+            const SizedBox(width: 12),
 
-          // Amount (when present)
-          if (item.amountCents != null)
-            Text(
-              formatCents(item.amountCents!, currency: currency),
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
+            // Label + vehicle + date (three lines matching _ExpenseTile)
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item.label,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  if (item.type == ActivityType.fuel && item.liters != null) ...[
+                    const SizedBox(height: 3),
+                    Row(
+                      children: [
+                        _FuelChip(
+                          label: item.isFull == true ? 'Full' : 'Partial',
+                          isFull: item.isFull ?? false,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          '${item.liters!.toStringAsFixed(1)}L',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textMuted,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                  const SizedBox(height: 2),
+                  Text(
+                    '${item.vehicleLabel} · $friendlyDate',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textMuted,
+                    ),
+                  ),
+                ],
               ),
             ),
-        ],
+            const SizedBox(width: 12),
+
+            // Amount (when present)
+            if (item.amountCents != null)
+              Text(
+                formatCents(item.amountCents!, currency: currency),
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -701,9 +736,9 @@ class _ActivityRow extends StatelessWidget {
   Color _bgForType(ActivityType type) {
     switch (type) {
       case ActivityType.fuel:
-        return AppColors.warningBg;
+        return AppColors.primary.withValues(alpha: 0.12);
       case ActivityType.maintenance:
-        return AppColors.dangerBg;
+        return AppColors.surfaceDark.withValues(alpha: 0.08);
       case ActivityType.document:
         return AppColors.successBg;
     }
@@ -712,9 +747,9 @@ class _ActivityRow extends StatelessWidget {
   Color _colorForType(ActivityType type) {
     switch (type) {
       case ActivityType.fuel:
-        return AppColors.warning;
+        return AppColors.primary;
       case ActivityType.maintenance:
-        return AppColors.danger;
+        return AppColors.surfaceDark;
       case ActivityType.document:
         return AppColors.success;
     }
@@ -733,5 +768,33 @@ class _ActivityRow extends StatelessWidget {
     if (diff == 0) return 'Today';
     if (diff == 1) return 'Yesterday';
     return DateFormat('d MMM').format(dt);
+  }
+}
+
+class _FuelChip extends StatelessWidget {
+  final String label;
+  final bool isFull;
+
+  const _FuelChip({required this.label, required this.isFull});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = isFull ? AppColors.success : AppColors.warning;
+    final bg = isFull ? AppColors.successBg : AppColors.warningBg;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(100),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          color: color,
+        ),
+      ),
+    );
   }
 }

@@ -134,7 +134,7 @@ class _VehicleDetailBody extends ConsumerWidget {
               _FuelSection(vehicleId: vehicle.id),
               _MaintenanceSection(vehicleId: vehicle.id),
               _DocumentsSection(vehicleId: vehicle.id),
-              const SizedBox(height: 100),
+              const SizedBox(height: 120),
             ]),
           ),
         ],

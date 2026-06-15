@@ -135,6 +135,8 @@ def get_dashboard_data(
                 "date": log.date,
                 "amount_cents": log.price_cents,
                 "label": "Fuel",
+                "liters": float(log.liters),
+                "is_full_tank": log.is_full_tank,
             }
         )
 

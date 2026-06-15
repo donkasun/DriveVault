@@ -71,7 +71,13 @@ class StatusPill extends StatelessWidget {
         daysRemaining != null ? '${daysRemaining}d left' : 'Soon',
         PillTone.soon,
       ),
-      RenewalStatus.overdue => ('⚠', 'Overdue', PillTone.overdue),
+      RenewalStatus.overdue => (
+        '⚠',
+        daysRemaining != null
+            ? 'Overdue ${daysRemaining.abs()}d'
+            : 'Overdue',
+        PillTone.overdue,
+      ),
     };
     return StatusPill(
       key: key,

@@ -185,7 +185,7 @@ class _ExpenseHistoryScreenState extends ConsumerState<ExpenseHistoryScreen> {
                             final groups = groupExpensesByMonth(listExpenses);
 
                             return ListView.builder(
-                              padding: const EdgeInsets.only(bottom: 96),
+                              padding: const EdgeInsets.only(bottom: 120),
                               itemCount: groups.fold<int>(
                                 0,
                                 (count, g) => count + 1 + g.expenses.length,
@@ -948,7 +948,7 @@ class _LoadingSkeleton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 96),
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 120),
       children: [
         // Summary card skeleton
         _SkeletonBox(height: 110, radius: 16),

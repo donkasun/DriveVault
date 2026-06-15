@@ -14,12 +14,12 @@ import '../../domain/vehicle.dart';
 
 /// Dark vehicle card used in the Garage list.
 ///
-/// v2 redesign (Phase 4):
-/// - Photo is a **contained banner** at the top of the card (no floating overhang).
-/// - Three stats: mileage · economy (km/L or mpg via [formatEconomyFromStats]) · total spent.
-/// - Docs status replaced the dead "Docs 0" stat — shows [StatusPill.fromDocsStatus].
-/// - Two actions: "Log Fuel" quick-action + a clear "Open" affordance.
-/// - Tap anywhere on the card body navigates to the vehicle detail.
+/// v3 redesign:
+/// - No full-width photo banner. Instead, a small 72×72 rounded thumbnail sits
+///   in the top-right of the card body.
+/// - Name + year·reg + docs status pill stacked on the left.
+/// - Three stats (no icons): Mileage · Economy · Spent.
+/// - Two actions split by a vertical divider: Log fuel (primary) / Open (ghost).
 class VehicleCard extends ConsumerWidget {
   final Vehicle vehicle;
 
@@ -55,135 +55,156 @@ class VehicleCard extends ConsumerWidget {
     final totalSpentStr = formatCents(totalSpentCents, currency: currency);
 
     final name = vehicle.displayName;
+    final year = vehicle.year?.toString();
+    final reg = vehicle.registrationNumber;
 
-    return GestureDetector(
-      onTap: () => context.push('/garage/vehicle/${vehicle.id}'),
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [AppColors.cardGradientStart, AppColors.cardGradientEnd],
-          ),
-          borderRadius: BorderRadius.circular(18),
+    // Build "year · reg" subtitle — show whatever is available
+    String? subtitle;
+    if (year != null && reg != null) {
+      subtitle = '$year · $reg';
+    } else if (year != null) {
+      subtitle = year;
+    } else if (reg != null) {
+      subtitle = reg;
+    }
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [AppColors.cardGradientStart, AppColors.cardGradientEnd],
         ),
-        clipBehavior: Clip.hardEdge,
+        borderRadius: BorderRadius.circular(18),
+      ),
+      clipBehavior: Clip.hardEdge,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── Contained photo banner ────────────────────────────────────
-            _PhotoBanner(photoUrl: vehicle.photoUrl),
-
-            // ── Card body ─────────────────────────────────────────────────
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // ── Name + docs pill row ──────────────────────────────
-                  Row(
+            // ── Top row: name/reg/pill  +  thumbnail ─────────────────────
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Left: name stack
+                Expanded(
+                  child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              name,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 17,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            if (vehicle.registrationNumber != null) ...[
-                              const SizedBox(height: 3),
-                              Text(
-                                vehicle.registrationNumber!,
-                                style: TextStyle(
-                                  color: Colors.white.withValues(alpha: 0.55),
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ],
-                          ],
+                      Text(
+                        name,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      // Docs status replaces the dead "Docs 0" chip
+                      if (subtitle != null) ...[
+                        const SizedBox(height: 3),
+                        Text(
+                          subtitle,
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.55),
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 6),
                       StatusPill.fromDocsStatus(vehicle.docsStatus),
                     ],
                   ),
-                  const SizedBox(height: 14),
+                ),
+                const SizedBox(width: 12),
+                // Right: thumbnail
+                _Thumbnail(photoUrl: vehicle.photoUrl),
+              ],
+            ),
+            const SizedBox(height: 14),
 
-                  // ── Stats row ─────────────────────────────────────────
-                  Row(
-                    children: [
-                      _StatItem(
-                        icon: Icons.speed,
-                        value: mileageStr,
-                        label: 'Mileage',
-                      ),
-                      _StatItem(
-                        icon: Icons.local_gas_station,
-                        value: economyStr,
-                        label: 'Economy',
-                      ),
-                      _StatItem(
-                        icon: Icons.receipt_long,
-                        value: totalSpentStr,
-                        label: 'Total spent',
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
+            // ── Stats row (no icons) ──────────────────────────────────────
+            Row(
+              children: [
+                _StatItem(value: mileageStr, label: 'MILEAGE'),
+                _StatItem(value: economyStr, label: 'ECONOMY'),
+                _StatItem(value: totalSpentStr, label: 'SPENT'),
+              ],
+            ),
+            const SizedBox(height: 12),
 
-                  // ── Divider ───────────────────────────────────────────
-                  const Divider(color: Colors.white12, height: 1),
-                  const SizedBox(height: 12),
+            // ── Divider ───────────────────────────────────────────────────
+            const Divider(color: Colors.white12, height: 1),
+            const SizedBox(height: 12),
 
-                  // ── Actions: Log Fuel + Open ──────────────────────────
-                  Row(
-                    children: [
-                      // "Log Fuel" quick action
-                      _ActionButton(
-                        icon: Icons.local_gas_station,
-                        label: 'Log Fuel',
-                        onTap: () => showQuickFuelEntrySheet(
-                          context,
-                          vehicleId: vehicle.id,
-                        ),
-                      ),
-                      const Spacer(),
-                      // "Open" affordance → detail
-                      GestureDetector(
-                        onTap: () =>
-                            context.push('/garage/vehicle/${vehicle.id}'),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              'Open',
-                              style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.7),
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500,
-                              ),
+            // ── Actions row ───────────────────────────────────────────────
+            Row(
+              children: [
+                // Log fuel
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => showQuickFuelEntrySheet(
+                      context,
+                      vehicleId: vehicle.id,
+                    ),
+                    child: Center(
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.local_gas_station,
+                            color: AppColors.primary,
+                            size: 16,
+                          ),
+                          const SizedBox(width: 5),
+                          const Text(
+                            'Log fuel',
+                            style: TextStyle(
+                              color: AppColors.primary,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
                             ),
-                            const SizedBox(width: 4),
-                            Icon(
-                              Icons.chevron_right,
-                              color: Colors.white.withValues(alpha: 0.5),
-                              size: 18,
-                            ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
-                ],
-              ),
+                ),
+                // Vertical divider
+                Container(
+                  width: 1,
+                  height: 20,
+                  color: Colors.white12,
+                ),
+                // Open
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () =>
+                        context.push('/garage/vehicle/${vehicle.id}'),
+                    child: Center(
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'Open',
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.7),
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Icon(
+                            Icons.arrow_forward,
+                            color: Colors.white.withValues(alpha: 0.7),
+                            size: 14,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -194,64 +215,56 @@ class VehicleCard extends ConsumerWidget {
 
 // ── Private widgets ──────────────────────────────────────────────────────────
 
-/// Contained photo banner — sits flush inside the card, no overhang.
-class _PhotoBanner extends StatelessWidget {
+/// Small rounded-square vehicle thumbnail (72×72).
+class _Thumbnail extends StatelessWidget {
   final String? photoUrl;
 
-  const _PhotoBanner({this.photoUrl});
+  const _Thumbnail({this.photoUrl});
 
   @override
   Widget build(BuildContext context) {
-    if (photoUrl == null) {
-      return Container(
-        height: 100,
-        color: Colors.white.withValues(alpha: 0.05),
-        child: const Center(
-          child: Icon(Icons.directions_car, color: Colors.white24, size: 40),
-        ),
-      );
-    }
-    return CachedNetworkImage(
-      imageUrl: photoUrl!,
-      height: 100,
-      width: double.infinity,
-      fit: BoxFit.cover,
-      placeholder: (_, _) => Container(
-        height: 100,
-        color: Colors.white.withValues(alpha: 0.05),
-        child: const Center(
-          child: SizedBox(
-            width: 20,
-            height: 20,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
+    return Container(
+      width: 72,
+      height: 72,
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      clipBehavior: Clip.hardEdge,
+      child: photoUrl != null
+          ? CachedNetworkImage(
+              imageUrl: photoUrl!,
+              fit: BoxFit.cover,
+              placeholder: (_, _) => const Center(
+                child: SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white24,
+                  ),
+                ),
+              ),
+              errorWidget: (_, _, _) => const Icon(
+                Icons.broken_image_outlined,
+                color: Colors.white24,
+                size: 28,
+              ),
+            )
+          : const Icon(
+              Icons.directions_car_outlined,
               color: Colors.white24,
+              size: 32,
             ),
-          ),
-        ),
-      ),
-      errorWidget: (_, _, _) => Container(
-        height: 100,
-        color: Colors.white.withValues(alpha: 0.05),
-        child: const Center(
-          child: Icon(
-            Icons.broken_image_outlined,
-            color: Colors.white24,
-            size: 32,
-          ),
-        ),
-      ),
     );
   }
 }
 
 class _StatItem extends StatelessWidget {
-  final IconData icon;
   final String value;
   final String label;
 
   const _StatItem({
-    required this.icon,
     required this.value,
     required this.label,
   });
@@ -261,20 +274,17 @@ class _StatItem extends StatelessWidget {
     return Expanded(
       child: Column(
         mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: AppColors.primary, size: 16),
-          const SizedBox(height: 4),
           Text(
             value,
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
             ),
             maxLines: 1,
-            // softWrap: false avoids truncation; money never clips
-            overflow: TextOverflow.visible,
-            softWrap: false,
+            overflow: TextOverflow.ellipsis,
           ),
           const SizedBox(height: 2),
           Text(
@@ -282,50 +292,10 @@ class _StatItem extends StatelessWidget {
             style: TextStyle(
               color: Colors.white.withValues(alpha: 0.5),
               fontSize: 10,
+              letterSpacing: 0.5,
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _ActionButton extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-
-  const _ActionButton({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        decoration: BoxDecoration(
-          color: AppColors.primary.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, color: AppColors.primary, size: 16),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: const TextStyle(
-                color: AppColors.primary,
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }

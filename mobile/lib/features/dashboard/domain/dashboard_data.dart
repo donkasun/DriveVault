@@ -126,6 +126,7 @@ ActivityType _parseActivityType(String raw) {
 /// A single entry in the dashboard's `recentActivity` list.
 ///
 /// `amountCents` is null for document entries.
+/// `liters` and `isFull` are set only for fuel entries.
 class ActivityItem {
   final ActivityType type;
   final String vehicleId;
@@ -133,6 +134,8 @@ class ActivityItem {
   final String date; // "YYYY-MM-DD"
   final int? amountCents;
   final String label;
+  final double? liters;
+  final bool? isFull;
 
   const ActivityItem({
     required this.type,
@@ -141,6 +144,8 @@ class ActivityItem {
     required this.date,
     required this.amountCents,
     required this.label,
+    this.liters,
+    this.isFull,
   });
 
   factory ActivityItem.fromJson(Map<String, dynamic> json) {
@@ -151,6 +156,8 @@ class ActivityItem {
       date: json['date'] as String,
       amountCents: json['amountCents'] as int?,
       label: json['label'] as String,
+      liters: (json['liters'] as num?)?.toDouble(),
+      isFull: json['isFull'] as bool?,
     );
   }
 }
