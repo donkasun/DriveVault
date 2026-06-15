@@ -8,6 +8,7 @@ import '../../auth/presentation/widgets/verify_email_banner.dart';
 import '../../../shared/constants/currencies.dart';
 import '../../../shared/utils/formatting.dart';
 import '../../../shared/widgets/breakdown_bar.dart';
+import '../../../shared/widgets/fuel_pump_icon.dart';
 import '../../../shared/widgets/status_pill.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../../profile/data/user_repository.dart';
@@ -68,37 +69,42 @@ class _Header extends ConsumerWidget {
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               _greeting(),
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: const Color(0xFF73738A),
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: AppColors.textMuted,
               ),
             ),
             if (hasName)
               Text(
                 rawName,
-                style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                style: const TextStyle(
+                  fontSize: 26,
                   fontWeight: FontWeight.w800,
+                  letterSpacing: -0.6,
                   color: AppColors.textPrimary,
                 ),
               ),
           ],
         ),
         photoUrl != null
-            ? CircleAvatar(radius: 20, backgroundImage: NetworkImage(photoUrl))
+            ? CircleAvatar(radius: 23, backgroundImage: NetworkImage(photoUrl))
             : CircleAvatar(
-                radius: 20,
+                radius: 23,
                 backgroundColor: AppColors.primary,
                 child: Text(
                   initials,
                   style: const TextStyle(
                     color: AppColors.onPrimary,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 18,
                   ),
                 ),
               ),
@@ -108,9 +114,9 @@ class _Header extends ConsumerWidget {
 
   String _greeting() {
     final hour = DateTime.now().hour;
-    if (hour < 12) return 'Good morning';
-    if (hour < 17) return 'Good afternoon';
-    return 'Welcome back';
+    if (hour < 12) return 'Good morning,';
+    if (hour < 17) return 'Good afternoon,';
+    return 'Welcome back,';
   }
 
   String _initials(String name) {
@@ -323,45 +329,57 @@ class _NeedsAttentionCard extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(
         color: AppColors.surfaceDark,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(18),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(18, 16, 18, 12),
+            child: Row(
               children: [
                 Container(
                   width: 8,
                   height: 8,
-                  decoration: const BoxDecoration(
+                  decoration: BoxDecoration(
                     color: AppColors.danger,
                     shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.danger.withValues(alpha: 0.25),
+                        blurRadius: 0,
+                        spreadRadius: 4,
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(width: 8),
-                Text(
+                const SizedBox(width: 10),
+                const Text(
                   'Needs attention',
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
                     color: Colors.white,
-                    fontWeight: FontWeight.w700,
                   ),
                 ),
                 const Spacer(),
                 if (renewals.isNotEmpty)
                   Text(
                     '${renewals.length} item${renewals.length == 1 ? '' : 's'}',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppColors.textMuted,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textOnDarkMuted,
                     ),
                   ),
               ],
             ),
-            const SizedBox(height: 12),
-            ...renewals.map((r) => _RenewalAttentionRow(renewal: r)),
+          ),
+          for (final renewal in renewals) ...[
+            const Divider(height: 1, color: Color(0xFF34333F)),
+            _RenewalAttentionRow(renewal: renewal),
           ],
-        ),
+        ],
       ),
     );
   }
@@ -382,62 +400,62 @@ class _RenewalAttentionRow extends StatelessWidget {
 
     final status = renewal.status ?? RenewalStatus.soon;
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(10),
-        onTap: () => context.go('/garage/vehicle/${renewal.vehicleId}'),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 4),
-          child: Row(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(
-                  Icons.directions_car_outlined,
-                  size: 20,
-                  color: AppColors.textMuted,
-                ),
+    return InkWell(
+      onTap: () => context.go('/garage/vehicle/${renewal.vehicleId}'),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+        child: Row(
+          children: [
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.16),
+                borderRadius: BorderRadius.circular(13),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      renewal.title,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
-                      ),
+              child: const Icon(
+                Icons.directions_car_outlined,
+                size: 20,
+                color: AppColors.primary,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    renewal.title,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
                     ),
-                    Text(
-                      vehicleLabel,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.textMuted,
-                      ),
+                  ),
+                  Text(
+                    vehicleLabel,
+                    style: const TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.textOnDarkMuted,
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-              const SizedBox(width: 8),
-              StatusPill.fromRenewalStatus(
-                status,
-                daysRemaining: renewal.daysRemaining,
-              ),
-              const SizedBox(width: 6),
-              const Icon(
-                Icons.chevron_right,
-                size: 18,
-                color: AppColors.textMuted,
-              ),
-            ],
-          ),
+            ),
+            const SizedBox(width: 8),
+            StatusPill.fromRenewalStatus(
+              status,
+              daysRemaining: renewal.daysRemaining,
+              onDark: true,
+            ),
+            const SizedBox(width: 6),
+            const Icon(
+              Icons.chevron_right,
+              size: 18,
+              color: Color(0x61EBEBF5), // rgba(235,235,245,0.38)
+            ),
+          ],
         ),
       ),
     );
@@ -477,117 +495,77 @@ class _SpendCard extends StatelessWidget {
         color: AppColors.surfaceDark,
       ),
     ];
+    String fmt(int c) => formatCents(c, currency: currency);
+
+    const labelStyle = TextStyle(
+      fontSize: 11,
+      fontWeight: FontWeight.w700,
+      letterSpacing: 1.0,
+      color: AppColors.textMuted,
+    );
 
     return DecoratedBox(
       decoration: appCardDecoration,
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(18),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Two-column header: label row
+            // Two columns: each has its own label stacked above its value.
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Left — total ownership cost
                 Expanded(
-                  child: Text(
-                    'Total ownership cost',
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: AppColors.textMuted,
-                      letterSpacing: 0.8,
-                    ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('TOTAL OWNERSHIP COST', style: labelStyle),
+                      const SizedBox(height: 2),
+                      Text(
+                        totalLabel,
+                        style: const TextStyle(
+                          fontSize: 32,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -1,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 1),
+                      Text(
+                        'across ${data.vehicleCount} vehicle${data.vehicleCount == 1 ? '' : 's'}',
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          color: AppColors.textMuted,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                Text(
-                  'This month',
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: AppColors.textMuted,
-                    letterSpacing: 0.8,
-                  ),
+                // Right — this month (right-aligned)
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    const Text('THIS MONTH', style: labelStyle),
+                    const SizedBox(height: 4),
+                    Text(
+                      monthlyLabel,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                  ],
                 ),
               ],
-            ),
-            const SizedBox(height: 4),
-
-            // Two-column amounts
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.baseline,
-              textBaseline: TextBaseline.alphabetic,
-              children: [
-                Expanded(
-                  child: Text(
-                    totalLabel,
-                    style: Theme.of(context).textTheme.displayMedium?.copyWith(
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                ),
-                Text(
-                  monthlyLabel,
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-              ],
-            ),
-            Text(
-              'across ${data.vehicleCount} vehicle${data.vehicleCount == 1 ? '' : 's'}',
-              style: Theme.of(context).textTheme.bodySmall,
             ),
             const SizedBox(height: 16),
-
-            // Breakdown bar
-            BreakdownBar(segments: segments),
-            const SizedBox(height: 8),
-
-            // Legend
-            _BreakdownLegend(segments: segments, currency: currency),
+            BreakdownBarWithLegend(segments: segments, formatAmount: fmt, barHeight: 10),
           ],
         ),
       ),
-    );
-  }
-}
-
-class _BreakdownLegend extends StatelessWidget {
-  final List<BreakdownSegment> segments;
-  final String currency;
-
-  const _BreakdownLegend({required this.segments, required this.currency});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: segments
-          .map(
-            (s) => Expanded(
-              child: Row(
-                children: [
-                  Container(
-                    width: 8,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      color: s.color,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  Expanded(
-                    child: Text(
-                      s.label,
-                      style: Theme.of(
-                        context,
-                      ).textTheme.bodySmall?.copyWith(fontSize: 10),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          )
-          .toList(),
     );
   }
 }
@@ -607,56 +585,36 @@ class _RecentActivitySection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.only(bottom: 10),
+        const Padding(
+          padding: EdgeInsets.only(bottom: 12),
           child: Text(
             'Recent activity',
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: const Color(0xFF73738A),
-              letterSpacing: 0.8,
+            style: TextStyle(
+              fontSize: 19,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.4,
+              color: AppColors.textPrimary,
             ),
           ),
         ),
-        DecoratedBox(
-          decoration: appCardDecoration,
-          child: Column(
-            children: [
-              for (int i = 0; i < items.length; i++) ...[
-                _ActivityRow(item: items[i], currency: currency),
-                if (i < items.length - 1)
-                  const Divider(
-                    height: 1,
-                    indent: 16,
-                    endIndent: 16,
-                    color: AppColors.divider,
-                  ),
-              ],
-              const Divider(
-                height: 1,
-                indent: 16,
-                endIndent: 16,
-                color: AppColors.divider,
-              ),
-              const _SeeAllExpensesButton(),
-            ],
-          ),
-        ),
+        for (final item in items) ...[
+          _ActivityCard(item: item, currency: currency),
+          const SizedBox(height: 10),
+        ],
+        const _SeeAllExpensesButton(),
       ],
     );
   }
 }
 
-class _ActivityRow extends StatelessWidget {
+class _ActivityCard extends StatelessWidget {
   final ActivityItem item;
   final String currency;
 
-  const _ActivityRow({required this.item, required this.currency});
+  const _ActivityCard({required this.item, required this.currency});
 
   @override
   Widget build(BuildContext context) {
-    final icon = _iconForType(item.type);
-    final iconBg = _bgForType(item.type);
-    final iconColor = _colorForType(item.type);
     final friendlyDate = _friendlyDate(item.date);
 
     final String subLabel;
@@ -667,108 +625,113 @@ class _ActivityRow extends StatelessWidget {
       subLabel = '$friendlyDate · ${item.label}';
     }
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          // Type icon — circle
-          Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              color: iconBg,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, size: 18, color: iconColor),
-          ),
-          const SizedBox(width: 12),
-
-          // Vehicle name (primary) + date/details (sub-label)
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+    return DecoratedBox(
+      decoration: appCardDecoration,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: () {},
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              _iconWidget(),
+              const SizedBox(width: 13),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      item.vehicleLabel,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    Text(
+                      subLabel,
+                      style: const TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.textMuted,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (item.amountCents != null) ...[
+                const SizedBox(width: 12),
                 Text(
-                  item.vehicleLabel,
+                  formatCents(item.amountCents!, currency: currency),
                   style: const TextStyle(
                     fontSize: 15,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.3,
                     color: AppColors.textPrimary,
                   ),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  subLabel,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w400,
-                    color: Color(0xFF73738A),
-                  ),
-                ),
               ],
-            ),
+            ],
           ),
-          const SizedBox(width: 12),
-
-          // Amount (when present)
-          if (item.amountCents != null)
-            Text(
-              formatCents(item.amountCents!, currency: currency),
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary,
-              ),
-            ),
-        ],
+        ),
       ),
     );
   }
 
-  IconData _iconForType(ActivityType type) {
-    switch (type) {
-      case ActivityType.fuel:
-        return Icons.local_gas_station;
-      case ActivityType.maintenance:
-        return Icons.build_outlined;
-      case ActivityType.document:
-        return Icons.description_outlined;
+  Widget _iconWidget() {
+    if (item.type == ActivityType.fuel) {
+      final isFull = item.isFull ?? true;
+      final bg = isFull
+          ? AppColors.successBg
+          : AppColors.primary.withValues(alpha: 0.12);
+      return Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Center(
+          child: FuelPumpIcon(isFullTank: isFull, size: 20, darkInk: !isFull),
+        ),
+      );
     }
+    return Container(
+      width: 40,
+      height: 40,
+      decoration: BoxDecoration(
+        color: _bgForType(item.type),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Icon(_iconForType(item.type), size: 20, color: _colorForType(item.type)),
+    );
   }
 
-  Color _bgForType(ActivityType type) {
-    switch (type) {
-      case ActivityType.fuel:
-        return AppColors.primary.withValues(alpha: 0.12);
-      case ActivityType.maintenance:
-        return AppColors.surfaceDark.withValues(alpha: 0.08);
-      case ActivityType.document:
-        return AppColors.successBg;
-    }
-  }
+  IconData _iconForType(ActivityType type) => switch (type) {
+    ActivityType.fuel        => Icons.local_gas_station,
+    ActivityType.maintenance => Icons.build_outlined,
+    ActivityType.document    => Icons.description_outlined,
+  };
 
-  Color _colorForType(ActivityType type) {
-    switch (type) {
-      case ActivityType.fuel:
-        return AppColors.primary;
-      case ActivityType.maintenance:
-        return AppColors.surfaceDark;
-      case ActivityType.document:
-        return AppColors.success;
-    }
-  }
+  Color _bgForType(ActivityType type) => switch (type) {
+    ActivityType.fuel        => AppColors.successBg,
+    ActivityType.maintenance => AppColors.surfaceDark.withValues(alpha: 0.08),
+    ActivityType.document    => AppColors.successBg,
+  };
 
-  /// Returns "Today", "Yesterday", "13 Jun", or falls back to the raw date.
+  Color _colorForType(ActivityType type) => switch (type) {
+    ActivityType.fuel        => AppColors.success,
+    ActivityType.maintenance => AppColors.surfaceDark,
+    ActivityType.document    => AppColors.success,
+  };
+
   String _friendlyDate(String dateStr) {
     final dt = DateTime.tryParse(dateStr);
     if (dt == null) return dateStr;
-
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    final target = DateTime(dt.year, dt.month, dt.day);
-    final diff = today.difference(target).inDays;
-
+    final diff = today.difference(DateTime(dt.year, dt.month, dt.day)).inDays;
     if (diff == 0) return 'Today';
     if (diff == 1) return 'Yesterday';
     return DateFormat('d MMM').format(dt);
@@ -780,23 +743,26 @@ class _SeeAllExpensesButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: () => context.go('/expenses'),
-      borderRadius: const BorderRadius.vertical(bottom: Radius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              'See all expenses',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: AppColors.textPrimary,
-                fontWeight: FontWeight.w600,
+    return Center(
+      child: GestureDetector(
+        onTap: () => context.go('/expenses'),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: const [
+              Text(
+                'See all expenses',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textMuted,
+                ),
               ),
-            ),
-            const Icon(Icons.arrow_forward, size: 16, color: AppColors.textMuted),
-          ],
+              SizedBox(width: 4),
+              Icon(Icons.chevron_right, size: 16, color: AppColors.textMuted),
+            ],
+          ),
         ),
       ),
     );

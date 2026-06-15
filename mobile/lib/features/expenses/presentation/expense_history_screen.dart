@@ -308,7 +308,7 @@ class _SummaryCard extends StatelessWidget {
               ),
               if (kindFilter == null) ...[
                 const SizedBox(height: 14),
-                BreakdownBar(
+                BreakdownBarWithLegend(
                   segments: [
                     BreakdownSegment(
                       label: 'Fuel',
@@ -321,72 +321,13 @@ class _SummaryCard extends StatelessWidget {
                       color: AppColors.surfaceDark,
                     ),
                   ],
-                ),
-                const SizedBox(height: 12),
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: [
-                      _LegendDot(
-                        color: AppColors.primary,
-                        label: 'Fuel',
-                        amountText: formatCents(fuel, currency: userCurrency),
-                      ),
-                      const SizedBox(width: 16),
-                      _LegendDot(
-                        color: AppColors.surfaceDark,
-                        label: 'Maintenance',
-                        amountText: formatCents(
-                          maintenance,
-                          currency: userCurrency,
-                        ),
-                      ),
-                    ],
-                  ),
+                  formatAmount: (c) => formatCents(c, currency: userCurrency),
                 ),
               ],
             ],
           ),
         ),
       ),
-    );
-  }
-}
-
-class _LegendDot extends StatelessWidget {
-  final Color color;
-  final String label;
-  final String amountText;
-
-  const _LegendDot({
-    required this.color,
-    required this.label,
-    required this.amountText,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 10,
-          height: 10,
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(3),
-          ),
-        ),
-        const SizedBox(width: 6),
-        Text(
-          '$label  $amountText',
-          style: const TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
-            color: AppColors.textPrimary,
-          ),
-        ),
-      ],
     );
   }
 }
@@ -851,7 +792,7 @@ class _ExpenseTile extends ConsumerWidget {
               ref.invalidate(allExpensesProvider);
             },
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
@@ -872,6 +813,7 @@ class _ExpenseTile extends ConsumerWidget {
                           ? FuelPumpIcon(
                               isFullTank: expense.fuelLog?.isFullTank ?? false,
                               size: 20,
+                              darkInk: !(expense.fuelLog?.isFullTank ?? false),
                             )
                           : const Icon(
                               Icons.build_outlined,

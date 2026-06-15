@@ -105,3 +105,102 @@ class BreakdownBar extends StatelessWidget {
     );
   }
 }
+
+/// A single legend entry: coloured dot + label + optional amount.
+///
+/// Matches the design's pill/legend spec — used in both the dashboard spend
+/// card and the expense history summary card.
+class LegendDot extends StatelessWidget {
+  final Color color;
+  final String label;
+
+  /// Pre-formatted amount string (e.g. "Rs 25,493"). Pass null to omit.
+  final String? amountText;
+
+  const LegendDot({
+    super.key,
+    required this.color,
+    required this.label,
+    this.amountText,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 9,
+          height: 9,
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(3),
+          ),
+        ),
+        const SizedBox(width: 6),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 12.5,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textMuted,
+          ),
+        ),
+        if (amountText != null) ...[
+          const SizedBox(width: 5),
+          Text(
+            amountText!,
+            style: const TextStyle(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w800,
+              color: AppColors.textPrimary,
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+/// Composes [BreakdownBar] + a legend row ([LegendDot]s) into one reusable
+/// widget.  Pass [formatAmount] to show formatted amounts next to each label.
+class BreakdownBarWithLegend extends StatelessWidget {
+  final List<BreakdownSegment> segments;
+  final String Function(int cents)? formatAmount;
+  final double barHeight;
+
+  const BreakdownBarWithLegend({
+    super.key,
+    required this.segments,
+    this.formatAmount,
+    this.barHeight = 8,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        BreakdownBar(segments: segments, height: barHeight),
+        const SizedBox(height: 10),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              for (int i = 0; i < segments.length; i++) ...[
+                if (i > 0) const SizedBox(width: 16),
+                LegendDot(
+                  color: segments[i].color,
+                  label: segments[i].label,
+                  amountText: formatAmount != null
+                      ? formatAmount!(segments[i].valueCents)
+                      : null,
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}

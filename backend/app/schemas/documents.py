@@ -82,6 +82,9 @@ class ActivityItem(BaseModel):
     date: date
     amount_cents: Annotated[int | None, Field(default=None, serialization_alias="amountCents")]
     label: str
+    # Fuel-only fields — None for non-fuel activity
+    liters: float | None = None
+    is_full_tank: Annotated[bool | None, Field(default=None, serialization_alias="isFullTank")]
 
     @field_serializer("date")
     def serialize_date(self, v: date) -> str:

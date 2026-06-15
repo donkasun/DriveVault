@@ -157,7 +157,7 @@ class ActivityItem {
       amountCents: json['amountCents'] as int?,
       label: json['label'] as String,
       liters: (json['liters'] as num?)?.toDouble(),
-      isFull: json['isFull'] as bool?,
+      isFull: json['isFullTank'] as bool?,
     );
   }
 }
