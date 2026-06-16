@@ -1,3 +1,7 @@
+<!-- AI AGENT WORKING AGREEMENT: This file is read automatically by Claude Code and other
+     AI coding agents. It defines coding conventions, architecture rules, and guardrails
+     for AI-assisted development sessions. Human contributors can ignore it. -->
+
 # DriveVault — Working Agreement for Coding Agents
 
 Read this before writing any code. It keeps every coding session consistent. The detailed
