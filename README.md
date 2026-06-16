@@ -11,20 +11,28 @@
 
 ---
 
+## Demo
+
+https://github.com/donkasun/DriveVault/raw/main/assets/demo.mov
+
+---
+
 ## Screenshots
 
 <table>
   <tr>
-    <td><img src="assets/screenshots/01-dashboard.png" width="200" alt="Dashboard"/></td>
-    <td><img src="assets/screenshots/02-garage.png" width="200" alt="Garage"/></td>
-    <td><img src="assets/screenshots/03-fuel-log.png" width="200" alt="Fuel Log"/></td>
-    <td><img src="assets/screenshots/04-add-vehicle.png" width="200" alt="Add Vehicle"/></td>
+    <td><img src="assets/screenshots/01-signin.png" width="180" alt="Sign In"/></td>
+    <td><img src="assets/screenshots/02-dashboard.png" width="180" alt="Dashboard"/></td>
+    <td><img src="assets/screenshots/03-garage.png" width="180" alt="Garage"/></td>
+    <td><img src="assets/screenshots/04-add-vehicle.png" width="180" alt="Add Vehicle"/></td>
+    <td><img src="assets/screenshots/05-fuel-log.png" width="180" alt="Fuel Log"/></td>
   </tr>
   <tr>
+    <td align="center">Sign In</td>
     <td align="center">Dashboard</td>
     <td align="center">Garage</td>
-    <td align="center">Fuel Log</td>
     <td align="center">Add Vehicle</td>
+    <td align="center">Fuel Log</td>
   </tr>
 </table>
 
