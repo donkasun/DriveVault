@@ -13,7 +13,9 @@
 
 ## Demo
 
-https://github.com/donkasun/DriveVault/raw/main/assets/demo.mov
+![DriveVault demo](assets/demo.gif)
+
+<sub>[▶ Watch full recording](assets/demo.mov)</sub>
 
 ---
 
