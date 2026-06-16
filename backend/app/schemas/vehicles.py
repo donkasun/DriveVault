@@ -4,7 +4,18 @@ from datetime import date, datetime
 from typing import Annotated
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+FUEL_TYPES = {"petrol", "diesel", "electric", "hybrid", "other"}
+
+
+class DocsStatus(BaseModel):
+    """Derived document expiry health for a vehicle."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    state: str  # "valid" | "needs_action" | "none"
+    needs_action_count: Annotated[int, Field(serialization_alias="needsActionCount")] = 0
 
 
 class VehicleBase(BaseModel):
@@ -17,11 +28,27 @@ class VehicleBase(BaseModel):
     vin: str | None = None
     purchase_date: date | None = Field(default=None, alias="purchaseDate")
     purchase_price_cents: int | None = Field(default=None, alias="purchasePriceCents")
-    currency: str = "USD"
+    currency: str = "LKR"
     current_mileage: int | None = Field(default=None, alias="currentMileage")
     vehicle_type: str | None = Field(default=None, alias="vehicleType")
+    fuel_type: str | None = Field(default=None, alias="fuelType")
+    distance_unit: str | None = Field(default=None, alias="distanceUnit")
     photo_url: str | None = Field(default=None, alias="photoUrl")
     photo_public_id: str | None = Field(default=None, alias="photoPublicId")
+
+    @field_validator("fuel_type")
+    @classmethod
+    def validate_fuel_type(cls, v: str | None) -> str | None:
+        if v is not None and v not in FUEL_TYPES:
+            raise ValueError(f"fuelType must be one of {sorted(FUEL_TYPES)}")
+        return v
+
+    @field_validator("distance_unit")
+    @classmethod
+    def validate_distance_unit(cls, v: str | None) -> str | None:
+        if v is not None and v not in {"km", "mi"}:
+            raise ValueError('distanceUnit must be "km", "mi", or null')
+        return v
 
 
 class VehicleCreate(VehicleBase):
@@ -53,7 +80,16 @@ class VehicleRead(BaseModel):
         int | None, Field(default=None, serialization_alias="currentMileage")
     ]
     vehicle_type: Annotated[str | None, Field(default=None, serialization_alias="vehicleType")]
+    fuel_type: Annotated[str | None, Field(default=None, serialization_alias="fuelType")]
+    distance_unit: Annotated[str | None, Field(default=None, serialization_alias="distanceUnit")]
     photo_url: Annotated[str | None, Field(default=None, serialization_alias="photoUrl")]
     photo_public_id: Annotated[str | None, Field(default=None, serialization_alias="photoPublicId")]
     created_at: Annotated[datetime, Field(serialization_alias="createdAt")]
     updated_at: Annotated[datetime, Field(serialization_alias="updatedAt")]
+    docs_status: Annotated[
+        DocsStatus,
+        Field(
+            default_factory=lambda: DocsStatus(state="none", needs_action_count=0),
+            serialization_alias="docsStatus",
+        ),
+    ]

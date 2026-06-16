@@ -38,12 +38,12 @@ BATCH 3 — ✅ COMPLETE (squash-merged to main d677aad)
 └───────────────────────┬───────────────┘
                         │ merged
                         ▼
-BATCH 4 — ✅ GATE OPEN — 3 parallel worktrees
+BATCH 4 — ✅ COMPLETE (squash-merged to main b44060d)
 ┌─────────────────────────┐ ┌────────────────────────────────────────┐ ┌────────────────────────┐
-│ task/mobile-garage      │ │ task/mobile-vehicle-detail             │ │ task/mobile-dashboard  │
+│ task/mobile-garage ✅   │ │ task/mobile-vehicle-detail ✅          │ │ task/mobile-dashboard ✅│
 │ D1a → D1b → D1c        │ │ D2 → D3 → D4 → D5a → D5b → D5c       │ │ D6                     │
 └─────────────────────────┘ └────────────────────────────────────────┘ └────────────────────────┘
-           All 3 merge → E1 (end-to-end smoke pass)
+           All 3 merge → E1 ✅ (end-to-end smoke pass — passed 2026-06-10)
 ```
 
 ---
@@ -102,6 +102,11 @@ An `ApiClient` (base URL via `--dart-define`) that attaches the current Firebase
 **Done when:** calling `GET /me` returns the user; a 401 is surfaced as a typed auth error.
 
 ### 🟩 Task C2d — Email-verification gate *(follow-on; runs anytime, no backend dep)*
+> **Superseded (2026-06-13):** the hard gate below was later replaced by a soft, dismissible
+> `VerifyEmailBanner` nudge — unverified users now reach `/home` freely. See
+> `docs/superpowers/specs/2026-06-13-fuel-economy-quick-entry-verify-banner-design.md`.
+> The original task as built is preserved here for history.
+
 Send `sendEmailVerification()` after email/password sign-up; route unverified password users to
 a `/verify-email` screen (Resend / I've-verified / Sign out); Google/Apple bypass. Extend
 `resolveAuthRedirect` with `isEmailVerified` + `isPasswordProvider`. Plan:

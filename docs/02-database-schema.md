@@ -8,11 +8,15 @@
 - Primary keys are `uuid` (default `gen_random_uuid()`), column name `id`.
 - Every table has `created_at timestamptz NOT NULL DEFAULT now()` and
   `updated_at timestamptz NOT NULL DEFAULT now()` (app updates `updated_at` on write).
-- Money is stored as **integer cents** (`*_cents`) plus a 3-letter `currency` (default `'USD'`).
+- Money is stored as **integer cents** (`*_cents`) plus a 3-letter `currency` (default `'LKR'`).
 - Foreign keys use `ON DELETE CASCADE` from a parent the child cannot exist without
   (e.g. delete a vehicle → delete its fuel logs).
-- Mileage/odometer stored as integer kilometres (`int`).
+- Mileage/odometer stored as integer kilometres (`int`). A `distance_unit` (`'km'`/`'mi'`) is
+  **display-only** — the app converts mi↔km at the edge; stored values are always kilometres.
 - `created_at`/`updated_at` omitted from column lists below for brevity — **add them to every table**.
+
+> **Currency (Phase 1):** locked to a single currency, `'LKR'`. The multi-value picker is
+> deferred to a later phase; columns and defaults stay so re-enabling needs no migration.
 
 ---
 
@@ -42,6 +46,9 @@ Mirrors a Firebase Auth account. Created lazily on first authenticated request.
 | email | text | NOT NULL |
 | display_name | text | NULL |
 | photo_url | text | NULL |
+| currency | char(3) | NOT NULL DEFAULT 'LKR' (forced to 'LKR' server-side — see Currency note) |
+| distance_unit | text | NOT NULL DEFAULT 'km' ('km'\|'mi', display-only) |
+| renewal_reminders_enabled | boolean | NOT NULL DEFAULT true |
 | created_at | timestamptz | NOT NULL |
 | updated_at | timestamptz | NOT NULL |
 
@@ -59,11 +66,13 @@ Indexes: unique on `firebase_uid`, index on `email`.
 | vin | text | NULL |
 | purchase_date | date | NULL |
 | purchase_price_cents | bigint | NULL |
-| currency | char(3) | NOT NULL DEFAULT 'USD' |
+| currency | char(3) | NOT NULL DEFAULT 'LKR' |
 | current_mileage | int | NULL (km) |
 | photo_url | text | NULL (Cloudinary secure_url) |
 | photo_public_id | text | NULL (Cloudinary public_id, for replace/delete) |
 | vehicle_type | text | NULL ('car'\|'motorcycle'\|'pickup'\|'other') |
+| fuel_type | text | NULL ('petrol'\|'diesel'\|'electric'\|'hybrid'\|'other', fixed per vehicle) |
+| distance_unit | text | NULL ('km'\|'mi', display-only; NULL = inherit user default) |
 
 Indexes: `user_id`.
 
@@ -75,7 +84,7 @@ Indexes: `user_id`.
 | date | date | NOT NULL |
 | liters | numeric(8,3) | NOT NULL (CHECK > 0) |
 | price_cents | bigint | NOT NULL (total paid) |
-| currency | char(3) | NOT NULL DEFAULT 'USD' |
+| currency | char(3) | NOT NULL DEFAULT 'LKR' |
 | odometer | int | NOT NULL (km) |
 | is_full_tank | boolean | NOT NULL DEFAULT true |
 | notes | text | NULL |
@@ -94,7 +103,7 @@ Indexes: `vehicle_id`, `(vehicle_id, date)`.
 | service_type | text | NOT NULL (e.g. 'Oil Change') |
 | category | text | NULL ('maintenance'\|'repair'\|'upgrade'\|'inspection') |
 | cost_cents | bigint | NOT NULL DEFAULT 0 |
-| currency | char(3) | NOT NULL DEFAULT 'USD' |
+| currency | char(3) | NOT NULL DEFAULT 'LKR' |
 | workshop | text | NULL |
 | notes | text | NULL |
 | source | text | NOT NULL DEFAULT 'manual' ('manual'\|'ai_extraction') |

@@ -1,3 +1,7 @@
+<!-- AI AGENT WORKING AGREEMENT: This file is read automatically by Claude Code and other
+     AI coding agents. It defines coding conventions, architecture rules, and guardrails
+     for AI-assisted development sessions. Human contributors can ignore it. -->
+
 # DriveVault — Working Agreement for Coding Agents
 
 Read this before writing any code. It keeps every coding session consistent. The detailed
@@ -86,10 +90,21 @@ When unsure, stop and ask. A small clarifying question is cheaper than a wrong i
 ## Learned User Preferences
 
 - Do not commit changes unless explicitly asked.
-- After email/password sign-up, route unverified users to `/verify-email` (Firebase verification link + in-app gate), not `/home`; Google/Apple sign-in bypasses the gate.
+- Email verification uses a **soft nudge, not a hard gate**: after email/password sign-up the user lands on `/home` like everyone else; a per-session dismissible `VerifyEmailBanner` on the dashboard prompts them to verify (Resend / I've verified actions). A Firebase verification email is still sent on sign-up. (The earlier hard `/verify-email` gate was removed; the 48h purge-unverified idea was rejected.)
 - Use isolated git worktrees under `.worktrees/` for parallel Phase 1 task branches (e.g. `task/backend-models`, `task/mobile-auth`).
 - When pointed at a plan in `docs/superpowers/plans/`, implement that plan rather than improvising.
 - Configure project MCP for Claude Code via repo-root `.mcp.json`; Cursor MCP plugins are separate and not shared automatically.
+- **Model delegation (pay special attention to cost):** cost discipline is a first-class concern on every task. Keep the main session (Opus) for planning, contract/schema decisions, and review — and offload the actual work to subagents, choosing the model by task complexity:
+  - **Coding/implementation tasks → Sonnet subagents** (e.g. writing a router/service, building a screen, implementing a well-specified task from `07-fuel-prefs-tasks.md`). Give the subagent the exact task + the relevant doc sections.
+  - **Small mechanical tasks → Haiku subagents** (file moves/renames/deletes, `grep`/search/locate, simple find-and-replace, listing/counting).
+  - **Never use Fable** for any task — it is not approved for this project.
+  - Use judgement: anything ambiguous, cross-cutting, or contract-affecting stays in the main session; only dispatch once the task is well-defined. Default to the cheapest model that can do the job correctly.
+- **Test scope:** run only the tests relevant to the feature(s) being changed — not the full battery — for isolated changes (e.g. `flutter test test/features/fuel`, or the specific backend test module). Reserve a full-suite run for broad/cross-cutting changes or a final pre-merge check. Subagents fixing one feature should likewise run just that feature's tests + a scoped `analyze`.
+- Mobile form screens use the shared `FormScreenAppBar`: centered title, Cancel text button on the left, primary pill Save on the right (`horizontal: 12`, `vertical: 6`), and a smaller title font size (`16`).
+- Keep delete/destructive resource actions on detail/view screens, not on edit forms; destructive profile actions (e.g. sign out) use red styling with a confirmation bottom sheet.
+- Currency pickers use a bottom-sheet field (`BottomSheetPickerField`): rows show symbol + name, selection stores the ISO code, and the closed field shows the currency name only.
+- On fuel log forms, place the Full tank toggle on the same row as the Liters field.
+- Add vehicle form: odometer section above registration; distance-unit picker offers mile/km only and defaults to the user's preference; vehicle type defaults to Car; photo upload uses a light yellow background.
 
 ## Learned Workspace Facts
 
@@ -101,4 +116,8 @@ When unsure, stop and ask. A small clarifying question is cheaper than a wrong i
 - Firebase service-account credentials stored in GCP Secret Manager as `firebase-credentials` (project `drivevault-app`), injected into Cloud Run as `FIREBASE_CREDENTIALS_JSON`.
 - UI design references live in `docs/design-references/` (`mockup-screens.html`, `DESIGN-LANGUAGE.md`, `ref-0N-*.png` screenshots).
 - Local backend Docker Postgres may bind to host port 5433 when macOS Postgres already occupies 5432.
-- Email verification gate is task C2d; implementation plan at `docs/superpowers/plans/2026-06-09-email-verification-gate.md`.
+- **After any backend code change, restart the local Docker backend container** so the new code takes effect: `docker compose restart backend` (or `docker compose up --build backend -d` if dependencies changed). Do not assume the running container picked up file changes automatically.
+- Email verification was originally a hard gate (task C2d, plan `docs/superpowers/plans/2026-06-09-email-verification-gate.md`) but was later replaced by the soft `VerifyEmailBanner` nudge — see `docs/superpowers/specs/2026-06-13-fuel-economy-quick-entry-verify-banner-design.md`.
+- `MainShell` stacks a floating tab bar above tab navigators; bottom sheets/modals that must cover the tab bar need `useRootNavigator: true`.
+- Shared form headers now live in `mobile/lib/shared/widgets/form_screen_app_bar.dart` and are used by fuel, vehicle, maintenance, document upload, and profile forms.
+- **iOS Simulator always runs against the local Docker backend (`localhost:8000`).** No `--dart-define=API_BASE_URL` is set, so the app defaults to `localhost:8000`. The local Docker Postgres (port 5433) is the test DB — it has the 2015 Toyota Hilux and CR Test user data. Neon is production only. Always keep the local backend running (`docker compose up`) when using the simulator.

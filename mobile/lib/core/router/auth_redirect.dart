@@ -31,14 +31,9 @@ String? resolveAuthRedirect({
     return null;
   }
 
-  // Logged in.
-  final needsVerification = isPasswordProvider && !isEmailVerified;
-
-  if (needsVerification) {
-    return currentRoute == _verifyRoute ? null : _verifyRoute;
-  }
-
-  // Verified (or non-password provider): keep them out of auth/verify/splash.
+  // Logged in. The email-verification gate has been removed — unverified
+  // password users use the app freely and are nudged by an in-app banner.
+  // Keep everyone out of auth/verify/splash once authenticated.
   if (currentRoute == '/splash' || isAuthRoute || currentRoute == _verifyRoute) {
     return '/home';
   }

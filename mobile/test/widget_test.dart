@@ -4,6 +4,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:drivevault/main.dart';
 import 'package:drivevault/features/auth/data/auth_repository.dart';
+import 'package:drivevault/features/auth/presentation/widgets/verify_email_banner.dart';
+import 'package:drivevault/features/dashboard/presentation/dashboard_screen.dart';
+import 'package:drivevault/features/dashboard/presentation/dashboard_provider.dart';
+import 'package:drivevault/features/dashboard/domain/dashboard_data.dart';
+import 'package:drivevault/features/profile/data/user_repository.dart';
+import 'package:drivevault/features/profile/domain/user.dart';
 
 class FakeUser extends Fake implements User {
   @override
@@ -32,6 +38,24 @@ class FakeUnverifiedPasswordUser extends Fake implements User {
 class _FakePasswordProvider extends Fake implements UserInfo {
   @override
   String get providerId => 'password';
+}
+
+/// A stub notifier that returns empty DashboardData without hitting the network.
+class _StubDashboardNotifier extends DashboardNotifier {
+  @override
+  Future<DashboardData> build() async {
+    return const DashboardData(
+      vehicleCount: 0,
+      monthlyFuelSpendCents: 0,
+      totalOwnershipCostCents: 0,
+      costBreakdown: CostBreakdown(
+        fuelCents: 0,
+        maintenanceCents: 0,
+        purchaseCents: 0,
+      ),
+      upcomingRenewals: [],
+    );
+  }
 }
 
 void main() {
@@ -75,11 +99,27 @@ void main() {
     WidgetTester tester,
   ) async {
     final fakeUser = FakeUser();
+
+    // Stub dashboardProvider so it returns immediately without a network call.
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
           authStateChangesProvider.overrideWith(
             (ref) => Stream.value(fakeUser),
+          ),
+          // The dashboard builds VerifyEmailBanner at boot, which reads
+          // authRepositoryProvider — stub it so the real (Firebase) one isn't hit.
+          authRepositoryProvider.overrideWithValue(
+            AuthRepository.testing(currentUser: fakeUser),
+          ),
+          dashboardProvider.overrideWith(() => _StubDashboardNotifier()),
+          meProvider.overrideWith(
+            (ref) async => AppUser(
+              id: 'u-1',
+              firebaseUid: 'fb-1',
+              email: 'test@example.com',
+              createdAt: DateTime(2026, 1, 1),
+            ),
           ),
         ],
         child: const DriveVaultApp(),
@@ -88,14 +128,13 @@ void main() {
     await tester.pump(); // Start navigation/redirects
     await tester.pumpAndSettle(); // Wait for transitions to finish
 
-    // Should find the dashboard/home screen text
-    expect(
-      find.text('Dashboard coming soon — Phase 1 scaffold.'),
-      findsOneWidget,
-    );
+    // The shell should have routed to DashboardScreen (home tab).
+    expect(find.byType(DashboardScreen), findsOneWidget);
+    // The empty-state is shown because vehicleCount == 0.
+    expect(find.text('No vehicles yet'), findsOneWidget);
   });
 
-  testWidgets('App boots to VerifyEmailScreen when signed in but unverified', (
+  testWidgets('App boots to DashboardScreen with verify banner when unverified', (
     WidgetTester tester,
   ) async {
     final fakeUser = FakeUnverifiedPasswordUser();
@@ -108,6 +147,15 @@ void main() {
           authRepositoryProvider.overrideWithValue(
             AuthRepository.testing(currentUser: fakeUser),
           ),
+          dashboardProvider.overrideWith(() => _StubDashboardNotifier()),
+          meProvider.overrideWith(
+            (ref) async => AppUser(
+              id: 'u-1',
+              firebaseUid: 'fb-1',
+              email: 'test@example.com',
+              createdAt: DateTime(2026, 1, 1),
+            ),
+          ),
         ],
         child: const DriveVaultApp(),
       ),
@@ -115,7 +163,14 @@ void main() {
     await tester.pump();
     await tester.pumpAndSettle();
 
-    expect(find.text('Verify your email'), findsOneWidget);
-    expect(find.widgetWithText(ElevatedButton, "I've verified"), findsOneWidget);
+    // Soft-nudge design (the hard verify-email gate was removed): an unverified
+    // password user lands on /home and is prompted by the dismissible
+    // VerifyEmailBanner, not routed to a blocking VerifyEmailScreen.
+    expect(find.byType(DashboardScreen), findsOneWidget);
+    expect(find.byType(VerifyEmailBanner), findsOneWidget);
+    expect(
+      find.widgetWithText(TextButton, "I've verified"),
+      findsOneWidget,
+    );
   });
 }

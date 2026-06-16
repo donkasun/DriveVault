@@ -7,6 +7,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.constants import LOCKED_CURRENCY
 from app.models.maintenance_records import MaintenanceRecord
 from app.models.users import User
 from app.models.vehicles import Vehicle
@@ -50,7 +51,9 @@ def create_maintenance_record(
     payload: MaintenanceCreate,
 ) -> MaintenanceRecord:
     get_vehicle_for_user(db, user, vehicle_id)
-    record = MaintenanceRecord(vehicle_id=vehicle_id, source="manual", **payload.model_dump())
+    data = payload.model_dump()
+    data["currency"] = LOCKED_CURRENCY
+    record = MaintenanceRecord(vehicle_id=vehicle_id, source="manual", **data)
     db.add(record)
     db.commit()
     db.refresh(record)

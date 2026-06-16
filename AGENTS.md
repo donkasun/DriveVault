@@ -1,1 +1,123 @@
-CLAUDE.md
+<!-- AI AGENT WORKING AGREEMENT: This file is read automatically by AI coding agents
+     (Codex, Gemini CLI, etc.). It mirrors CLAUDE.md for non-Claude agents.
+     Human contributors can ignore it. -->
+
+# DriveVault — Working Agreement for Coding Agents
+
+Read this before writing any code. It keeps every coding session consistent. The detailed
+specs live in `docs/` — **this file is the rules; those docs are the source of truth for
+decisions.**
+
+## Read order (always)
+1. `docs/01-tech-spec.md` — stack, architecture, conventions (authoritative for tech decisions)
+2. `docs/02-database-schema.md` — exact tables/columns/types
+3. `docs/03-api-contract.md` — exact endpoint request/response shapes
+4. `docs/04-phase1-tasks.md` — pick ONE task and do only that task
+
+When the PRD and these docs disagree on a technical detail, **the docs win**.
+
+---
+
+## Golden rules
+1. **Do one task at a time.** Take a single task from `04-phase1-tasks.md`, finish it
+   completely (including its "Done when" tests), then stop. Don't scope-creep into the next task.
+2. **Match the contracts exactly.** Table names/types come from Doc 2. Endpoint shapes come
+   from Doc 3. Do not invent fields, rename columns, or change JSON keys. If something is
+   missing or ambiguous, **ask — don't guess.**
+3. **No new dependencies** without flagging it first. Use what Doc 1 §1 already pins.
+4. **Write the tests** described in the task. A task isn't done until its tests pass.
+5. **Stay in scope.** No AI, no offline/Drift sync, no Phase 2+ features during Phase 1
+   (see Doc 1 §7). Don't refactor unrelated code.
+
+---
+
+## The stack (do not deviate)
+- **Mobile:** Flutter 3.44 + Riverpod 3.x + go_router. (Drift/offline is a LATER phase — not now.)
+- **Backend:** FastAPI 0.115 + Python 3.12 + SQLAlchemy 2 + Alembic.
+- **DB:** PostgreSQL 16 (Neon in prod, Docker locally). pgvector only from Phase 6.
+- **Firebase:** Auth + FCM only. **Never** use Firestore as the database.
+- **File storage:** Cloudinary (free tier). Clients upload directly via a backend-signed
+  request; the backend stores only the returned `secure_url`. (Firebase Storage is NOT used —
+  it requires the paid Blaze plan.)
+- **Hosting:** Google Cloud Run (`--min-instances=0`, always-free tier) + Neon (DB).
+- **AI (Phases 3/4/6 only):** Gemini free tier behind an `AIProvider` interface; ML Kit for
+  on-device OCR. **No on-device LLM / no bundled model** (keeps app size small).
+
+---
+
+## Conventions (enforced)
+- **IDs:** UUID v4 primary keys (`id`), `gen_random_uuid()`.
+- **Timestamps:** every table has `created_at` / `updated_at` (`timestamptz`, UTC).
+- **Money:** integer **cents** (`*_cents`) + 3-letter `currency`. **Never floats for money.**
+- **Mileage/odometer:** integer kilometres.
+- **Naming:** `snake_case` in Python/SQL · `camelCase` in Dart · `lowerCamelCase` JSON keys.
+- **API:** REST, JSON, plural nouns (`/vehicles`, `/fuel-logs`), all under `/api/v1`.
+- **Errors:** FastAPI returns `{ "detail": "<message>" }` with correct HTTP status.
+- **Ownership:** a user only sees their own data. Another user's resource → **404** (not 403).
+- **Auth:** every protected endpoint verifies the `Authorization: Bearer <Firebase ID token>`
+  via Firebase Admin SDK and resolves the `users` row by `firebase_uid`. Backend stores no passwords.
+
+---
+
+## Architecture boundaries (keep units small & single-purpose)
+**Backend**
+- `routers/` parse requests + call services. **No SQL or business logic in routers.**
+- `services/` hold business logic + DB access (SQLAlchemy). Independently testable.
+- `schemas/` (Pydantic) define the only shapes that cross the wire.
+- File bytes **never** pass through FastAPI — clients upload to Cloudinary (using a
+  backend-signed request) and send back the resulting `secure_url`.
+
+**Mobile**
+- Per feature: `data/` (repository + api) → `domain/` (models) → `presentation/` (screens, providers, widgets).
+- **Only repositories call the API.** Providers expose state; widgets never call the API directly.
+- The API base URL comes from `--dart-define=API_BASE_URL=...` (never hard-coded).
+
+If a file grows past a few hundred lines, split it — it's doing too much.
+
+---
+
+## Definition of done (every task)
+- [ ] Matches Doc 2 (schema) and Doc 3 (API contract) exactly.
+- [ ] The task's "Done when" tests are written and **passing**.
+- [ ] No secrets committed (`.env`, Firebase service-account JSON, `google-services.json`).
+- [ ] No out-of-scope changes; no unpinned new dependencies.
+- [ ] Lint/format clean (`ruff`/`black` for Python; `dart format` for Flutter).
+
+When unsure, stop and ask. A small clarifying question is cheaper than a wrong implementation.
+
+---
+
+## Learned User Preferences
+
+- Do not commit changes unless explicitly asked.
+- Email verification uses a **soft nudge, not a hard gate**: after email/password sign-up the user lands on `/home` like everyone else; a per-session dismissible `VerifyEmailBanner` on the dashboard prompts them to verify (Resend / I've verified actions). A Firebase verification email is still sent on sign-up. (The earlier hard `/verify-email` gate was removed; the 48h purge-unverified idea was rejected.)
+- Use isolated git worktrees under `.worktrees/` for parallel Phase 1 task branches (e.g. `task/backend-models`, `task/mobile-auth`).
+- When pointed at a plan in `docs/superpowers/plans/`, implement that plan rather than improvising.
+- Configure project MCP for Claude Code via repo-root `.mcp.json`; Cursor MCP plugins are separate and not shared automatically.
+- **Model delegation (pay special attention to cost):** cost discipline is a first-class concern on every task. Keep the main session (Opus) for planning, contract/schema decisions, and review — and offload the actual work to subagents, choosing the model by task complexity:
+  - **Coding/implementation tasks → Sonnet subagents** (e.g. writing a router/service, building a screen, implementing a well-specified task from `07-fuel-prefs-tasks.md`). Give the subagent the exact task + the relevant doc sections.
+  - **Small mechanical tasks → Haiku subagents** (file moves/renames/deletes, `grep`/search/locate, simple find-and-replace, listing/counting).
+  - **Never use Fable** for any task — it is not approved for this project.
+  - Use judgement: anything ambiguous, cross-cutting, or contract-affecting stays in the main session; only dispatch once the task is well-defined. Default to the cheapest model that can do the job correctly.
+- **Test scope:** run only the tests relevant to the feature(s) being changed — not the full battery — for isolated changes (e.g. `flutter test test/features/fuel`, or the specific backend test module). Reserve a full-suite run for broad/cross-cutting changes or a final pre-merge check. Subagents fixing one feature should likewise run just that feature's tests + a scoped `analyze`.
+- Mobile form screens use the shared `FormScreenAppBar`: centered title, Cancel text button on the left, primary pill Save on the right (`horizontal: 12`, `vertical: 6`), and a smaller title font size (`16`).
+- Keep delete/destructive resource actions on detail/view screens, not on edit forms; destructive profile actions (e.g. sign out) use red styling with a confirmation bottom sheet.
+- Currency pickers use a bottom-sheet field (`BottomSheetPickerField`): rows show symbol + name, selection stores the ISO code, and the closed field shows the currency name only.
+- On fuel log forms, place the Full tank toggle on the same row as the Liters field.
+- Add vehicle form: odometer section above registration; distance-unit picker offers mile/km only and defaults to the user's preference; vehicle type defaults to Car; photo upload uses a light yellow background.
+
+## Learned Workspace Facts
+
+- Phase 1 Batch 1 development uses branch `batch-1` with parallel worktrees for backend models and mobile auth.
+- Claude Code Neon MCP is configured in `.mcp.json` (OAuth at `https://mcp.neon.tech/mcp`, safe to commit); no Render MCP (Render replaced by Cloud Run).
+- Backend hosting is Google Cloud Run (`--min-instances=0`) — always-free tier, ~1-3s cold starts. Live URL: `https://drivevault-backend-250609806849.us-central1.run.app`. Deploy via `gcloud run deploy` or push to `main` (GitHub Actions auto-deploys on `backend/**` changes).
+- GCP deploy service account: `github-deployer@drivevault-app.iam.gserviceaccount.com` (roles: `run.admin`, `artifactregistry.writer`, `iam.serviceAccountUser`). Key stored as `GCP_SA_KEY` GitHub secret.
+- When building the Docker image locally on Apple Silicon (arm64), always pass `--platform=linux/amd64` — Cloud Run requires amd64 and will reject an arm64 image with a manifest type error.
+- Firebase service-account credentials stored in GCP Secret Manager as `firebase-credentials` (project `drivevault-app`), injected into Cloud Run as `FIREBASE_CREDENTIALS_JSON`.
+- UI design references live in `docs/design-references/` (`mockup-screens.html`, `DESIGN-LANGUAGE.md`, `ref-0N-*.png` screenshots).
+- Local backend Docker Postgres may bind to host port 5433 when macOS Postgres already occupies 5432.
+- **After any backend code change, restart the local Docker backend container** so the new code takes effect: `docker compose restart backend` (or `docker compose up --build backend -d` if dependencies changed). Do not assume the running container picked up file changes automatically.
+- Email verification was originally a hard gate (task C2d, plan `docs/superpowers/plans/2026-06-09-email-verification-gate.md`) but was later replaced by the soft `VerifyEmailBanner` nudge — see `docs/superpowers/specs/2026-06-13-fuel-economy-quick-entry-verify-banner-design.md`.
+- `MainShell` stacks a floating tab bar above tab navigators; bottom sheets/modals that must cover the tab bar need `useRootNavigator: true`.
+- Shared form headers now live in `mobile/lib/shared/widgets/form_screen_app_bar.dart` and are used by fuel, vehicle, maintenance, document upload, and profile forms.
+- **iOS Simulator always runs against the local Docker backend (`localhost:8000`).** No `--dart-define=API_BASE_URL` is set, so the app defaults to `localhost:8000`. The local Docker Postgres (port 5433) is the test DB — it has the 2015 Toyota Hilux and CR Test user data. Neon is production only. Always keep the local backend running (`docker compose up`) when using the simulator.

@@ -16,7 +16,7 @@ class MaintenanceBase(BaseModel):
     service_type: str | None = Field(default=None, alias="serviceType")
     category: str | None = None
     cost_cents: int = Field(default=0, alias="costCents")
-    currency: str = "USD"
+    currency: str | None = None
     workshop: str | None = None
     notes: str | None = None
 

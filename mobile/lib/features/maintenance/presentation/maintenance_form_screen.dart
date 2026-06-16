@@ -1,17 +1,36 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/network/api_exceptions.dart';
+import '../../../shared/utils/distance_unit.dart';
+import '../../../shared/widgets/bottom_sheet_picker_field.dart';
+import '../../../shared/widgets/form_screen_app_bar.dart';
+import '../../dashboard/presentation/dashboard_provider.dart';
+import '../../expenses/data/expenses_provider.dart';
+import '../../profile/data/user_repository.dart';
+import '../../vehicles/data/vehicle_repository.dart';
+import '../../vehicles/domain/vehicle.dart';
+import '../../vehicles/presentation/vehicles_provider.dart';
 import '../data/maintenance_repository.dart';
 import '../domain/maintenance_record.dart';
+import '../domain/service_type_suggestions.dart';
 
 class MaintenanceFormScreen extends ConsumerStatefulWidget {
   final String vehicleId;
   final MaintenanceRecord? existing;
+  final String? initialServiceType;
+  final String? initialCost;
+  final String? initialOdometer;
+  final String? initialDate;
 
   const MaintenanceFormScreen({
     super.key,
     required this.vehicleId,
     this.existing,
+    this.initialServiceType,
+    this.initialCost,
+    this.initialOdometer,
+    this.initialDate,
   });
 
   @override
@@ -19,44 +38,40 @@ class MaintenanceFormScreen extends ConsumerStatefulWidget {
       _MaintenanceFormScreenState();
 }
 
-class _MaintenanceFormScreenState
-    extends ConsumerState<MaintenanceFormScreen> {
+class _MaintenanceFormScreenState extends ConsumerState<MaintenanceFormScreen> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _dateCtrl;
   late final TextEditingController _serviceTypeCtrl;
   late final TextEditingController _odometerCtrl;
   late final TextEditingController _costCtrl;
-  late final TextEditingController _currencyCtrl;
   late final TextEditingController _workshopCtrl;
   late final TextEditingController _notesCtrl;
   String? _category;
   bool _saving = false;
 
-  static const _categories = [
-    'maintenance',
-    'repair',
-    'inspection',
-    'other',
-  ];
+  static const _categories = ['maintenance', 'repair', 'inspection', 'other'];
+
+  bool get _isEdit => widget.existing != null;
 
   @override
   void initState() {
     super.initState();
     final e = widget.existing;
     _dateCtrl = TextEditingController(
-        text: e?.date ?? _today());
-    _serviceTypeCtrl =
-        TextEditingController(text: e?.serviceType ?? '');
+        text: e?.date ?? widget.initialDate ?? _today());
+    _serviceTypeCtrl = TextEditingController(
+        text: e?.serviceType ?? widget.initialServiceType ?? '');
     _odometerCtrl = TextEditingController(
-        text: e?.odometer != null ? e!.odometer.toString() : '');
+      text: e?.odometer != null
+          ? e!.odometer.toString()
+          : (widget.initialOdometer ?? ''),
+    );
     _costCtrl = TextEditingController(
-        text: e?.costCents != null
-            ? (e!.costCents! / 100).toStringAsFixed(2)
-            : '');
-    _currencyCtrl =
-        TextEditingController(text: e?.currency ?? 'USD');
-    _workshopCtrl =
-        TextEditingController(text: e?.workshop ?? '');
+      text: e?.costCents != null
+          ? (e!.costCents! / 100).toStringAsFixed(2)
+          : (widget.initialCost ?? ''),
+    );
+    _workshopCtrl = TextEditingController(text: e?.workshop ?? '');
     _notesCtrl = TextEditingController(text: e?.notes ?? '');
     _category = e?.category;
   }
@@ -67,7 +82,6 @@ class _MaintenanceFormScreenState
     _serviceTypeCtrl.dispose();
     _odometerCtrl.dispose();
     _costCtrl.dispose();
-    _currencyCtrl.dispose();
     _workshopCtrl.dispose();
     _notesCtrl.dispose();
     super.dispose();
@@ -94,6 +108,57 @@ class _MaintenanceFormScreenState
     }
   }
 
+  Future<void> _delete() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Service Record'),
+        content: const Text(
+          'Delete this service record? This cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+
+    setState(() => _saving = true);
+    try {
+      final repo = ref.read(maintenanceRepositoryProvider);
+      await repo.deleteRecord(widget.existing!.id);
+
+      ref.invalidate(maintenanceRecordsProvider(widget.vehicleId));
+      ref.invalidate(vehicleProvider(widget.vehicleId));
+      ref.invalidate(vehiclesProvider);
+      ref.invalidate(dashboardProvider);
+      ref.invalidate(allExpensesProvider);
+
+      if (mounted) {
+        Navigator.of(context).pop(true);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Service record deleted')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        final msg = e is ApiException ? e.message : 'Delete failed';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(msg)),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _saving = true);
@@ -101,6 +166,8 @@ class _MaintenanceFormScreenState
       final costText = _costCtrl.text.trim();
       final odomText = _odometerCtrl.text.trim();
 
+      // currency intentionally omitted — the backend fills it from the user's
+      // currency preference (matches fuel-log form behaviour).
       final data = <String, dynamic>{
         'date': _dateCtrl.text.trim(),
         'serviceType': _serviceTypeCtrl.text.trim(),
@@ -108,29 +175,30 @@ class _MaintenanceFormScreenState
         if (_category != null) 'category': _category,
         if (costText.isNotEmpty)
           'costCents': (double.parse(costText) * 100).round(),
-        'currency': _currencyCtrl.text.trim().isEmpty
-            ? 'USD'
-            : _currencyCtrl.text.trim(),
         if (_workshopCtrl.text.trim().isNotEmpty)
           'workshop': _workshopCtrl.text.trim(),
-        if (_notesCtrl.text.trim().isNotEmpty)
-          'notes': _notesCtrl.text.trim(),
+        if (_notesCtrl.text.trim().isNotEmpty) 'notes': _notesCtrl.text.trim(),
       };
 
       final repo = ref.read(maintenanceRepositoryProvider);
-      if (widget.existing != null) {
+      if (_isEdit) {
         await repo.updateRecord(widget.existing!.id, data);
       } else {
         await repo.createRecord(widget.vehicleId, data);
       }
 
       ref.invalidate(maintenanceRecordsProvider(widget.vehicleId));
+      ref.invalidate(vehicleProvider(widget.vehicleId));
+      ref.invalidate(vehiclesProvider);
+      ref.invalidate(dashboardProvider);
+      ref.invalidate(allExpensesProvider);
+
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
       }
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -139,30 +207,24 @@ class _MaintenanceFormScreenState
 
   @override
   Widget build(BuildContext context) {
-    final isEdit = widget.existing != null;
+    final vehiclesAsync = ref.watch(vehiclesProvider);
+    final meAsync = ref.watch(meProvider);
+
+    // Resolve the effective distance unit for this vehicle.
+    final vehicle = vehiclesAsync.asData?.value
+        .cast<Vehicle?>()
+        .firstWhere((v) => v?.id == widget.vehicleId, orElse: () => null);
+    final userUnit = meAsync.asData?.value.distanceUnit ?? 'km';
+    final unit = effectiveUnit(
+      vehicleUnit: vehicle?.distanceUnit,
+      userUnit: userUnit,
+    );
+
     return Scaffold(
-      appBar: AppBar(
-        title: Text(isEdit ? 'Edit Service Record' : 'Add Service Record'),
-        leading: TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
-        ),
-        leadingWidth: 72,
-        actions: [
-          if (_saving)
-            const Padding(
-              padding: EdgeInsets.all(16),
-              child: SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2)),
-            )
-          else
-            TextButton(
-              onPressed: _save,
-              child: const Text('Save'),
-            ),
-        ],
+      appBar: FormScreenAppBar(
+        title: _isEdit ? 'Edit Service Record' : 'Add Service Record',
+        saving: _saving,
+        onSave: _save,
       ),
       body: Form(
         key: _formKey,
@@ -179,8 +241,7 @@ class _MaintenanceFormScreenState
                 border: OutlineInputBorder(),
                 suffixIcon: Icon(Icons.calendar_today),
               ),
-              validator: (v) =>
-                  (v == null || v.isEmpty) ? 'Required' : null,
+              validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
             ),
             const SizedBox(height: 16),
             // Service type
@@ -191,16 +252,30 @@ class _MaintenanceFormScreenState
                 hintText: 'e.g. Oil Change',
                 border: OutlineInputBorder(),
               ),
-              validator: (v) =>
-                  (v == null || v.isEmpty) ? 'Required' : null,
+              validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
+            ),
+            const SizedBox(height: 8),
+            // Suggestion chips — tapping fills the field (still editable).
+            Wrap(
+              spacing: 8,
+              runSpacing: 4,
+              children: kServiceTypeSuggestions.map((suggestion) {
+                return ActionChip(
+                  label: Text(suggestion),
+                  onPressed: () {
+                    setState(() => _serviceTypeCtrl.text = suggestion);
+                  },
+                  visualDensity: VisualDensity.compact,
+                );
+              }).toList(),
             ),
             const SizedBox(height: 16),
-            // Odometer
+            // Odometer — label uses effective distance unit
             TextFormField(
               controller: _odometerCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Odometer (km)',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: 'Odometer (${unit.label})',
+                border: const OutlineInputBorder(),
               ),
               keyboardType: TextInputType.number,
               validator: (v) {
@@ -211,16 +286,13 @@ class _MaintenanceFormScreenState
               },
             ),
             const SizedBox(height: 16),
-            // Category dropdown
-            DropdownButtonFormField<String>(
-              initialValue: _category,
-              decoration: const InputDecoration(
-                labelText: 'Category',
-                border: OutlineInputBorder(),
-              ),
-              items: _categories
-                  .map((c) => DropdownMenuItem(value: c, child: Text(c)))
-                  .toList(),
+            // Category picker
+            BottomSheetPickerField<String>(
+              label: 'Category',
+              sheetTitle: 'Select category',
+              value: _category,
+              options: _categories,
+              labelBuilder: (c) => c[0].toUpperCase() + c.substring(1),
               onChanged: (v) => setState(() => _category = v),
             ),
             const SizedBox(height: 16),
@@ -232,26 +304,15 @@ class _MaintenanceFormScreenState
                 hintText: '65.00',
                 border: OutlineInputBorder(),
               ),
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
               validator: (v) {
-                if (v != null &&
-                    v.isNotEmpty &&
-                    double.tryParse(v) == null) {
+                if (v != null && v.isNotEmpty && double.tryParse(v) == null) {
                   return 'Invalid number';
                 }
                 return null;
               },
-            ),
-            const SizedBox(height: 16),
-            // Currency
-            TextFormField(
-              controller: _currencyCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Currency',
-                hintText: 'USD',
-                border: OutlineInputBorder(),
-              ),
             ),
             const SizedBox(height: 16),
             // Workshop
@@ -272,6 +333,21 @@ class _MaintenanceFormScreenState
               ),
               maxLines: 3,
             ),
+            if (_isEdit) ...[
+              const SizedBox(height: 24),
+              OutlinedButton.icon(
+                onPressed: _saving ? null : _delete,
+                icon: const Icon(Icons.delete_outline, color: Colors.red),
+                label: const Text(
+                  'Delete Service Record',
+                  style: TextStyle(color: Colors.red),
+                ),
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: Colors.red),
+                  minimumSize: const Size.fromHeight(48),
+                ),
+              ),
+            ],
           ],
         ),
       ),

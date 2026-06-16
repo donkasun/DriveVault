@@ -10,10 +10,17 @@ import '../../features/auth/presentation/forgot_password_screen.dart';
 import '../../features/auth/presentation/verify_email_screen.dart';
 import '../../features/auth/presentation/splash_screen.dart';
 import '../../features/dashboard/presentation/dashboard_screen.dart';
+import '../../features/documents/presentation/document_upload_screen.dart';
+import '../../features/maintenance/domain/maintenance_record.dart';
+import '../../features/maintenance/presentation/maintenance_form_screen.dart';
+import '../../features/profile/presentation/profile_screen.dart';
 import '../../features/vehicles/presentation/garage_screen.dart';
 import '../../features/vehicles/presentation/vehicle_detail_screen.dart';
+import '../../features/vehicles/presentation/vehicle_fuel_records_screen.dart';
 import '../../features/vehicles/presentation/vehicle_form_screen.dart';
-import '../../features/profile/presentation/profile_screen.dart';
+import '../../features/activity/presentation/activity_screen.dart';
+import '../../features/expenses/presentation/expense_history_screen.dart';
+import '../../features/profile/presentation/edit_profile_screen.dart';
 import 'auth_redirect.dart';
 import 'main_shell.dart';
 
@@ -75,6 +82,26 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           return MainShell(navigationShell: navigationShell);
         },
         branches: [
+          // Branch 0 — Home / Dashboard (left tab, default landing)
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/home',
+                builder: (context, state) => const DashboardScreen(),
+                routes: [
+                  // Full activity history (from dashboard "See all" button)
+                  GoRoute(
+                    path: 'activity',
+                    pageBuilder: (context, state) => const MaterialPage(
+                      fullscreenDialog: true,
+                      child: ActivityScreen(),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          // Branch 1 — Garage
           StatefulShellBranch(
             routes: [
               GoRoute(
@@ -86,6 +113,48 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                     builder: (context, state) => VehicleDetailScreen(
                       vehicleId: state.pathParameters['id']!,
                     ),
+                    routes: [
+                      GoRoute(
+                        path: 'fuel-records',
+                        builder: (context, state) => VehicleFuelRecordsScreen(
+                          vehicleId: state.pathParameters['id']!,
+                        ),
+                      ),
+                      // Maintenance — add
+                      GoRoute(
+                        path: 'maintenance/add',
+                        pageBuilder: (context, state) => MaterialPage(
+                          fullscreenDialog: true,
+                          child: MaintenanceFormScreen(
+                            vehicleId: state.pathParameters['id']!,
+                          ),
+                        ),
+                      ),
+                      // Maintenance — edit (MaintenanceRecord passed via extra)
+                      GoRoute(
+                        path: 'maintenance/edit',
+                        pageBuilder: (context, state) {
+                          final record = state.extra as MaintenanceRecord?;
+                          return MaterialPage(
+                            fullscreenDialog: true,
+                            child: MaintenanceFormScreen(
+                              vehicleId: state.pathParameters['id']!,
+                              existing: record,
+                            ),
+                          );
+                        },
+                      ),
+                      // Documents — upload
+                      GoRoute(
+                        path: 'documents/upload',
+                        pageBuilder: (context, state) => MaterialPage(
+                          fullscreenDialog: true,
+                          child: DocumentUploadScreen(
+                            vehicleId: state.pathParameters['id']!,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                   GoRoute(
                     path: 'add-vehicle',
@@ -109,19 +178,30 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               ),
             ],
           ),
+          // Branch 2 — Expenses
           StatefulShellBranch(
             routes: [
               GoRoute(
-                path: '/home',
-                builder: (context, state) => const DashboardScreen(),
+                path: '/expenses',
+                builder: (context, state) => const ExpenseHistoryScreen(),
               ),
             ],
           ),
+          // Branch 3 — Profile / Settings (right tab)
           StatefulShellBranch(
             routes: [
               GoRoute(
                 path: '/profile',
                 builder: (context, state) => const ProfileScreen(),
+                routes: [
+                  GoRoute(
+                    path: 'edit',
+                    pageBuilder: (context, state) => const MaterialPage(
+                      fullscreenDialog: true,
+                      child: EditProfileScreen(),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

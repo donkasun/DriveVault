@@ -24,28 +24,30 @@ class FuelLog {
   });
 
   factory FuelLog.fromJson(Map<String, dynamic> json) => FuelLog(
-        id: json['id'] as String,
-        vehicleId: json['vehicleId'] as String,
-        date: json['date'] as String,
-        liters: (json['liters'] as num).toDouble(),
-        priceCents: json['priceCents'] as int,
-        currency: json['currency'] as String? ?? 'USD',
-        odometer: json['odometer'] as int,
-        isFullTank: json['isFullTank'] as bool? ?? false,
-        notes: json['notes'] as String?,
-        createdAt: DateTime.parse(json['createdAt'] as String),
-      );
+    id: json['id'] as String,
+    vehicleId: json['vehicleId'] as String,
+    date: json['date'] as String,
+    liters: json['liters'] is num
+        ? (json['liters'] as num).toDouble()
+        : double.parse(json['liters'].toString()),
+    priceCents: json['priceCents'] as int,
+    currency: json['currency'] as String? ?? 'USD',
+    odometer: json['odometer'] as int,
+    isFullTank: json['isFullTank'] as bool? ?? false,
+    notes: json['notes'] as String?,
+    createdAt: DateTime.parse(json['createdAt'] as String),
+  );
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'vehicleId': vehicleId,
-        'date': date,
-        'liters': liters,
-        'priceCents': priceCents,
-        'currency': currency,
-        'odometer': odometer,
-        'isFullTank': isFullTank,
-        if (notes != null) 'notes': notes,
-        'createdAt': createdAt.toIso8601String(),
-      };
+    'id': id,
+    'vehicleId': vehicleId,
+    'date': date,
+    'liters': liters,
+    'priceCents': priceCents,
+    'currency': currency,
+    'odometer': odometer,
+    'isFullTank': isFullTank,
+    if (notes != null) 'notes': notes,
+    'createdAt': createdAt.toIso8601String(),
+  };
 }

@@ -34,12 +34,14 @@ final documentRepositoryProvider = Provider<DocumentRepository>(
 
 final documentsProvider =
     FutureProvider.family<List<Document>, String>((ref, vehicleId) async {
+  ref.keepAlive();
   final repo = ref.watch(documentRepositoryProvider);
   return repo.fetchDocuments(vehicleId);
 });
 
 final groupedDocumentsProvider = FutureProvider.family<
     Map<String, List<Document>>, String>((ref, vehicleId) async {
+  ref.keepAlive();
   final docs = await ref.watch(documentsProvider(vehicleId).future);
   return groupDocumentsByType(docs);
 });

@@ -3,9 +3,32 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:drivevault/features/documents/data/document_repository.dart';
+import 'package:drivevault/features/documents/domain/document.dart';
+import 'package:drivevault/features/fuel/data/fuel_repository.dart';
+import 'package:drivevault/features/fuel/domain/fuel_stats.dart';
+import 'package:drivevault/features/maintenance/data/maintenance_repository.dart';
+import 'package:drivevault/features/maintenance/domain/maintenance_record.dart';
+import 'package:drivevault/features/profile/data/user_repository.dart';
+import 'package:drivevault/features/profile/domain/user.dart';
 import 'package:drivevault/features/vehicles/domain/vehicle.dart';
 import 'package:drivevault/features/vehicles/presentation/garage_screen.dart';
 import 'package:drivevault/features/vehicles/presentation/vehicles_provider.dart';
+
+final _fakeUser = AppUser(
+  id: 'u1',
+  firebaseUid: 'uid1',
+  email: 'test@example.com',
+  currency: 'USD',
+  distanceUnit: 'km',
+  createdAt: DateTime(2026, 1, 1),
+);
+
+const _fakeFuelStats = FuelStats(
+  totalLiters: 0,
+  totalSpentCents: 0,
+  monthlySpend: [],
+);
 
 Vehicle _makeVehicle({
   String id = 'v1',
@@ -37,10 +60,10 @@ Widget _wrapWithProvider(
   final router = GoRouter(
     initialLocation: '/test',
     routes: [
-      GoRoute(path: '/test', builder: (_, __) => child),
+      GoRoute(path: '/test', builder: (_, _) => child),
       GoRoute(
         path: '/garage/add-vehicle',
-        builder: (_, __) => const Scaffold(body: Text('Add Vehicle')),
+        builder: (_, _) => const Scaffold(body: Text('Add Vehicle')),
       ),
       GoRoute(
         path: '/garage/vehicle/:id',
@@ -55,6 +78,14 @@ Widget _wrapWithProvider(
       vehiclesProvider.overrideWith(
         () => _FakeVehiclesNotifier(vehicles),
       ),
+      meProvider.overrideWith((ref) async => _fakeUser),
+      fuelStatsProvider('v1').overrideWith((ref) async => _fakeFuelStats),
+      maintenanceRecordsProvider('v1').overrideWith(
+        (ref) async => <MaintenanceRecord>[],
+      ),
+      documentsProvider('v1').overrideWith(
+        (ref) async => <Document>[],
+      ),
     ],
     child: MaterialApp.router(routerConfig: router),
   );
@@ -68,7 +99,7 @@ void main() {
     await tester.pumpWidget(_wrapWithProvider(const GarageScreen(), [vehicle]));
     await tester.pumpAndSettle();
 
-    expect(find.text('Toyota Hilux 2020'), findsOneWidget);
+    expect(find.text('2020 Toyota Hilux'), findsOneWidget);
     expect(find.text('ABC-1234'), findsOneWidget);
   });
 

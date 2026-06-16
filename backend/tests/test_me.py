@@ -158,3 +158,132 @@ def test_a5_get_me_handles_concurrent_insert(mock_verify, me_client, db_session)
     body = response.json()
     assert body["firebaseUid"] == "firebase-race"
     assert body["email"] == "race@example.com"
+
+
+# ── F2 tests ────────────────────────────────────────────────────────────────
+
+
+@patch("app.deps.auth.verify_id_token")
+def test_f2_get_me_includes_currency_and_distance_unit(mock_verify, me_client, db_session):
+    """GET /me response includes currency, distanceUnit, and reminders fields."""
+    mock_verify.return_value = {
+        "uid": "firebase-f2-get",
+        "email": "f2get@example.com",
+        "email_verified": True,
+    }
+
+    response = me_client.get(
+        "/api/v1/me",
+        headers={"Authorization": "Bearer f2-get-token"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["currency"] == "LKR"
+    assert body["distanceUnit"] == "km"
+    assert body["renewalRemindersEnabled"] is True
+
+
+@patch("app.deps.auth.verify_id_token")
+def test_f2_patch_me_updates_currency_and_distance_unit(mock_verify, me_client, db_session):
+    """PATCH /me with valid settings updates preference fields."""
+    user = User(firebase_uid="firebase-f2-patch", email="f2patch@example.com")
+    db_session.add(user)
+    db_session.commit()
+
+    mock_verify.return_value = {
+        "uid": "firebase-f2-patch",
+        "email": "f2patch@example.com",
+        "email_verified": True,
+    }
+
+    response = me_client.patch(
+        "/api/v1/me",
+        headers={"Authorization": "Bearer f2-patch-token"},
+        json={
+            "currency": "EUR",
+            "distanceUnit": "mi",
+            "renewalRemindersEnabled": False,
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["currency"] == "LKR"
+    assert body["distanceUnit"] == "mi"
+    assert body["renewalRemindersEnabled"] is False
+
+    db_session.refresh(user)
+    assert user.currency == "LKR"
+    assert user.distance_unit == "mi"
+    assert user.renewal_reminders_enabled is False
+
+
+@patch("app.deps.auth.verify_id_token")
+def test_f2_patch_me_invalid_distance_unit_returns_422(mock_verify, me_client, db_session):
+    """PATCH /me with an invalid distanceUnit value returns 422."""
+    user = User(firebase_uid="firebase-f2-invalid", email="f2invalid@example.com")
+    db_session.add(user)
+    db_session.commit()
+
+    mock_verify.return_value = {
+        "uid": "firebase-f2-invalid",
+        "email": "f2invalid@example.com",
+        "email_verified": True,
+    }
+
+    response = me_client.patch(
+        "/api/v1/me",
+        headers={"Authorization": "Bearer f2-invalid-token"},
+        json={"distanceUnit": "miles"},
+    )
+
+    assert response.status_code == 422
+
+
+@patch("app.deps.auth.verify_id_token")
+def test_f2_patch_me_invalid_currency_returns_422(mock_verify, me_client, db_session):
+    """PATCH /me with a non-3-letter currency code returns 422."""
+    user = User(firebase_uid="firebase-f2-badcurr", email="f2badcurr@example.com")
+    db_session.add(user)
+    db_session.commit()
+
+    mock_verify.return_value = {
+        "uid": "firebase-f2-badcurr",
+        "email": "f2badcurr@example.com",
+        "email_verified": True,
+    }
+
+    response = me_client.patch(
+        "/api/v1/me",
+        headers={"Authorization": "Bearer f2-badcurr-token"},
+        json={"currency": "EURO"},
+    )
+
+    assert response.status_code == 422
+
+
+# ── Currency lock (LKR) tests ─────────────────────────────────────────────────
+
+
+@patch("app.deps.auth.verify_id_token")
+def test_patch_me_coerces_currency_to_lkr(mock_verify, me_client, db_session):
+    """PATCH /me with any currency value is always coerced to LKR."""
+    user = User(firebase_uid="firebase-lkr-coerce", email="lkrcoerce@example.com")
+    db_session.add(user)
+    db_session.commit()
+
+    mock_verify.return_value = {
+        "uid": "firebase-lkr-coerce",
+        "email": "lkrcoerce@example.com",
+        "email_verified": True,
+    }
+
+    response = me_client.patch(
+        "/api/v1/me",
+        headers={"Authorization": "Bearer lkr-coerce-token"},
+        json={"currency": "EUR"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["currency"] == "LKR"

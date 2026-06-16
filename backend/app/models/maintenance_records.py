@@ -27,7 +27,7 @@ class MaintenanceRecord(Base):
     service_type: Mapped[str] = mapped_column(Text, nullable=False)
     category: Mapped[str | None] = mapped_column(Text, nullable=True)
     cost_cents: Mapped[int] = mapped_column(BigInteger, server_default="0", nullable=False)
-    currency: Mapped[str] = mapped_column(CHAR(3), server_default="USD", nullable=False)
+    currency: Mapped[str] = mapped_column(CHAR(3), server_default="LKR", nullable=False)
     workshop: Mapped[str | None] = mapped_column(Text, nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     source: Mapped[str] = mapped_column(Text, server_default="manual", nullable=False)

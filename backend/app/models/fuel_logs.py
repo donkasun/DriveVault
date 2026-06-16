@@ -2,7 +2,19 @@
 
 import uuid
 
-from sqlalchemy import BigInteger, Boolean, CheckConstraint, Date, ForeignKey, Index, Integer, Numeric, Text, TIMESTAMP, func
+from sqlalchemy import (
+    BigInteger,
+    Boolean,
+    CheckConstraint,
+    Date,
+    ForeignKey,
+    Index,
+    Integer,
+    Numeric,
+    Text,
+    TIMESTAMP,
+    func,
+)
 from sqlalchemy.dialects.postgresql import CHAR, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -21,7 +33,7 @@ class FuelLog(Base):
     date: Mapped[object] = mapped_column(Date, nullable=False)  # type: ignore[assignment]
     liters: Mapped[float] = mapped_column(Numeric(8, 3), nullable=False)
     price_cents: Mapped[int] = mapped_column(BigInteger, nullable=False)
-    currency: Mapped[str] = mapped_column(CHAR(3), server_default="USD", nullable=False)
+    currency: Mapped[str] = mapped_column(CHAR(3), server_default="LKR", nullable=False)
     odometer: Mapped[int] = mapped_column(Integer, nullable=False)
     is_full_tank: Mapped[bool] = mapped_column(Boolean, server_default="true", nullable=False)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)

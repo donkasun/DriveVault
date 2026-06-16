@@ -45,7 +45,7 @@
 | 2 | C2b | Google sign-in | ✅ | SmallLLM | google_sign_in integrated |
 | 3 | C2c | Auth gate + persistence | ✅ | SmallLLM | GoRouter redirect listener |
 | 4 | C3 | API client + token injection | ✅ | SmallLLM | Dio + token interceptor; null guard; typed exceptions |
-| 5 | C2d | Email-verification gate | ✅ | SmallLLM | committed `a60b0b2`; 25/25 tests, analyze clean; **gates Batch 4 mobile** |
+| 5 | C2d | Email-verification gate | ✅ | SmallLLM | committed `a60b0b2`; 25/25 tests, analyze clean. **Superseded 2026-06-13** by soft `VerifyEmailBanner` nudge (hard gate removed) |
 
 ---
 
@@ -118,7 +118,7 @@
 
 | Order | ID | Task | Status | Executor | Notes |
 |---|---|---|---|---|---|
-| 1 | E1 | End-to-end Phase 1 smoke pass | ⬜ | User | add vehicle → fuel → service → doc → dashboard |
+| 1 | E1 | End-to-end Phase 1 smoke pass | ✅ | User | add vehicle → fuel → service → doc → dashboard — passed 2026-06-10 |
 
 ---
 
@@ -139,8 +139,8 @@
 | Setup | 7 | 8 |
 | Backend | 15 | 15 |
 | Mobile | 18 | 18 |
-| Wrap-up | 0 | 1 |
-| **Total** | **40** | **41** |
+| Wrap-up | 1 | 1 |
+| **Total** | **41** | **41** |
 
 ---
 

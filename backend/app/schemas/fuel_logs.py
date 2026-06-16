@@ -15,7 +15,7 @@ class FuelLogBase(BaseModel):
     date: date_type | None = None
     liters: Decimal | None = Field(default=None, gt=0)
     price_cents: int | None = Field(default=None, alias="priceCents")
-    currency: str = "USD"
+    currency: str | None = None
     odometer: int | None = None
     is_full_tank: bool = Field(default=True, alias="isFullTank")
     notes: str | None = None

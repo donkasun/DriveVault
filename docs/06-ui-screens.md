@@ -29,16 +29,18 @@ tab bar** (active tab = white circle + colored icon), green progress rings + min
 
 ### Top level (no tab bar)
 ```
-/splash            decides auth state → /login, /verify-email, or /home
+/splash            decides auth state → /login or /home
 /login
 /signup
 /forgot-password
-/verify-email      email/password users only, until Firebase email is verified
+/verify-email      legacy screen; no longer gated (logged-in users are redirected to /home)
 ```
-Verified auth success → enter the shell (tabs appear). Unverified email/password sign-up
-→ `/verify-email` (stay signed in). Sign-out → back to `/login`.
+Any auth success (verified or not) → enter the shell (tabs appear). There is **no hard
+verification gate**: unverified email/password users land on `/home` and are nudged by a
+per-session dismissible `VerifyEmailBanner` on the dashboard (Resend / I've verified).
+Sign-out → back to `/login`.
 
-### Shell — StatefulShellRoute with 3 branches
+### Shell — StatefulShellRoute with 4 branches
 ```
 🚗 GARAGE branch
 /garage                            Vehicles list
@@ -56,12 +58,16 @@ Verified auth success → enter the shell (tabs appear). Unverified email/passwo
   → tapping an item (e.g. a renewal) switches to the Garage branch
     and deep-links to that vehicle's relevant section
 
-👤 PROFILE branch
+💰 EXPENSES branch
+/expenses                          Expense history across all vehicles
+
+⚙️ SETTINGS branch
 /profile                           Profile / Settings
   /profile/edit                    Edit profile (modal)
 ```
 
-- **Tabs (left→right):** Garage · **Home** · Profile. Home is the default after login.
+- **Tabs (left→right):** **Home** · Garage · Expenses · Settings. Home is the default after login.
+- Updated 2026-06-12: 4-tab shell approved (Expenses tab added; Profile renamed Settings).
 - **Forms = full-screen modal dialogs** (`fullscreenDialog: true`), Cancel/Save app bar.
 - **Cross-tab deep-link:** Home never duplicates vehicle screens — it switches to the Garage
   branch (`goBranch`) and navigates there.
@@ -104,7 +110,7 @@ Verified auth success → enter the shell (tabs appear). Unverified email/passwo
 ### Auth — Sign-up
 - **Fields:** email, password, (display name — optional), social buttons, back-to-login link.
 - **States:** idle · submitting · error.
-- **On success:** sends Firebase verification email → redirects to `/verify-email` (not `/home`).
+- **On success:** sends Firebase verification email → lands on `/home`; the dashboard `VerifyEmailBanner` nudges the user to verify (no hard gate).
 
 ### Auth — Verify email
 - **Data:** signed-in user's email address.
@@ -144,7 +150,14 @@ Sections top-to-bottom:
   currency, currentMileage, vehicleType, photo (upload → Cloudinary).  (* required)
 - **Actions:** Cancel · Save (`POST`/`PATCH /vehicles`).
 
-### Garage — Add/Edit Fuel log (modal)  — `POST/PATCH fuel-logs`
+### Quick-entry fuel sheet (bottom sheet) — `POST fuel-logs`
+- **Default add path** from dashboard + vehicle-card "Add Fuel". Lightweight half-sheet:
+  odometer* + any two of {liters, total paid, price-per-liter} — the third is derived
+  (price-per-liter is a sticky default from the last log). Always logs `isFullTank: true`.
+- **Full details** button hands typed values to the full form below (for partial fills / notes).
+
+### Garage — Add/Edit Fuel log (full form)  — `POST/PATCH fuel-logs`
+- Used for **edits** and the quick sheet's "Full details" handoff.
 - **Fields:** date*, liters*, priceCents*, odometer*, isFullTank, notes.
 
 ### Garage — Add/Edit Maintenance (modal)  — `POST/PATCH maintenance`
@@ -169,7 +182,9 @@ Sections top-to-bottom:
 
 ### Profile / Settings  (`GET /me`)
 - **Data:** display name, email, avatar.
-- **Actions:** edit profile (modal, `PATCH /me`) · (default currency?) · **Sign out** → `/login`.
+- **Actions:** edit profile (modal, `PATCH /me`) · **Sign out** → `/login`.
+- **Future work:** allow changing the account email once the verification + auth flow
+  supports it safely; keep email read-only for now.
 
 ---
 
@@ -192,8 +207,10 @@ Sections top-to-bottom:
 ---
 
 ## Open / deferred
-- Default **currency** handling (app-wide vs per-record) — schema stores per record; UI default TBD.
+- **Currency** is locked to `LKR` app-wide (forced server-side via `LOCKED_CURRENCY`); no currency UI and no picker.
 - Apple sign-in — enabled later (needs Apple Developer setup).
+- Email changes on Profile / Settings are deferred until the auth flow is ready to handle
+  re-verification and backend updates safely.
 - 🎨 **Layouts locked** for the three core screens (Home, Garage, Vehicle detail). Auth,
   modal forms, and Profile follow the same design language (`design-references/`) — detailed
   layouts can be refined when those screens are built.

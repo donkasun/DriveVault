@@ -1,3 +1,31 @@
+import '../../../shared/constants/currencies.dart';
+
+/// Derived docs-status for a vehicle — computed server-side from its documents.
+///
+/// `state` values: `"valid"` | `"needs_action"` | `"none"`.
+class DocsStatus {
+  final String state; // "valid" | "needs_action" | "none"
+  final int needsActionCount;
+
+  const DocsStatus({required this.state, required this.needsActionCount});
+
+  /// Backward-compatible: missing key → state "none", count 0.
+  factory DocsStatus.fromJson(Map<String, dynamic> json) {
+    return DocsStatus(
+      state: (json['state'] as String?) ?? 'none',
+      needsActionCount: (json['needsActionCount'] as int?) ?? 0,
+    );
+  }
+
+  /// Sentinel used when the backend omits the `docsStatus` key entirely.
+  static const DocsStatus none = DocsStatus(state: 'none', needsActionCount: 0);
+
+  Map<String, dynamic> toJson() => {
+    'state': state,
+    'needsActionCount': needsActionCount,
+  };
+}
+
 /// Vehicle domain model matching Doc 2 schema and Doc 3 API contract.
 class Vehicle {
   final String id;
@@ -11,10 +39,18 @@ class Vehicle {
   final String currency;
   final int? currentMileage;
   final String? vehicleType;
+  final String? fuelType;
+
+  /// Per-vehicle distance-unit override ("km" / "mi" / null).
+  /// null means inherit the user's account-level default.
+  final String? distanceUnit;
   final String? photoUrl;
   final String? photoPublicId;
   final DateTime createdAt;
   final DateTime updatedAt;
+
+  /// Derived docs-status. Defaults to [DocsStatus.none] when absent from JSON.
+  final DocsStatus docsStatus;
 
   const Vehicle({
     required this.id,
@@ -28,51 +64,61 @@ class Vehicle {
     required this.currency,
     this.currentMileage,
     this.vehicleType,
+    this.fuelType,
+    this.distanceUnit,
     this.photoUrl,
     this.photoPublicId,
     required this.createdAt,
     required this.updatedAt,
+    this.docsStatus = DocsStatus.none,
   });
 
   factory Vehicle.fromJson(Map<String, dynamic> json) => Vehicle(
-        id: json['id'] as String,
-        make: json['make'] as String,
-        model: json['model'] as String,
-        year: json['year'] as int?,
-        registrationNumber: json['registrationNumber'] as String?,
-        vin: json['vin'] as String?,
-        purchaseDate: json['purchaseDate'] as String?,
-        purchasePriceCents: json['purchasePriceCents'] as int?,
-        currency: json['currency'] as String? ?? 'USD',
-        currentMileage: json['currentMileage'] as int?,
-        vehicleType: json['vehicleType'] as String?,
-        photoUrl: json['photoUrl'] as String?,
-        photoPublicId: json['photoPublicId'] as String?,
-        createdAt: DateTime.parse(json['createdAt'] as String),
-        updatedAt: DateTime.parse(json['updatedAt'] as String),
-      );
+    id: json['id'] as String,
+    make: json['make'] as String,
+    model: json['model'] as String,
+    year: json['year'] as int?,
+    registrationNumber: json['registrationNumber'] as String?,
+    vin: json['vin'] as String?,
+    purchaseDate: json['purchaseDate'] as String?,
+    purchasePriceCents: json['purchasePriceCents'] as int?,
+    currency: json['currency'] as String? ?? kFallbackCurrency,
+    currentMileage: json['currentMileage'] as int?,
+    vehicleType: json['vehicleType'] as String?,
+    fuelType: json['fuelType'] as String?,
+    distanceUnit: json['distanceUnit'] as String?,
+    photoUrl: json['photoUrl'] as String?,
+    photoPublicId: json['photoPublicId'] as String?,
+    createdAt: DateTime.parse(json['createdAt'] as String),
+    updatedAt: DateTime.parse(json['updatedAt'] as String),
+    docsStatus: json['docsStatus'] != null
+        ? DocsStatus.fromJson(json['docsStatus'] as Map<String, dynamic>)
+        : DocsStatus.none,
+  );
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'make': make,
-        'model': model,
-        if (year != null) 'year': year,
-        if (registrationNumber != null)
-          'registrationNumber': registrationNumber,
-        if (vin != null) 'vin': vin,
-        if (purchaseDate != null) 'purchaseDate': purchaseDate,
-        if (purchasePriceCents != null)
-          'purchasePriceCents': purchasePriceCents,
-        'currency': currency,
-        if (currentMileage != null) 'currentMileage': currentMileage,
-        if (vehicleType != null) 'vehicleType': vehicleType,
-        if (photoUrl != null) 'photoUrl': photoUrl,
-        if (photoPublicId != null) 'photoPublicId': photoPublicId,
-        'createdAt': createdAt.toIso8601String(),
-        'updatedAt': updatedAt.toIso8601String(),
-      };
+    'id': id,
+    'make': make,
+    'model': model,
+    if (year != null) 'year': year,
+    if (registrationNumber != null) 'registrationNumber': registrationNumber,
+    if (vin != null) 'vin': vin,
+    if (purchaseDate != null) 'purchaseDate': purchaseDate,
+    if (purchasePriceCents != null) 'purchasePriceCents': purchasePriceCents,
+    'currency': currency,
+    if (currentMileage != null) 'currentMileage': currentMileage,
+    if (vehicleType != null) 'vehicleType': vehicleType,
+    if (fuelType != null) 'fuelType': fuelType,
+    if (distanceUnit != null) 'distanceUnit': distanceUnit,
+    if (photoUrl != null) 'photoUrl': photoUrl,
+    if (photoPublicId != null) 'photoPublicId': photoPublicId,
+    'createdAt': createdAt.toIso8601String(),
+    'updatedAt': updatedAt.toIso8601String(),
+    'docsStatus': docsStatus.toJson(),
+  };
 
-  String get displayName => '${year != null ? '$year ' : ''}$make $model'.trim();
+  String get displayName =>
+      '${year != null ? '$year ' : ''}$make $model'.trim();
 
   Vehicle copyWith({
     String? id,
@@ -86,10 +132,13 @@ class Vehicle {
     String? currency,
     int? currentMileage,
     String? vehicleType,
+    String? fuelType,
+    String? distanceUnit,
     String? photoUrl,
     String? photoPublicId,
     DateTime? createdAt,
     DateTime? updatedAt,
+    DocsStatus? docsStatus,
   }) {
     return Vehicle(
       id: id ?? this.id,
@@ -103,10 +152,13 @@ class Vehicle {
       currency: currency ?? this.currency,
       currentMileage: currentMileage ?? this.currentMileage,
       vehicleType: vehicleType ?? this.vehicleType,
+      fuelType: fuelType ?? this.fuelType,
+      distanceUnit: distanceUnit ?? this.distanceUnit,
       photoUrl: photoUrl ?? this.photoUrl,
       photoPublicId: photoPublicId ?? this.photoPublicId,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      docsStatus: docsStatus ?? this.docsStatus,
     );
   }
 }

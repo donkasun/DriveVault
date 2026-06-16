@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/theme/app_theme.dart';
+import '../../../shared/widgets/app_button.dart';
+import '../../../shared/widgets/dashed_border.dart';
 import 'vehicles_provider.dart';
 import 'widgets/vehicle_card.dart';
 
@@ -14,30 +15,6 @@ class GarageScreen extends ConsumerWidget {
     final vehiclesAsync = ref.watch(vehiclesProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: RichText(
-          text: const TextSpan(
-            style: TextStyle(fontSize: 22, color: Colors.black87),
-            children: [
-              TextSpan(text: 'Your '),
-              TextSpan(
-                text: 'Garage',
-                style: TextStyle(fontWeight: FontWeight.w800),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 16),
-            child: CircleAvatar(
-              radius: 18,
-              backgroundColor: AppTheme.primaryGreen,
-              child: const Icon(Icons.person, color: Colors.white, size: 20),
-            ),
-          ),
-        ],
-      ),
       body: vehiclesAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => Center(
@@ -67,19 +44,57 @@ class GarageScreen extends ConsumerWidget {
           }
 
           return ListView.builder(
-            padding: const EdgeInsets.only(top: 8, bottom: 100),
-            itemCount: vehicles.length + 1,
+            padding: const EdgeInsets.only(top: 0, bottom: 100),
+            itemCount: vehicles.length + 2, // header + vehicles + add card
             itemBuilder: (context, index) {
-              if (index < vehicles.length) {
-                return VehicleCard(vehicle: vehicles[index]);
+              if (index == 0) {
+                return _GarageHeader(count: vehicles.length);
               }
-              // Dashed "Add Vehicle" card at bottom
+              final vehicleIndex = index - 1;
+              if (vehicleIndex < vehicles.length) {
+                return VehicleCard(vehicle: vehicles[vehicleIndex]);
+              }
               return _AddVehicleCard(
                 onTap: () => context.push('/garage/add-vehicle'),
               );
             },
           );
         },
+      ),
+    );
+  }
+}
+
+class _GarageHeader extends StatelessWidget {
+  final int count;
+  const _GarageHeader({required this.count});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 66, 20, 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Your garage',
+            style: TextStyle(
+              fontSize: 29,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.6,
+              color: Color(0xFF13121C),
+              height: 1.05,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '$count ${count == 1 ? 'vehicle' : 'vehicles'}',
+            style: const TextStyle(
+              fontSize: 14,
+              color: Color(0xFF73738A),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -92,44 +107,82 @@ class _EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.garage_outlined, size: 72, color: Colors.grey),
-            const SizedBox(height: 16),
-            const Text(
-              'No vehicles yet',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.fromLTRB(20, 66, 20, 0),
+          child: Text(
+            'Your garage',
+            style: TextStyle(
+              fontSize: 29,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.6,
+              color: Color(0xFF13121C),
+              height: 1.05,
             ),
-            const SizedBox(height: 8),
-            const Text(
-              'Add your first vehicle to get started',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey),
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton.icon(
-              onPressed: onAddTap,
-              icon: const Icon(Icons.add),
-              label: const Text('Add your first vehicle'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primaryGreen,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 14,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
+          ),
+        ),
+        Expanded(
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 80,
+                    height: 80,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(22),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.06),
+                          blurRadius: 12,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
+                    ),
+                    child: const Icon(
+                      Icons.garage_outlined,
+                      size: 38,
+                      color: Color(0xFF73738A),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  const Text(
+                    'Your garage is empty',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.3,
+                      color: Color(0xFF13121C),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Add a vehicle to track its fuel, services and documents.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w400,
+                      color: Color(0xFF73738A),
+                      height: 1.45,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  AppButton(
+                    label: 'Add vehicle',
+                    onPressed: onAddTap,
+                    icon: const Icon(Icons.add),
+                  ),
+                ],
               ),
             ),
-          ],
+          ),
         ),
-      ),
+      ],
     );
   }
 }
@@ -141,33 +194,33 @@ class _AddVehicleCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        height: 80,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: AppTheme.primaryGreen.withValues(alpha: 0.5),
-            width: 2,
-            style: BorderStyle.none,
-          ),
-        ),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
+      child: GestureDetector(
+        onTap: onTap,
         child: CustomPaint(
-          painter: _DashedBorderPainter(),
-          child: const Center(
+          foregroundPainter: DashedBorderPainter(
+            color: const Color(0xFFE6E6EE),
+            radius: 18,
+            strokeWidth: 2,
+          ),
+          child: Container(
+            height: 66,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.5),
+              borderRadius: BorderRadius.circular(18),
+            ),
             child: Row(
-              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.add_circle_outline, color: AppTheme.primaryGreen),
-                SizedBox(width: 8),
-                Text(
-                  'Add Vehicle',
+                const Icon(Icons.add, color: Color(0xFF73738A), size: 20),
+                const SizedBox(width: 9),
+                const Text(
+                  'Add vehicle',
                   style: TextStyle(
-                    color: AppTheme.primaryGreen,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 15,
+                    color: Color(0xFF73738A),
+                    fontWeight: FontWeight.w700,
+                    fontSize: 16,
                   ),
                 ),
               ],
@@ -179,37 +232,3 @@ class _AddVehicleCard extends StatelessWidget {
   }
 }
 
-class _DashedBorderPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    const dashWidth = 6.0;
-    const dashSpace = 4.0;
-    const radius = 16.0;
-    final paint = Paint()
-      ..color = AppTheme.primaryGreen.withValues(alpha: 0.5)
-      ..strokeWidth = 2
-      ..style = PaintingStyle.stroke;
-
-    final rect = Rect.fromLTWH(1, 1, size.width - 2, size.height - 2);
-    final rrect = RRect.fromRectAndRadius(rect, const Radius.circular(radius));
-    final path = Path()..addRRect(rrect);
-
-    final pathMetrics = path.computeMetrics();
-    for (final metric in pathMetrics) {
-      double distance = 0;
-      while (distance < metric.length) {
-        canvas.drawPath(
-          metric.extractPath(
-            distance,
-            distance + dashWidth,
-          ),
-          paint,
-        );
-        distance += dashWidth + dashSpace;
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}

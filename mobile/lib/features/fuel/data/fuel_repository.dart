@@ -47,12 +47,14 @@ final fuelRepositoryProvider = Provider<FuelRepository>(
 
 final fuelLogsProvider =
     FutureProvider.family<List<FuelLog>, String>((ref, vehicleId) async {
+  ref.keepAlive();
   final repo = ref.watch(fuelRepositoryProvider);
   return repo.fetchFuelLogs(vehicleId);
 });
 
 final fuelStatsProvider =
     FutureProvider.family<FuelStats, String>((ref, vehicleId) async {
+  ref.keepAlive();
   final repo = ref.watch(fuelRepositoryProvider);
   return repo.fetchFuelStats(vehicleId);
 });

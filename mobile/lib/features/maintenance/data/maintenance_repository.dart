@@ -42,6 +42,7 @@ final maintenanceRepositoryProvider = Provider<MaintenanceRepository>(
 final maintenanceRecordsProvider =
     FutureProvider.family<List<MaintenanceRecord>, String>(
         (ref, vehicleId) async {
+  ref.keepAlive();
   final repo = ref.watch(maintenanceRepositoryProvider);
   return repo.fetchRecords(vehicleId);
 });
