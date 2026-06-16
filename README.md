@@ -80,8 +80,8 @@ graph LR
 - **Document vault** — store registration, insurance, and other docs with expiry tracking
 - **Expense history** — unified view across fuel, maintenance, and documents
 - **User profile** — display name, currency preference, distance unit preference
-- **REST API** — 30+ endpoints, strict ownership model (cross-user access → 404), full Alembic migration history
-- **Deployed** — backend live on Google Cloud Run; Flutter app runs on iOS simulator and device
+- **REST API** — 25 endpoints, strict ownership model (cross-user access → 404), full Alembic migration history
+- **Deployed** — backend live on [Google Cloud Run](https://drivevault-backend-250609806849.us-central1.run.app/docs); Flutter app runs on iOS simulator and device
 
 ---
 
@@ -141,4 +141,4 @@ drivevault/
 
 ---
 
-[Full product vision →](docs/DriveVault_PRD.md) · [Architecture & design decisions →](ARCHITECTURE.md) · [API contract →](docs/03-api-contract.md) · [Database schema →](docs/02-database-schema.md)
+[GitHub →](https://github.com/donkasun/DriveVault) · [Live API →](https://drivevault-backend-250609806849.us-central1.run.app/docs) · [Full product vision →](docs/DriveVault_PRD.md) · [Architecture & design decisions →](ARCHITECTURE.md) · [API contract →](docs/03-api-contract.md) · [Database schema →](docs/02-database-schema.md)
