@@ -48,6 +48,7 @@ class _MaintenanceFormScreenState extends ConsumerState<MaintenanceFormScreen> {
   late final TextEditingController _notesCtrl;
   String? _category;
   bool _saving = false;
+  bool _odometerConverted = false; // ensure we only convert once on first build
 
   static const _categories = ['maintenance', 'repair', 'inspection', 'other'];
 
@@ -61,6 +62,8 @@ class _MaintenanceFormScreenState extends ConsumerState<MaintenanceFormScreen> {
         text: e?.date ?? widget.initialDate ?? _today());
     _serviceTypeCtrl = TextEditingController(
         text: e?.serviceType ?? widget.initialServiceType ?? '');
+    // Odometer is stored in km. We store the raw km value here; the first
+    // build() call converts to the display unit via _maybeConvertOdometer().
     _odometerCtrl = TextEditingController(
       text: e?.odometer != null
           ? e!.odometer.toString()
@@ -91,6 +94,17 @@ class _MaintenanceFormScreenState extends ConsumerState<MaintenanceFormScreen> {
     final now = DateTime.now();
     return '${now.year}-${now.month.toString().padLeft(2, '0')}'
         '-${now.day.toString().padLeft(2, '0')}';
+  }
+
+  /// On the first build call, convert the pre-filled km value to the
+  /// user's display unit so the field shows the correct unit.
+  void _maybeConvertOdometer(DistanceUnit unit) {
+    if (_odometerConverted) return;
+    _odometerConverted = true;
+    if (unit == DistanceUnit.km) return; // km stored == km displayed, no-op
+    final raw = int.tryParse(_odometerCtrl.text.trim());
+    if (raw == null || raw == 0) return;
+    _odometerCtrl.text = kmToDisplay(raw, unit).round().toString();
   }
 
   Future<void> _pickDate() async {
@@ -166,12 +180,25 @@ class _MaintenanceFormScreenState extends ConsumerState<MaintenanceFormScreen> {
       final costText = _costCtrl.text.trim();
       final odomText = _odometerCtrl.text.trim();
 
+      // Resolve effective unit at save time for odometer conversion.
+      final vehicles = ref.read(vehiclesProvider).asData?.value ?? [];
+      final vehicle = vehicles.cast<Vehicle?>().firstWhere(
+            (v) => v?.id == widget.vehicleId,
+            orElse: () => null,
+          );
+      final userUnit = ref.read(meProvider).asData?.value.distanceUnit ?? 'km';
+      final unit = effectiveUnit(
+        vehicleUnit: vehicle?.distanceUnit,
+        userUnit: userUnit,
+      );
+
       // currency intentionally omitted — the backend fills it from the user's
       // currency preference (matches fuel-log form behaviour).
       final data = <String, dynamic>{
         'date': _dateCtrl.text.trim(),
         'serviceType': _serviceTypeCtrl.text.trim(),
-        if (odomText.isNotEmpty) 'odometer': int.parse(odomText),
+        if (odomText.isNotEmpty)
+          'odometer': displayToKm(double.parse(odomText), unit),
         if (_category != null) 'category': _category,
         if (costText.isNotEmpty)
           'costCents': (double.parse(costText) * 100).round(),
@@ -219,6 +246,9 @@ class _MaintenanceFormScreenState extends ConsumerState<MaintenanceFormScreen> {
       vehicleUnit: vehicle?.distanceUnit,
       userUnit: userUnit,
     );
+
+    // Convert stored km to display unit on the first render (edit mode only).
+    _maybeConvertOdometer(unit);
 
     return Scaffold(
       appBar: FormScreenAppBar(

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../constants/currencies.dart';
 import '../utils/formatting.dart';
 
 /// Shared visual card used in both the home screen "Recent activity" list
@@ -33,7 +34,7 @@ class ActivityEntryCard extends StatelessWidget {
     this.titleSub,
     required this.subLabel,
     this.amountCents,
-    this.currency = 'USD',
+    this.currency = kFallbackCurrency,
     this.onTap,
   });
 

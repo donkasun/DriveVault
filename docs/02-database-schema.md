@@ -230,6 +230,31 @@ Indexes: `document_id`; plus an HNSW/IVFFlat index on `embedding` for vector sea
 
 ---
 
+---
+
+# PHASE 1.5 TABLE (Fuel & Preferences)
+
+## `dashboard_data`
+Cached/aggregated dashboard stats per user, recomputed on writes. Created by migration
+`b6001_dashboard_aggregate.py`.
+
+| Column | Type | Constraints |
+|---|---|---|
+| id | uuid | PK |
+| user_id | uuid | FK → users.id, ON DELETE CASCADE, NOT NULL |
+| vehicle_count | int | NULL |
+| monthly_fuel_spend_cents | bigint | NULL |
+| total_ownership_cost_cents | bigint | NULL |
+| fuel_cents | bigint | NULL |
+| maintenance_cents | bigint | NULL |
+| purchase_cents | bigint | NULL |
+
+Indexes: `user_id`.
+> Values are `NULL` until first computed. The dashboard service reads this row and falls back
+> to live aggregation if it is absent.
+
+---
+
 ## Migration Strategy
 - Use **Alembic**. Initial migration creates Phase 1 (+ optionally Phase 2) tables.
 - Add later-phase tables in their own migrations when that phase starts.

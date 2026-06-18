@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/constants/currencies.dart';
 import '../../../shared/utils/distance_unit.dart';
 import '../../../shared/utils/formatting.dart';
 import '../../../shared/widgets/status_pill.dart';
@@ -138,7 +139,10 @@ class _VehicleDetailBody extends ConsumerWidget {
                 vehicleDistanceUnit: vehicle.distanceUnit,
               ),
               _MaintenanceSection(vehicleId: vehicle.id),
-              _DocumentsSection(vehicleId: vehicle.id, docsStatus: vehicle.docsStatus),
+              _DocumentsSection(
+                vehicleId: vehicle.id,
+                docsStatus: vehicle.docsStatus,
+              ),
               const SizedBox(height: 120),
             ]),
           ),
@@ -204,10 +208,7 @@ class _HeroAppBar extends StatelessWidget {
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.center,
-                  colors: [
-                    Colors.black.withAlpha(100),
-                    Colors.transparent,
-                  ],
+                  colors: [Colors.black.withAlpha(100), Colors.transparent],
                 ),
               ),
             ),
@@ -217,10 +218,7 @@ class _HeroAppBar extends StatelessWidget {
                 gradient: LinearGradient(
                   begin: Alignment.bottomCenter,
                   end: Alignment.center,
-                  colors: [
-                    Colors.black.withAlpha(180),
-                    Colors.transparent,
-                  ],
+                  colors: [Colors.black.withAlpha(180), Colors.transparent],
                 ),
               ),
             ),
@@ -365,7 +363,7 @@ class _StatsCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final fuelStatsAsync = ref.watch(fuelStatsProvider(vehicle.id));
     final me = ref.watch(meProvider).asData?.value;
-    final currency = me?.currency ?? 'USD';
+    final currency = me?.currency ?? kFallbackCurrency;
     final unit = effectiveUnit(
       vehicleUnit: vehicle.distanceUnit,
       userUnit: me?.distanceUnit ?? 'km',
@@ -406,9 +404,17 @@ class _StatsCard extends ConsumerWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _StatCol(number: mileageNum, unitSuffix: mileageUnit, label: 'MILEAGE'),
+            _StatCol(
+              number: mileageNum,
+              unitSuffix: mileageUnit,
+              label: 'MILEAGE',
+            ),
             _VDivider(),
-            _StatCol(number: economyNum, unitSuffix: economyUnit, label: 'ECONOMY'),
+            _StatCol(
+              number: economyNum,
+              unitSuffix: economyUnit,
+              label: 'ECONOMY',
+            ),
             _VDivider(),
             _StatCol(number: spentNum, unitPrefix: spentPrefix, label: 'SPENT'),
             _VDivider(),
@@ -492,7 +498,9 @@ class _DocsStatCol extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isOk = docsStatus.state == 'valid';
-    final icon = isOk ? Icons.check_circle_outline_rounded : Icons.warning_amber_rounded;
+    final icon = isOk
+        ? Icons.check_circle_outline_rounded
+        : Icons.warning_amber_rounded;
     final color = isOk ? AppColors.success : AppColors.danger;
     final label = isOk ? 'Done' : '${docsStatus.needsActionCount}';
 
@@ -595,8 +603,7 @@ class _SectionHeader extends StatelessWidget {
             style: TextButton.styleFrom(
               backgroundColor: AppColors.onPrimary,
               foregroundColor: AppColors.primary,
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
               minimumSize: Size.zero,
               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               shape: const StadiumBorder(),
@@ -621,17 +628,14 @@ class _FuelSection extends ConsumerWidget {
   final String vehicleId;
   final String? vehicleDistanceUnit;
 
-  const _FuelSection({
-    required this.vehicleId,
-    this.vehicleDistanceUnit,
-  });
+  const _FuelSection({required this.vehicleId, this.vehicleDistanceUnit});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final logsAsync = ref.watch(fuelLogsProvider(vehicleId));
     final statsAsync = ref.watch(fuelStatsProvider(vehicleId));
     final me = ref.watch(meProvider).asData?.value;
-    final currency = me?.currency ?? 'USD';
+    final currency = me?.currency ?? kFallbackCurrency;
     final unit = effectiveUnit(
       vehicleUnit: vehicleDistanceUnit,
       userUnit: me?.distanceUnit ?? 'km',
@@ -665,11 +669,8 @@ class _FuelSection extends ConsumerWidget {
             child: LinearProgressIndicator(),
           ),
           error: (e, st) => const SizedBox.shrink(),
-          data: (stats) => _FuelStatsCard(
-            stats: stats,
-            currency: currency,
-            unit: unit,
-          ),
+          data: (stats) =>
+              _FuelStatsCard(stats: stats, currency: currency, unit: unit),
         ),
         // Logs list
         logsAsync.when(
@@ -730,10 +731,8 @@ class _FuelStatsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final economyLabel =
-        unit == DistanceUnit.km ? 'KM / L' : 'MPG';
-    final costLabel =
-        unit == DistanceUnit.km ? 'COST / KM' : 'COST / MI';
+    final economyLabel = unit == DistanceUnit.km ? 'KM / L' : 'MPG';
+    final costLabel = unit == DistanceUnit.km ? 'COST / KM' : 'COST / MI';
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -745,7 +744,10 @@ class _FuelStatsCard extends StatelessWidget {
           children: [
             _FuelStatItem(
               label: economyLabel,
-              value: formatEconomyFromStats(stats.avgConsumptionLPer100Km, unit),
+              value: formatEconomyFromStats(
+                stats.avgConsumptionLPer100Km,
+                unit,
+              ),
             ),
             _FuelStatItem(
               label: costLabel,
@@ -833,16 +835,16 @@ class _MaintenanceSection extends ConsumerWidget {
             }
             final sorted = [...records]
               ..sort((a, b) => b.date.compareTo(a.date));
-            return ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: sorted.length,
-              itemBuilder: (_, i) => _MaintenanceTile(
-                record: sorted[i],
-                vehicleId: vehicleId,
-                onRefresh: () =>
-                    ref.invalidate(maintenanceRecordsProvider(vehicleId)),
-              ),
+            return Column(
+              children: [
+                for (final record in sorted)
+                  _MaintenanceTile(
+                    record: record,
+                    vehicleId: vehicleId,
+                    onRefresh: () =>
+                        ref.invalidate(maintenanceRecordsProvider(vehicleId)),
+                  ),
+              ],
             );
           },
         ),
@@ -864,23 +866,134 @@ class _MaintenanceTile extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final currency = ref.watch(meProvider).asData?.value.currency ?? 'USD';
-    return ListTile(
-      leading: const Icon(Icons.build_outlined),
-      title: Text(record.serviceType),
-      subtitle: Text(
-        '${record.date}'
-        '${record.workshop != null ? ' • ${record.workshop}' : ''}'
-        '${record.costCents != null ? ' • ${formatCents(record.costCents!, currency: currency)}' : ''}',
+    final currency =
+        ref.watch(meProvider).asData?.value.currency ?? kFallbackCurrency;
+    final (icon, bg, fg) = _iconStyle;
+    final subtitle = _subtitle;
+    final costLabel = record.costCents != null
+        ? formatCents(record.costCents!, currency: currency)
+        : null;
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+      decoration: appCardDecoration,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () async {
+            await context.push(
+              '/garage/vehicle/$vehicleId/maintenance/edit',
+              extra: record,
+            );
+            onRefresh();
+          },
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            child: Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: bg,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(icon, color: fg, size: 20),
+                ),
+                const SizedBox(width: 13),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        record.serviceType,
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 1),
+                      Text(
+                        subtitle,
+                        style: const TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w500,
+                          color: AppColors.textMuted,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                if (costLabel != null) ...[
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF5F3FF),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      costLabel,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
       ),
-      onTap: () async {
-        await context.push(
-          '/garage/vehicle/$vehicleId/maintenance/edit',
-          extra: record,
-        );
-        onRefresh();
-      },
     );
+  }
+
+  (IconData, Color, Color) get _iconStyle {
+    return switch (record.category?.toLowerCase()) {
+      'repair' => (
+        Icons.handyman_outlined,
+        const Color(0xFFFCEBEB),
+        const Color(0xFFDC2626),
+      ),
+      'upgrade' => (
+        Icons.auto_awesome_outlined,
+        const Color(0xFFE8F1FD),
+        const Color(0xFF2563EB),
+      ),
+      'inspection' => (
+        Icons.fact_check_outlined,
+        const Color(0xFFEAF7EE),
+        const Color(0xFF16A34A),
+      ),
+      _ => (
+        Icons.build_outlined,
+        const Color(0xFFFCF1DC),
+        const Color(0xFFB45309),
+      ),
+    };
+  }
+
+  String get _subtitle {
+    final parts = <String>[record.date];
+    if (record.workshop != null && record.workshop!.trim().isNotEmpty) {
+      parts.add(record.workshop!.trim());
+    }
+    if (record.odometer != null) {
+      parts.add('${record.odometer} km');
+    }
+    return parts.join(' • ');
   }
 }
 
@@ -897,13 +1010,13 @@ class _DocumentsSection extends ConsumerWidget {
   /// Sort: overdue first, then soon (fewest days first), then ok, then no expiry.
   List<Document> _sorted(List<Document> docs) {
     return [...docs]..sort((a, b) {
-        final da = a.daysUntilExpiry();
-        final db = b.daysUntilExpiry();
-        if (da == null && db == null) return 0;
-        if (da == null) return 1;
-        if (db == null) return -1;
-        return da.compareTo(db);
-      });
+      final da = a.daysUntilExpiry();
+      final db = b.daysUntilExpiry();
+      if (da == null && db == null) return 0;
+      if (da == null) return 1;
+      if (db == null) return -1;
+      return da.compareTo(db);
+    });
   }
 
   @override
@@ -934,14 +1047,18 @@ class _DocumentsSection extends ConsumerWidget {
               return _EmptyCard(label: 'No documents yet.');
             }
             return Column(
-              children: _sorted(docs).map((doc) => _DocumentCard(
-                doc: doc,
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => DocumentViewerScreen(document: doc),
-                  ),
-                ),
-              )).toList(),
+              children: _sorted(docs)
+                  .map(
+                    (doc) => _DocumentCard(
+                      doc: doc,
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => DocumentViewerScreen(document: doc),
+                        ),
+                      ),
+                    ),
+                  )
+                  .toList(),
             );
           },
         ),
@@ -1028,11 +1145,7 @@ class _DocumentCard extends StatelessWidget {
         const Color(0xFFE8F1FD),
         const Color(0xFF2563EB),
       ),
-      _ => (
-        Icons.description_outlined,
-        AppColors.divider,
-        AppColors.textMuted,
-      ),
+      _ => (Icons.description_outlined, AppColors.divider, AppColors.textMuted),
     };
   }
 
@@ -1114,10 +1227,7 @@ class _DocumentCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                if (pill != null) ...[
-                  const SizedBox(width: 8),
-                  pill,
-                ],
+                if (pill != null) ...[const SizedBox(width: 8), pill],
               ],
             ),
           ),
@@ -1146,10 +1256,7 @@ class _EmptyCard extends StatelessWidget {
         child: Center(
           child: Text(
             label,
-            style: const TextStyle(
-              color: AppColors.textMuted,
-              fontSize: 14,
-            ),
+            style: const TextStyle(color: AppColors.textMuted, fontSize: 14),
           ),
         ),
       ),

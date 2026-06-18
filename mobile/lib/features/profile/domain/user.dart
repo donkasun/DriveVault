@@ -1,3 +1,5 @@
+import '../../../shared/constants/currencies.dart';
+
 /// Current user profile returned by `GET /api/v1/me` (Doc 3).
 class AppUser {
   final String id;
@@ -6,7 +8,7 @@ class AppUser {
   final String? displayName;
   final String? photoUrl;
 
-  /// Account-wide money preference (3-letter code, e.g. "USD").
+  /// Account-wide money preference (3-letter code, e.g. "LKR").
   final String currency;
 
   /// Account-wide distance display preference ("km" or "mi").
@@ -22,7 +24,7 @@ class AppUser {
     required this.email,
     this.displayName,
     this.photoUrl,
-    this.currency = 'USD',
+    this.currency = kFallbackCurrency,
     this.distanceUnit = 'km',
     this.renewalRemindersEnabled = true,
     required this.createdAt,
@@ -35,7 +37,7 @@ class AppUser {
       email: json['email'] as String,
       displayName: json['displayName'] as String?,
       photoUrl: json['photoUrl'] as String?,
-      currency: json['currency'] as String? ?? 'USD',
+      currency: json['currency'] as String? ?? kFallbackCurrency,
       distanceUnit: json['distanceUnit'] as String? ?? 'km',
       renewalRemindersEnabled: json['renewalRemindersEnabled'] as bool? ?? true,
       createdAt: DateTime.parse(json['createdAt'] as String),

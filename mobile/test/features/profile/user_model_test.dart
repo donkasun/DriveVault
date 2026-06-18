@@ -27,9 +27,9 @@ void main() {
       expect(u.renewalRemindersEnabled, isFalse);
     });
 
-    test('defaults to USD / km / true when fields are absent', () {
+    test('defaults to LKR / km / true when fields are absent', () {
       final u = AppUser.fromJson(baseJson());
-      expect(u.currency, 'USD');
+      expect(u.currency, 'LKR');
       expect(u.distanceUnit, 'km');
       expect(u.renewalRemindersEnabled, isTrue);
     });
