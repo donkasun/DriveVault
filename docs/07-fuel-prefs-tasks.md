@@ -111,12 +111,14 @@ Rework the add/edit fuel-log screen so it:
 - has a **vehicle dropdown** (pre-selected when opened with a vehicle),
 - shows the **latest odometer** reading as the odometer placeholder,
 - **auto-fills the unit price** from the vehicle's latest fuel log (editable),
-- has a **fuel-variant selector** (free text + presets) defaulting to the vehicle's
-  `defaultFuelVariant`,
+- ~~has a **fuel-variant selector** (free text + presets) defaulting to the vehicle's
+  `defaultFuelVariant`~~ — **per-fuel-log `fuelVariant` was dropped** (migration
+  `f2001_drop_fuel_variant`); vehicle-level `default_fuel_variant`/`fuel_type` still exist
+  but are not recorded on individual log entries,
 - displays odometer in the effective distance unit (via F5).
 **Done when:** the screen can be opened standalone (vehicle chosen via dropdown) or with a
 vehicle pre-selected; placeholders/prefill populate from the latest log; a saved log carries the
-selected vehicle, variant, and km-normalized odometer.
+selected vehicle and km-normalized odometer.
 
 ### 🟩 F9 — Home quick actions ✅
 Quick-action shortcut(s) on the home/dashboard (e.g. "Add Fuel Log") that open F8 with vehicle

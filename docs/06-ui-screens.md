@@ -55,6 +55,7 @@ Sign-out → back to `/login`.
 
 🏠 HOME branch  (default landing tab, center)
 /home                              Dashboard (cross-vehicle summary)
+  /home/activity                   Full activity history (fullscreenDialog)
   → tapping an item (e.g. a renewal) switches to the Garage branch
     and deep-links to that vehicle's relevant section
 
@@ -91,6 +92,8 @@ Sign-out → back to `/login`.
 | Garage | Add/Upload Document | modal |
 | Garage | Document viewer | modal/route |
 | Home | Dashboard | `/home` |
+| Home | Activity history | `/home/activity` (fullscreenDialog) |
+| Shared | Quick-add sheet | bottom sheet (covers tab bar) |
 | Profile | Profile / Settings | `/profile` |
 | Profile | Edit profile | modal |
 
@@ -153,7 +156,8 @@ Sections top-to-bottom:
 ### Quick-entry fuel sheet (bottom sheet) — `POST fuel-logs`
 - **Default add path** from dashboard + vehicle-card "Add Fuel". Lightweight half-sheet:
   odometer* + any two of {liters, total paid, price-per-liter} — the third is derived
-  (price-per-liter is a sticky default from the last log). Always logs `isFullTank: true`.
+  (price-per-liter is a sticky default from the last log). Includes a **Full / Partial toggle**
+  (default: Full tank) that sets `isFullTank`; selecting Partial records a partial fill.
 - **Full details** button hands typed values to the full form below (for partial fills / notes).
 
 ### Garage — Add/Edit Fuel log (full form)  — `POST/PATCH fuel-logs`
@@ -180,9 +184,45 @@ Sections top-to-bottom:
   two stat cards (**Fuel · this month**, **Maintenance**). Then **Upcoming renewals** rows with
   colored expiry pills. Floating tab bar (Home active, default landing tab).
 
+### Home — Activity history  (`GET /dashboard` activity feed + live repos)
+- **Route:** `/home/activity` (fullscreenDialog opened via "See all" on the dashboard).
+- **Data:** merged date-descending list of fuel logs, maintenance records, and documents
+  across all the user's vehicles; same `ActivityEntry` shape as dashboard `recentActivity`.
+- **Actions:** filter by activity kind (fuel / maintenance / document) and/or by vehicle
+  (filter sheet). Tap a fuel entry → quick-fuel sheet pre-loaded; tap maintenance → quick
+  maintenance sheet; tap document → document viewer.
+- **States:** loading · empty (no activity yet) · error · loaded list.
+
+### Shared — Quick-add sheet  (bottom sheet, `useRootNavigator: true`)
+- **Trigger:** global "+" button on the tab bar; covers the floating tab bar.
+- **Actions (4 tiles):**
+  - **Log fuel** → opens `QuickFuelEntrySheet` (vehicle pre-selected when only one exists).
+  - **Add service** → opens `QuickMaintenanceSheet` (same pre-selection rule).
+  - **Upload document** → navigates to the document upload modal for the sole vehicle, or
+    presents a vehicle picker when the user owns more than one.
+  - **Add vehicle** → navigates to the Add Vehicle modal.
+- If the user has no vehicles, a hint row informs them to add one first; Log fuel / Add
+  service / Upload document tiles are disabled (not hidden).
+
+### Shared — Quick maintenance sheet  (bottom sheet)
+- Lightweight entry: vehicle dropdown (pre-selected if one vehicle), date, service type*,
+  cost (LKR), odometer. Currency is locked — not shown.
+- Odometer is displayed in the effective distance unit (vehicle override ?? user default).
+- **Full details** button hands values to the full `MaintenanceFormScreen`.
+- **States:** loading vehicles · error · ready.
+
 ### Profile / Settings  (`GET /me`)
-- **Data:** display name, email, avatar.
-- **Actions:** edit profile (modal, `PATCH /me`) · **Sign out** → `/login`.
+- **Data:** display name, email, avatar; unverified-email badge if applicable.
+- **Sections:**
+  - **Account** — avatar, display name, email.
+  - **Preferences** — Distance unit toggle (`km` / `mi`), Currency row (read-only locked LKR
+    label with lock icon — `_LockedCurrencyLabel`), Renewal reminders switch.
+  - **About** — app version and other static info rows.
+  - **Sign out** button (red) — triggers a confirmation bottom sheet before signing out.
+- **Actions:** edit profile (modal, `PATCH /me`); distance-unit and renewal-reminders changes
+  persist via `PATCH /me` in real-time; **Sign out** → `/login`.
+- Currency is displayed as a **locked LKR row** (not editable); the `_LockedCurrencyLabel`
+  widget shows `"LKR · Sri Lankan Rupee"` with a lock icon.
 - **Future work:** allow changing the account email once the verification + auth flow
   supports it safely; keep email read-only for now.
 
@@ -207,7 +247,7 @@ Sections top-to-bottom:
 ---
 
 ## Open / deferred
-- **Currency** is locked to `LKR` app-wide (forced server-side via `LOCKED_CURRENCY`); no currency UI and no picker.
+- **Currency** is locked to `LKR` app-wide (forced server-side via `LOCKED_CURRENCY`). The Profile screen shows a read-only `_LockedCurrencyLabel` row (not a picker); there is no free-form currency selection.
 - Apple sign-in — enabled later (needs Apple Developer setup).
 - Email changes on Profile / Settings are deferred until the auth flow is ready to handle
   re-verification and backend updates safely.

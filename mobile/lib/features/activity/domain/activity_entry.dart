@@ -1,3 +1,4 @@
+import '../../../../shared/constants/currencies.dart';
 import '../../documents/domain/document.dart';
 import '../../expenses/domain/expense.dart';
 
@@ -20,7 +21,7 @@ class ActivityEntry {
     required this.vehicleId,
     required this.date,
     this.costCents,
-    this.currency = 'USD',
+    this.currency = kFallbackCurrency,
     this.expense,
     this.document,
   });

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../constants/currencies.dart';
 import 'distance_unit.dart';
 
 /// Format integer cents to a currency string using the given ISO currency code.
@@ -9,7 +10,7 @@ import 'distance_unit.dart';
 /// When the amount has no fractional cents (value % 100 == 0) the decimal part
 /// is omitted — e.g. LKR 2679300 cents → "Rs 26,793" not "Rs 26,793.00".
 /// This matches real-world LKR usage where prices are always whole rupees.
-String formatCents(int cents, {String currency = 'USD'}) {
+String formatCents(int cents, {String currency = kFallbackCurrency}) {
   final amount = cents / 100.0;
   try {
     final formatted = NumberFormat.simpleCurrency(

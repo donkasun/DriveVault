@@ -1,3 +1,5 @@
+import '../../../shared/constants/currencies.dart';
+
 class FuelLog {
   final String id;
   final String vehicleId;
@@ -31,7 +33,7 @@ class FuelLog {
         ? (json['liters'] as num).toDouble()
         : double.parse(json['liters'].toString()),
     priceCents: json['priceCents'] as int,
-    currency: json['currency'] as String? ?? 'USD',
+    currency: json['currency'] as String? ?? kFallbackCurrency,
     odometer: json['odometer'] as int,
     isFullTank: json['isFullTank'] as bool? ?? false,
     notes: json['notes'] as String?,

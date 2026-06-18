@@ -4,11 +4,14 @@ import 'package:intl/intl.dart';
 
 import '../../../../core/network/api_exceptions.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../shared/constants/currencies.dart';
+import '../../../../shared/utils/distance_unit.dart';
 import '../../../../shared/widgets/activity_entry_card.dart';
 import '../../../../shared/widgets/fuel_pump_icon.dart';
 import '../../data/fuel_repository.dart';
 import '../../domain/fuel_log.dart';
 import '../../../profile/data/user_repository.dart';
+import '../../../vehicles/data/vehicle_repository.dart';
 import 'quick_fuel_entry_sheet.dart';
 
 String _relativeDate(String dateStr) {
@@ -22,8 +25,6 @@ String _relativeDate(String dateStr) {
   if (diff == 1) return 'Yesterday';
   return DateFormat('d MMM').format(date);
 }
-
-final _numFmt = NumberFormat('#,##0', 'en_US');
 
 class FuelRecordCard extends ConsumerWidget {
   final FuelLog log;
@@ -76,9 +77,16 @@ class FuelRecordCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final currency = ref.watch(meProvider).asData?.value.currency ?? 'USD';
+    final me = ref.watch(meProvider).asData?.value;
+    final currency = me?.currency ?? kFallbackCurrency;
+    final vehicleAsync = ref.watch(vehicleProvider(vehicleId));
+    final vehicle = vehicleAsync.asData?.value;
+    final unit = effectiveUnit(
+      vehicleUnit: vehicle?.distanceUnit,
+      userUnit: me?.distanceUnit ?? 'km',
+    );
     final subLabel =
-        '${log.liters.toStringAsFixed(1)} L · ${_numFmt.format(log.odometer)} km · ${log.isFullTank ? 'Full' : 'Partial'}';
+        '${log.liters.toStringAsFixed(1)} L · ${formatDistance(log.odometer, unit)} · ${log.isFullTank ? 'Full' : 'Partial'}';
 
     return Dismissible(
       key: ValueKey(log.id),

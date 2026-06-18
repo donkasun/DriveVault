@@ -45,11 +45,11 @@ void main() {
       expect(log.isFullTank, false);
     });
 
-    test('defaults currency to USD when absent', () {
+    test('defaults currency to LKR when absent', () {
       final json = Map<String, dynamic>.from(sampleJson)
         ..remove('currency');
       final log = FuelLog.fromJson(json);
-      expect(log.currency, 'USD');
+      expect(log.currency, 'LKR');
     });
 
     test('toJson round-trips', () {

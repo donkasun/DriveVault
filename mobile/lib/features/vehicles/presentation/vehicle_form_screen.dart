@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/utils/distance_unit.dart';
 import '../../../shared/widgets/bottom_sheet_picker_field.dart';
 import '../../../shared/widgets/dashed_border.dart';
 import '../../../shared/widgets/form_screen_app_bar.dart';
@@ -57,6 +58,7 @@ class _VehicleFormScreenState extends ConsumerState<VehicleFormScreen> {
   String? _photoPublicId;
   bool _isUploading = false;
   bool _isSaving = false;
+  bool _mileageConverted = false; // ensure we only convert km→display once
 
   bool get _isEditMode => widget.vehicle != null;
 
@@ -96,6 +98,17 @@ class _VehicleFormScreenState extends ConsumerState<VehicleFormScreen> {
   }
 
   void _onRequiredFieldChanged() => setState(() {});
+
+  /// On first build, convert the pre-filled km value to the display unit
+  /// so the odometer field shows the correct unit when editing.
+  void _maybeConvertMileage(DistanceUnit unit) {
+    if (_mileageConverted) return;
+    _mileageConverted = true;
+    if (unit == DistanceUnit.km) return; // stored km == displayed km, no-op
+    final raw = int.tryParse(_mileageCtrl.text.trim());
+    if (raw == null || raw == 0) return;
+    _mileageCtrl.text = kmToDisplay(raw, unit).round().toString();
+  }
 
   @override
   void dispose() {
@@ -175,8 +188,16 @@ class _VehicleFormScreenState extends ConsumerState<VehicleFormScreen> {
     if (year != null) data['year'] = year;
     final reg = _regCtrl.text.trim();
     if (reg.isNotEmpty) data['registrationNumber'] = reg;
-    final mileage = int.tryParse(_mileageCtrl.text.trim());
-    if (mileage != null) data['currentMileage'] = mileage;
+    // Convert mileage from display unit back to km for storage.
+    final userUnit = ref.read(meProvider).asData?.value.distanceUnit ?? 'km';
+    final effectiveDistUnit = effectiveUnit(
+      vehicleUnit: _distanceUnit ?? widget.vehicle?.distanceUnit,
+      userUnit: userUnit,
+    );
+    final mileageDisplay = double.tryParse(_mileageCtrl.text.trim());
+    if (mileageDisplay != null) {
+      data['currentMileage'] = displayToKm(mileageDisplay, effectiveDistUnit);
+    }
     if (_vehicleType != null) data['vehicleType'] = _vehicleType;
 
     if (_isEditMode) {
@@ -220,6 +241,10 @@ class _VehicleFormScreenState extends ConsumerState<VehicleFormScreen> {
     final distanceUnitDisplay =
         _distanceUnit ?? widget.vehicle?.distanceUnit ?? userUnit;
     final odometerUnitLabel = distanceUnitDisplay == 'mi' ? 'mi' : 'km';
+    final displayUnit = DistanceUnit.fromString(distanceUnitDisplay);
+
+    // Convert stored km to display unit on the first render (edit mode only).
+    _maybeConvertMileage(displayUnit);
 
     return Scaffold(
       appBar: FormScreenAppBar(

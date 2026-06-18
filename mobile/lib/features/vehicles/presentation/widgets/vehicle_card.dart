@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_theme.dart';
+import '../../../../shared/constants/currencies.dart';
 import '../../../../shared/utils/distance_unit.dart';
 import '../../../../shared/utils/formatting.dart';
 import '../../../../shared/widgets/status_pill.dart';
@@ -38,7 +39,7 @@ class VehicleCard extends ConsumerWidget {
       vehicleUnit: vehicle.distanceUnit,
       userUnit: user?.distanceUnit ?? 'km',
     );
-    final currency = user?.currency ?? 'USD';
+    final currency = user?.currency ?? kFallbackCurrency;
 
     // Compute display strings
     final mileageStr = vehicle.currentMileage != null

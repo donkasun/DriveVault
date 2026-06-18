@@ -294,7 +294,9 @@ Aggregated summary across all the caller's vehicles for the home screen.
       "vehicleLabel": "2020 Toyota Hilux",
       "date": "2026-06-14",
       "amountCents": 7800,
-      "label": "Fuel"
+      "label": "Fuel",
+      "liters": 35.5,
+      "isFullTank": true
     },
     {
       "type": "maintenance",
@@ -329,6 +331,8 @@ Aggregated summary across all the caller's vehicles for the home screen.
 - `amountCents`: `price_cents` for fuel, `cost_cents` for maintenance, `null` for documents.
 - `label`: `"Fuel"` for fuel logs, `service_type` for maintenance, `title` for documents.
 - `date`: the event date (`YYYY-MM-DD`). For documents with no `issueDate`, the upload (`createdAt`) date is used.
+- `liters` *(fuel only)*: volume filled, as a float (`null` for non-fuel entries).
+- `isFullTank` *(fuel only)*: boolean (`null` for non-fuel entries).
 
 > In Phase 1, `nextService` and reminder data are minimal (just document expiries). Full
 > service-due logic arrives with Phase 2 (`maintenance_schedules` / `reminders`).
