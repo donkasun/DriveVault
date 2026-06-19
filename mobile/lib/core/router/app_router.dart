@@ -21,6 +21,8 @@ import '../../features/vehicles/presentation/vehicle_form_screen.dart';
 import '../../features/activity/presentation/activity_screen.dart';
 import '../../features/expenses/presentation/expense_history_screen.dart';
 import '../../features/profile/presentation/edit_profile_screen.dart';
+import '../../features/driving_credentials/domain/driving_credential.dart';
+import '../../features/driving_credentials/presentation/driving_credential_form_screen.dart';
 import 'auth_redirect.dart';
 import 'main_shell.dart';
 
@@ -200,6 +202,23 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                       fullscreenDialog: true,
                       child: EditProfileScreen(),
                     ),
+                  ),
+                  GoRoute(
+                    path: 'credentials/add',
+                    pageBuilder: (context, state) => const MaterialPage(
+                      fullscreenDialog: true,
+                      child: DrivingCredentialFormScreen(),
+                    ),
+                  ),
+                  GoRoute(
+                    path: 'credentials/edit',
+                    pageBuilder: (context, state) {
+                      final cred = state.extra as DrivingCredential?;
+                      return MaterialPage(
+                        fullscreenDialog: true,
+                        child: DrivingCredentialFormScreen(existing: cred),
+                      );
+                    },
                   ),
                 ],
               ),
