@@ -45,7 +45,9 @@ def _send_fcm(message: dict[str, Any]) -> None:
 
 
 def _reminder_exists(db: Session, *, document_id=None, user_document_id=None, due_date: date) -> bool:
-    stmt = select(Reminder).where(Reminder.due_date == due_date, Reminder.status == "sent")
+    assert document_id is not None or user_document_id is not None, \
+        "_reminder_exists requires at least one of document_id or user_document_id"
+    stmt = select(Reminder).where(Reminder.due_date == due_date)
     if document_id is not None:
         stmt = stmt.where(Reminder.document_id == document_id)
     else:
@@ -86,18 +88,19 @@ def process_reminders(db: Session) -> dict[str, int]:
                 skipped += 1
                 continue
 
+            fcm_sent = user.renewal_reminders_enabled and bool(user.fcm_token)
             reminder = Reminder(
                 vehicle_id=doc.vehicle_id,
                 document_id=doc.id,
                 reminder_type="document_expiry",
                 title=f"{doc.title} expiring in {threshold} day(s)",
                 due_date=due_date,
-                status="sent",
+                status="sent" if fcm_sent else "pending",
             )
             db.add(reminder)
             db.flush()
 
-            if user.renewal_reminders_enabled and user.fcm_token:
+            if fcm_sent:
                 _send_fcm({
                     "token": user.fcm_token,
                     "title": "Renewal Reminder",
@@ -130,17 +133,18 @@ def process_reminders(db: Session) -> dict[str, int]:
                 continue
 
             label = _DOC_TYPE_LABELS.get(cred.doc_type, cred.doc_type)
+            fcm_sent = user.renewal_reminders_enabled and bool(user.fcm_token)
             reminder = Reminder(
                 user_document_id=cred.id,
                 reminder_type="document_expiry",
                 title=f"{label} expiring in {threshold} day(s)",
                 due_date=due_date,
-                status="sent",
+                status="sent" if fcm_sent else "pending",
             )
             db.add(reminder)
             db.flush()
 
-            if user.renewal_reminders_enabled and user.fcm_token:
+            if fcm_sent:
                 _send_fcm({
                     "token": user.fcm_token,
                     "title": "Renewal Reminder",
