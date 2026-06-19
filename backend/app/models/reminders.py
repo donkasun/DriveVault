@@ -1,4 +1,4 @@
-"""reminders — generated alerts for service due or document expiry (Task A3c, docs/02-database-schema.md)."""
+"""reminders — generated alerts for service due or document expiry."""
 
 import uuid
 
@@ -15,8 +15,11 @@ class Reminder(Base):
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, server_default=func.gen_random_uuid()
     )
-    vehicle_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("vehicles.id", ondelete="CASCADE"), nullable=False
+    vehicle_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("vehicles.id", ondelete="CASCADE"), nullable=True
+    )
+    user_document_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("user_documents.id", ondelete="CASCADE"), nullable=True
     )
     schedule_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("maintenance_schedules.id"), nullable=True

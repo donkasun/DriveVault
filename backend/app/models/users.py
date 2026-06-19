@@ -27,6 +27,7 @@ class User(Base):
     renewal_reminders_enabled: Mapped[bool] = mapped_column(
         Boolean, server_default=text("true"), nullable=False
     )
+    fcm_token: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[object] = mapped_column(  # type: ignore[assignment]
         TIMESTAMP(timezone=True), server_default=func.now(), nullable=False
     )
@@ -35,5 +36,6 @@ class User(Base):
     )
 
     vehicles = relationship("Vehicle", back_populates="user")
+    user_documents = relationship("UserDocument", back_populates="user")
 
     __table_args__ = (Index("ix_users_email", "email"),)

@@ -6,6 +6,7 @@ from app.models.fuel_logs import FuelLog
 from app.models.maintenance_records import MaintenanceRecord
 from app.models.reminders import Reminder
 from app.models.schedules import MaintenanceSchedule
+from app.models.user_documents import UserDocument
 from app.models.users import User
 from app.models.vehicles import Vehicle
 
@@ -16,6 +17,7 @@ __all__ = [
      "MaintenanceRecord",
      "MaintenanceSchedule",
      "Reminder",
+     "UserDocument",
      "User",
      "Vehicle",
 ]
