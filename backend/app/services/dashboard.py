@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from app.models.documents import Document
 from app.models.fuel_logs import FuelLog
 from app.models.maintenance_records import MaintenanceRecord
+from app.models.user_documents import UserDocument
 from app.models.users import User
 from app.models.vehicles import Vehicle
 from app.services.renewals import days_until, renewal_status
@@ -94,7 +95,7 @@ def get_dashboard_data(
     )
     total_purchase_cents = sum(row.purchase_price_cents or 0 for row in purchase_costs_result)
 
-    # ── upcoming renewals (overdue + within 90 days) ───────────────────────
+    # ── upcoming renewals (vehicle docs + personal credentials, overdue + within 90 days) ──
     ninety_days_later = today + timedelta(days=90)
 
     docs_for_renewals: list[Document] = list(
@@ -102,16 +103,31 @@ def get_dashboard_data(
             select(Document).where(
                 Document.vehicle_id.in_(vehicle_ids),
                 Document.expiry_date.isnot(None),
-                # Include overdue (any age) AND upcoming within 90 days
                 Document.expiry_date <= ninety_days_later,
             )
         )
     )
-    # Sort ascending by expiry_date (overdue first)
-    docs_for_renewals.sort(key=lambda d: d.expiry_date)
 
-    upcoming_renewals = [
-        {
+    creds_for_renewals: list[UserDocument] = list(
+        db.scalars(
+            select(UserDocument).where(
+                UserDocument.user_id == current_user.id,
+                UserDocument.expiry_date.isnot(None),
+                UserDocument.expiry_date <= ninety_days_later,
+            )
+        )
+    )
+
+    _doc_type_labels = {
+        "license": "Driver's License",
+        "permit": "Driving Permit",
+        "international_license": "International Driving License",
+    }
+
+    upcoming_renewals: list[dict] = []
+
+    for doc in docs_for_renewals:
+        upcoming_renewals.append({
             "vehicle_id": doc.vehicle_id,
             "title": doc.title,
             "expiry_date": doc.expiry_date,
@@ -119,9 +135,20 @@ def get_dashboard_data(
             "vehicle_label": label_map[doc.vehicle_id],
             "days_remaining": days_until(doc.expiry_date, today),
             "status": renewal_status(doc.expiry_date, today),
-        }
-        for doc in docs_for_renewals
-    ]
+        })
+
+    for cred in creds_for_renewals:
+        upcoming_renewals.append({
+            "vehicle_id": None,
+            "title": _doc_type_labels.get(cred.doc_type, cred.doc_type),
+            "expiry_date": cred.expiry_date,
+            "doc_type": cred.doc_type,
+            "vehicle_label": None,
+            "days_remaining": days_until(cred.expiry_date, today),
+            "status": renewal_status(cred.expiry_date, today),
+        })
+
+    upcoming_renewals.sort(key=lambda d: d["expiry_date"])
 
     # ── recent activity (merged, date-descending, limit 10) ──────────────────
     activity_items: list[dict] = []
