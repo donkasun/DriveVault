@@ -42,6 +42,7 @@ class _CredentialsList extends ConsumerWidget {
   ) async {
     final confirm = await showModalBottomSheet<bool>(
       context: context,
+      useRootNavigator: true,
       showDragHandle: true,
       builder: (ctx) => SafeArea(
         child: Padding(

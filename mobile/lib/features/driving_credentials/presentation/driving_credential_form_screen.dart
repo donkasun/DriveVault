@@ -86,7 +86,6 @@ class _DrivingCredentialFormScreenState
       } else {
         await repo.create(body);
       }
-      ref.invalidate(credentialsProvider);
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
       if (mounted) {
@@ -120,6 +119,7 @@ class _DrivingCredentialFormScreenState
               labelBuilder: DrivingCredential.labelFor,
               onChanged: (v) => setState(() => _docType = v),
               validator: (v) => v == null ? 'Please select a type' : null,
+              enabled: widget.existing == null,
             ),
             const SizedBox(height: 16),
             TextFormField(
