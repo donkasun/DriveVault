@@ -400,11 +400,10 @@ def test_dashboard_recent_activity_ordering_and_limit(mock_verify, dashboard_cli
     assert "maintenance" in types_seen
 
 
-def test_dashboard_includes_credential_renewals(db_session, monkeypatch):
+def test_dashboard_includes_credential_renewals(db_session):
     """Credentials expiring within 90 days appear in upcomingRenewals."""
     import uuid
     from datetime import date, timedelta
-    from unittest.mock import MagicMock
     from fastapi.testclient import TestClient
     from app.main import app
     from app.core.db import get_db
