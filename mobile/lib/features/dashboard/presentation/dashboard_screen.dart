@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../auth/presentation/widgets/verify_email_banner.dart';
+import 'widgets/credential_expiry_banner.dart';
 import '../../../shared/constants/currencies.dart';
 import '../../../shared/utils/formatting.dart';
 import '../../../shared/widgets/activity_entry_card.dart';
@@ -32,7 +33,6 @@ class DashboardScreen extends ConsumerWidget {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const VerifyEmailBanner(),
           Expanded(
             child: SafeArea(
               child: dashboardAsync.when(
@@ -225,7 +225,9 @@ class _EmptyState extends ConsumerWidget {
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
       children: [
         const _Header(),
-        const SizedBox(height: 20),
+        const SizedBox(height: 16),
+        const VerifyEmailBanner(),
+        const SizedBox(height: 12),
         _WelcomeCard(),
       ],
     );
@@ -336,7 +338,10 @@ class _LoadedContent extends ConsumerWidget {
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
         children: [
           const _Header(),
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
+          const VerifyEmailBanner(),
+          const SizedBox(height: 12),
+          const CredentialExpiryBanner(),
 
           // 1. Needs attention (only shown when there are items)
           if (attentionRenewals.isNotEmpty) ...[
@@ -439,15 +444,26 @@ class _RenewalAttentionRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Prefer the API-supplied vehicleLabel; fall back to vehicleId prefix.
-    final vehicleLabel = renewal.vehicleLabel?.isNotEmpty == true
-        ? renewal.vehicleLabel!
-        : '${renewal.vehicleId.substring(0, 8)}…';
+    // For vehicle docs: prefer API-supplied vehicleLabel, fall back to vehicleId prefix.
+    // For personal credentials (vehicleId == null): show credential type label.
+    final String subLabel;
+    final IconData tileIcon;
+    if (renewal.isPersonalCredential) {
+      subLabel = renewal.vehicleLabel ?? renewal.title;
+      tileIcon = Icons.badge_outlined;
+    } else {
+      subLabel = renewal.vehicleLabel?.isNotEmpty == true
+          ? renewal.vehicleLabel!
+          : '${renewal.vehicleId!.substring(0, 8)}…';
+      tileIcon = Icons.directions_car_outlined;
+    }
 
     final status = renewal.status ?? RenewalStatus.soon;
 
     return InkWell(
-      onTap: () => context.go('/garage/vehicle/${renewal.vehicleId}'),
+      onTap: renewal.isPersonalCredential
+          ? null // personal credentials: no vehicle detail route
+          : () => context.go('/garage/vehicle/${renewal.vehicleId}'),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
         child: Row(
@@ -459,8 +475,8 @@ class _RenewalAttentionRow extends StatelessWidget {
                 color: AppColors.primary.withValues(alpha: 0.16),
                 borderRadius: BorderRadius.circular(13),
               ),
-              child: const Icon(
-                Icons.directions_car_outlined,
+              child: Icon(
+                tileIcon,
                 size: 20,
                 color: AppColors.primary,
               ),
@@ -479,7 +495,7 @@ class _RenewalAttentionRow extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    vehicleLabel,
+                    subLabel,
                     style: const TextStyle(
                       fontSize: 12.5,
                       fontWeight: FontWeight.w500,
@@ -496,11 +512,12 @@ class _RenewalAttentionRow extends StatelessWidget {
               onDark: true,
             ),
             const SizedBox(width: 6),
-            const Icon(
-              Icons.chevron_right,
-              size: 18,
-              color: Color(0x61EBEBF5), // rgba(235,235,245,0.38)
-            ),
+            if (!renewal.isPersonalCredential)
+              const Icon(
+                Icons.chevron_right,
+                size: 18,
+                color: Color(0x61EBEBF5), // rgba(235,235,245,0.38)
+              ),
           ],
         ),
       ),
