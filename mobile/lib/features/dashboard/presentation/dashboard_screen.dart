@@ -30,11 +30,15 @@ class DashboardScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Expanded(
-            child: SafeArea(
+      body: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Padding(
+              padding: EdgeInsets.fromLTRB(16, 16, 16, 0),
+              child: VerifyEmailBanner(),
+            ),
+            Expanded(
               child: dashboardAsync.when(
                 loading: () => const _LoadingState(),
                 error: (error, _) => _ErrorState(
@@ -46,8 +50,8 @@ class DashboardScreen extends ConsumerWidget {
                     : _LoadedContent(data: data, currency: currency),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -226,8 +230,7 @@ class _EmptyState extends ConsumerWidget {
       children: [
         const _Header(),
         const SizedBox(height: 16),
-        const VerifyEmailBanner(),
-        const SizedBox(height: 12),
+        const CredentialExpiryBanner(),
         _WelcomeCard(),
       ],
     );
@@ -339,8 +342,6 @@ class _LoadedContent extends ConsumerWidget {
         children: [
           const _Header(),
           const SizedBox(height: 16),
-          const VerifyEmailBanner(),
-          const SizedBox(height: 12),
           const CredentialExpiryBanner(),
 
           // 1. Needs attention (only shown when there are items)
@@ -460,67 +461,68 @@ class _RenewalAttentionRow extends StatelessWidget {
 
     final status = renewal.status ?? RenewalStatus.soon;
 
-    return InkWell(
-      onTap: renewal.isPersonalCredential
-          ? null // personal credentials: no vehicle detail route
-          : () => context.go('/garage/vehicle/${renewal.vehicleId}'),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-        child: Row(
-          children: [
-            Container(
-              width: 38,
-              height: 38,
-              decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.16),
-                borderRadius: BorderRadius.circular(13),
-              ),
-              child: Icon(
-                tileIcon,
-                size: 20,
-                color: AppColors.primary,
-              ),
+    final rowContent = Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+      child: Row(
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.16),
+              borderRadius: BorderRadius.circular(13),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    renewal.title,
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                    ),
+            child: Icon(
+              tileIcon,
+              size: 20,
+              color: AppColors.primary,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  renewal.title,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
                   ),
-                  Text(
-                    subLabel,
-                    style: const TextStyle(
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w500,
-                      color: AppColors.textOnDarkMuted,
-                    ),
+                ),
+                Text(
+                  subLabel,
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.textOnDarkMuted,
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-            const SizedBox(width: 8),
-            StatusPill.fromRenewalStatus(
-              status,
-              daysRemaining: renewal.daysRemaining,
-              onDark: true,
+          ),
+          const SizedBox(width: 8),
+          StatusPill.fromRenewalStatus(
+            status,
+            daysRemaining: renewal.daysRemaining,
+            onDark: true,
+          ),
+          const SizedBox(width: 6),
+          if (!renewal.isPersonalCredential)
+            const Icon(
+              Icons.chevron_right,
+              size: 18,
+              color: Color(0x61EBEBF5), // rgba(235,235,245,0.38)
             ),
-            const SizedBox(width: 6),
-            if (!renewal.isPersonalCredential)
-              const Icon(
-                Icons.chevron_right,
-                size: 18,
-                color: Color(0x61EBEBF5), // rgba(235,235,245,0.38)
-              ),
-          ],
-        ),
+        ],
       ),
+    );
+
+    if (renewal.isPersonalCredential) return rowContent;
+    return InkWell(
+      onTap: () => context.go('/garage/vehicle/${renewal.vehicleId}'),
+      child: rowContent,
     );
   }
 }

@@ -25,20 +25,22 @@ class _CredentialExpiryBannerState
       loading: () => const SizedBox.shrink(),
       error: (err, st) => const SizedBox.shrink(),
       data: (creds) {
-        final urgent = creds
-            .where(
-              (c) =>
-                  c.status == CredentialStatus.soon ||
-                  c.status == CredentialStatus.overdue,
-            )
-            .toList();
+        final urgent = creds.where(
+          (c) =>
+              c.status == CredentialStatus.soon ||
+              c.status == CredentialStatus.overdue,
+        );
         if (urgent.isEmpty) return const SizedBox.shrink();
 
         final first = urgent.first;
         final label = DrivingCredential.labelFor(first.docType);
+        final days = first.daysUntilExpiry;
+        final timeText = days != null
+            ? 'in $days day${days == 1 ? '' : 's'}'
+            : 'soon';
         final body = first.status == CredentialStatus.overdue
             ? '$label has expired.'
-            : '$label expires in ${first.daysUntilExpiry} day(s).';
+            : '$label expires $timeText.';
 
         final isOverdue = first.status == CredentialStatus.overdue;
 
