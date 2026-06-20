@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from app.models.documents import Document
 from app.models.fuel_logs import FuelLog
 from app.models.maintenance_records import MaintenanceRecord
-from app.models.user_documents import UserDocument
+from app.models.user_documents import DOC_TYPE_LABELS, UserDocument
 from app.models.users import User
 from app.models.vehicles import Vehicle
 from app.services.renewals import days_until, renewal_status
@@ -118,12 +118,6 @@ def get_dashboard_data(
         )
     )
 
-    _doc_type_labels = {
-        "license": "Driver's License",
-        "permit": "Driving Permit",
-        "international_license": "International Driving License",
-    }
-
     upcoming_renewals: list[dict] = []
 
     for doc in docs_for_renewals:
@@ -140,7 +134,7 @@ def get_dashboard_data(
     for cred in creds_for_renewals:
         upcoming_renewals.append({
             "vehicle_id": None,
-            "title": _doc_type_labels.get(cred.doc_type, cred.doc_type),
+            "title": DOC_TYPE_LABELS.get(cred.doc_type, cred.doc_type),
             "expiry_date": cred.expiry_date,
             "doc_type": cred.doc_type,
             "vehicle_label": None,

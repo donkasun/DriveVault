@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.models.documents import Document
 from app.models.reminders import Reminder
+from app.models.user_documents import DOC_TYPE_LABELS as _DOC_TYPE_LABELS
 from app.models.user_documents import UserDocument
 from app.models.users import User
 from app.models.vehicles import Vehicle
@@ -19,15 +20,9 @@ logger = logging.getLogger(__name__)
 
 _THRESHOLDS = [30, 7, 1]  # days before expiry
 
-_DOC_TYPE_LABELS: dict[str, str] = {
-    "license": "Driver's License",
-    "permit": "Driving Permit",
-    "international_license": "International Driving License",
-}
 
-
-def _send_fcm(message: dict[str, Any]) -> None:
-    """Send one FCM message via Firebase Admin SDK. Swapped out in tests."""
+def _send_fcm(message: dict[str, Any]) -> bool:
+    """Send one FCM message via Firebase Admin SDK. Returns True on success. Swapped out in tests."""
     try:
         from firebase_admin import messaging
 
@@ -40,14 +35,19 @@ def _send_fcm(message: dict[str, Any]) -> None:
             token=message["token"],
         )
         messaging.send(fcm_message)
+        return True
     except Exception as exc:
         logger.warning("FCM send failed: %s", exc)
+        return False
 
 
 def _reminder_exists(db: Session, *, document_id=None, user_document_id=None, due_date: date) -> bool:
     assert document_id is not None or user_document_id is not None, \
         "_reminder_exists requires at least one of document_id or user_document_id"
-    stmt = select(Reminder).where(Reminder.due_date == due_date)
+    stmt = select(Reminder).where(
+        Reminder.due_date == due_date,
+        Reminder.status.in_(("sent", "pending")),
+    )
     if document_id is not None:
         stmt = stmt.where(Reminder.document_id == document_id)
     else:
@@ -73,7 +73,7 @@ def process_reminders(db: Session) -> dict[str, int]:
         )
         for doc in docs:
             processed += 1
-            due_date = target_date - timedelta(days=threshold)
+            due_date = target_date
             if _reminder_exists(db, document_id=doc.id, due_date=due_date):
                 skipped += 1
                 continue
@@ -88,25 +88,26 @@ def process_reminders(db: Session) -> dict[str, int]:
                 skipped += 1
                 continue
 
-            fcm_sent = user.renewal_reminders_enabled and bool(user.fcm_token)
+            wants_fcm = user.renewal_reminders_enabled and bool(user.fcm_token)
             reminder = Reminder(
                 vehicle_id=doc.vehicle_id,
                 document_id=doc.id,
                 reminder_type="document_expiry",
                 title=f"{doc.title} expiring in {threshold} day(s)",
                 due_date=due_date,
-                status="sent" if fcm_sent else "pending",
+                status="pending",
             )
             db.add(reminder)
             db.flush()
 
-            if fcm_sent:
-                _send_fcm({
+            if wants_fcm:
+                if _send_fcm({
                     "token": user.fcm_token,
                     "title": "Renewal Reminder",
                     "body": f"{doc.title} expires in {threshold} day(s).",
                     "data": {"type": "document_expiry", "docType": doc.doc_type},
-                })
+                }):
+                    reminder.status = "sent"
             sent += 1
 
     # ── user driving credentials ─────────────────────────────────────────────
@@ -122,7 +123,7 @@ def process_reminders(db: Session) -> dict[str, int]:
         )
         for cred in creds:
             processed += 1
-            due_date = target_date - timedelta(days=threshold)
+            due_date = target_date
             if _reminder_exists(db, user_document_id=cred.id, due_date=due_date):
                 skipped += 1
                 continue
@@ -133,24 +134,25 @@ def process_reminders(db: Session) -> dict[str, int]:
                 continue
 
             label = _DOC_TYPE_LABELS.get(cred.doc_type, cred.doc_type)
-            fcm_sent = user.renewal_reminders_enabled and bool(user.fcm_token)
+            wants_fcm = user.renewal_reminders_enabled and bool(user.fcm_token)
             reminder = Reminder(
                 user_document_id=cred.id,
                 reminder_type="document_expiry",
                 title=f"{label} expiring in {threshold} day(s)",
                 due_date=due_date,
-                status="sent" if fcm_sent else "pending",
+                status="pending",
             )
             db.add(reminder)
             db.flush()
 
-            if fcm_sent:
-                _send_fcm({
+            if wants_fcm:
+                if _send_fcm({
                     "token": user.fcm_token,
                     "title": "Renewal Reminder",
                     "body": f"Your {label} expires in {threshold} day(s).",
                     "data": {"type": "credential_expiry", "docType": cred.doc_type},
-                })
+                }):
+                    reminder.status = "sent"
             sent += 1
 
     db.commit()

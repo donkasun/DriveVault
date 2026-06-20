@@ -2,6 +2,12 @@
 
 import uuid
 
+DOC_TYPE_LABELS: dict[str, str] = {
+    "license": "Driver's License",
+    "permit": "Driving Permit",
+    "international_license": "International Driving License",
+}
+
 from sqlalchemy import CheckConstraint, Date, ForeignKey, Index, Text, TIMESTAMP, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship

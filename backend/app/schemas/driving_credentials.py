@@ -1,7 +1,7 @@
 """Pydantic schemas for driving credentials endpoints."""
 
 from datetime import UTC, date, datetime
-from typing import Annotated
+from typing import Annotated, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_serializer
@@ -12,7 +12,7 @@ from app.services.renewals import days_until, renewal_status
 class CredentialBase(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
-    doc_type: str | None = Field(default=None, alias="docType")
+    doc_type: Literal["license", "permit", "international_license"] | None = Field(default=None, alias="docType")
     doc_number: str | None = Field(default=None, alias="docNumber")
     issue_date: date | None = Field(default=None, alias="issueDate")
     expiry_date: date | None = Field(default=None, alias="expiryDate")
@@ -20,7 +20,7 @@ class CredentialBase(BaseModel):
 
 
 class CredentialCreate(CredentialBase):
-    doc_type: str = Field(alias="docType")
+    doc_type: Literal["license", "permit", "international_license"] = Field(alias="docType")
 
 
 class CredentialUpdate(CredentialBase):

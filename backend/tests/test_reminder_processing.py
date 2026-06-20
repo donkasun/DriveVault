@@ -43,6 +43,7 @@ def test_creates_reminder_for_expiring_credential(db_session: Session, monkeypat
 
     def _mock_send(message):
         sent_messages.append(message)
+        return True
 
     monkeypatch.setattr("app.services.reminder_processing._send_fcm", _mock_send)
 
@@ -59,7 +60,7 @@ def test_creates_reminder_for_expiring_credential(db_session: Session, monkeypat
         select(Reminder).where(Reminder.user_document_id == cred.id)
     ))
     assert len(reminders) == 1
-    assert reminders[0].due_date == expiry - timedelta(days=30)
+    assert reminders[0].due_date == expiry
     assert reminders[0].status == "sent"
     assert len(sent_messages) == 1
 
@@ -68,7 +69,7 @@ def test_idempotent_no_duplicate_reminders(db_session: Session, monkeypatch):
     """Running process_reminders twice for the same item only creates one reminder."""
     from app.services.reminder_processing import process_reminders
 
-    monkeypatch.setattr("app.services.reminder_processing._send_fcm", lambda m: None)
+    monkeypatch.setattr("app.services.reminder_processing._send_fcm", lambda m: True)
 
     user = _make_user(db_session)
     expiry = date.today() + timedelta(days=7)
@@ -89,7 +90,7 @@ def test_creates_reminder_for_vehicle_document(db_session: Session, monkeypatch)
     """Vehicle document expiring in 1 day → reminder created."""
     from app.services.reminder_processing import process_reminders
 
-    monkeypatch.setattr("app.services.reminder_processing._send_fcm", lambda m: None)
+    monkeypatch.setattr("app.services.reminder_processing._send_fcm", lambda m: True)
 
     user = _make_user(db_session)
     v = _make_vehicle(db_session, user)
@@ -115,7 +116,7 @@ def test_skips_fcm_when_reminders_disabled(db_session: Session, monkeypatch):
     from app.services.reminder_processing import process_reminders
 
     sent = []
-    monkeypatch.setattr("app.services.reminder_processing._send_fcm", lambda m: sent.append(m))
+    monkeypatch.setattr("app.services.reminder_processing._send_fcm", lambda m: sent.append(m) or True)
 
     user = _make_user(db_session)
     user.renewal_reminders_enabled = False

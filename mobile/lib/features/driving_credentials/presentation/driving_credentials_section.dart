@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/status_pill.dart';
@@ -224,18 +225,9 @@ class _CredentialTile extends StatelessWidget {
             ),
             if (cred.status != null) ...[
               const SizedBox(width: 8),
-              StatusPill(
-                label: _pillLabel(cred),
-                tone: switch (cred.status!) {
-                  CredentialStatus.ok => PillTone.ok,
-                  CredentialStatus.soon => PillTone.soon,
-                  CredentialStatus.overdue => PillTone.overdue,
-                },
-                glyph: switch (cred.status!) {
-                  CredentialStatus.ok => '✓',
-                  CredentialStatus.soon => '⊙',
-                  CredentialStatus.overdue => '⚠',
-                },
+              StatusPill.fromCredentialStatus(
+                cred.status,
+                daysLeft: cred.daysUntilExpiry,
               ),
             ],
             const SizedBox(width: 4),
@@ -250,37 +242,10 @@ class _CredentialTile extends StatelessWidget {
     );
   }
 
-  String _pillLabel(DrivingCredential cred) {
-    switch (cred.status!) {
-      case CredentialStatus.ok:
-        return 'Valid';
-      case CredentialStatus.soon:
-        final days = cred.daysUntilExpiry;
-        return days != null ? '${days}d left' : 'Soon';
-      case CredentialStatus.overdue:
-        final days = cred.daysUntilExpiry;
-        return days != null ? 'Overdue ${days.abs()}d' : 'Overdue';
-    }
-  }
-
   String _formatDate(String iso) {
     try {
       final d = DateTime.parse(iso);
-      const months = [
-        'Jan',
-        'Feb',
-        'Mar',
-        'Apr',
-        'May',
-        'Jun',
-        'Jul',
-        'Aug',
-        'Sep',
-        'Oct',
-        'Nov',
-        'Dec',
-      ];
-      return '${d.day} ${months[d.month - 1]} ${d.year}';
+      return DateFormat('d MMM y').format(d);
     } catch (_) {
       return iso;
     }
