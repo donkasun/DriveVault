@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/theme/app_theme.dart';
+
 class ShimmerBox extends StatefulWidget {
   final double height;
   final double borderRadius;
@@ -52,9 +54,9 @@ class _ShimmerBoxState extends State<ShimmerBox>
               begin: Alignment(-1.5 + 3.0 * t, 0),
               end: Alignment(-0.5 + 3.0 * t, 0),
               colors: const [
-                Color(0xFFE2E2EA), // AppColors.divider
+                AppColors.divider,
                 Color(0xFFF0F0F5), // lighter highlight
-                Color(0xFFE2E2EA),
+                AppColors.divider,
               ],
             ),
           ),
