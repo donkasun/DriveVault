@@ -6,6 +6,9 @@ import '../../../shared/widgets/form_screen_app_bar.dart';
 import '../data/driving_credential_repository.dart';
 import '../domain/driving_credential.dart';
 
+const _kTextPrimary = Color(0xFF13121C);
+const _kTextMuted = Color(0xFF73738A);
+
 class DrivingCredentialFormScreen extends ConsumerStatefulWidget {
   final DrivingCredential? existing;
 
@@ -23,7 +26,7 @@ class _DrivingCredentialFormScreenState
   final _issueDateCtrl = TextEditingController();
   final _expiryDateCtrl = TextEditingController();
   final _notesCtrl = TextEditingController();
-  String? _docType;
+  String? _docType = 'license';
   bool _saving = false;
 
   static const _docTypes = ['license', 'permit', 'international_license'];
@@ -64,6 +67,65 @@ class _DrivingCredentialFormScreenState
             '${picked.year}-${picked.month.toString().padLeft(2, '0')}'
             '-${picked.day.toString().padLeft(2, '0')}';
       });
+    }
+  }
+
+  Future<void> _delete() async {
+    final cred = widget.existing!;
+    final label = DrivingCredential.labelFor(cred.docType);
+    final confirm = await showModalBottomSheet<bool>(
+      context: context,
+      useRootNavigator: true,
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Delete "$label"?',
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: _kTextPrimary,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'This cannot be undone.',
+                style: TextStyle(color: _kTextMuted),
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                  foregroundColor: Colors.white,
+                ),
+                onPressed: () => Navigator.of(ctx).pop(true),
+                child: const Text('Delete'),
+              ),
+              const SizedBox(height: 8),
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: const Text('Cancel'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (confirm != true || !mounted) return;
+    try {
+      await ref.read(drivingCredentialRepositoryProvider).delete(cred.id);
+      ref.invalidate(credentialsProvider);
+      if (mounted) Navigator.of(context).pop(true);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
     }
   }
 
@@ -164,6 +226,14 @@ class _DrivingCredentialFormScreenState
                 labelText: 'Notes',
               ),
             ),
+            if (isEdit) ...[
+              const SizedBox(height: 32),
+              TextButton(
+                onPressed: _saving ? null : _delete,
+                style: TextButton.styleFrom(foregroundColor: Colors.red),
+                child: const Text('Delete Credential'),
+              ),
+            ],
           ],
         ),
       ),

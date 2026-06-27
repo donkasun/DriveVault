@@ -41,13 +41,22 @@ async def get_current_user(
     firebase_uid = decoded["uid"]
     # Bug 3 fix: only use email when Firebase has verified it.
     email = decoded.get("email") if decoded.get("email_verified") is True else ""
+    sign_in_provider = (decoded.get("firebase") or {}).get("sign_in_provider", "")
+    is_google = sign_in_provider == "google.com"
+    display_name = decoded.get("name") or ""
+    photo_url = decoded.get("picture") or ""
 
     user = db.scalar(select(User).where(User.firebase_uid == firebase_uid))
     if user is None:
         # Bug 1 fix: handle race condition where two concurrent requests both see
         # user is None and both attempt to INSERT the same firebase_uid.
         try:
-            user = User(firebase_uid=firebase_uid, email=email)
+            user = User(
+                firebase_uid=firebase_uid,
+                email=email,
+                display_name=display_name,
+                photo_url=photo_url,
+            )
             db.add(user)
             db.commit()
             db.refresh(user)
@@ -59,6 +68,20 @@ async def get_current_user(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail="User creation failed",
                 )
+
+    elif is_google:
+        # For Google sign-in, always keep display_name and photo_url in sync
+        # with the Google account (user cannot edit these in-app).
+        updated = False
+        if display_name and user.display_name != display_name:
+            user.display_name = display_name
+            updated = True
+        if photo_url and user.photo_url != photo_url:
+            user.photo_url = photo_url
+            updated = True
+        if updated:
+            db.commit()
+            db.refresh(user)
 
     return user
 

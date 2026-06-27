@@ -10,19 +10,28 @@ import '../../features/auth/presentation/forgot_password_screen.dart';
 import '../../features/auth/presentation/verify_email_screen.dart';
 import '../../features/auth/presentation/splash_screen.dart';
 import '../../features/dashboard/presentation/dashboard_screen.dart';
+import '../../features/dashboard/presentation/dashboard_provider.dart';
 import '../../features/documents/presentation/document_upload_screen.dart';
+import '../../features/documents/data/document_repository.dart';
 import '../../features/maintenance/domain/maintenance_record.dart';
 import '../../features/maintenance/presentation/maintenance_form_screen.dart';
+import '../../features/maintenance/data/maintenance_repository.dart';
 import '../../features/profile/presentation/profile_screen.dart';
+import '../../features/profile/data/user_repository.dart';
 import '../../features/vehicles/presentation/garage_screen.dart';
 import '../../features/vehicles/presentation/vehicle_detail_screen.dart';
 import '../../features/vehicles/presentation/vehicle_fuel_records_screen.dart';
 import '../../features/vehicles/presentation/vehicle_form_screen.dart';
+import '../../features/vehicles/presentation/vehicles_provider.dart';
 import '../../features/activity/presentation/activity_screen.dart';
+import '../../features/activity/data/activity_provider.dart';
 import '../../features/expenses/presentation/expense_history_screen.dart';
+import '../../features/expenses/data/expenses_provider.dart';
+import '../../features/fuel/data/fuel_repository.dart';
 import '../../features/profile/presentation/edit_profile_screen.dart';
 import '../../features/driving_credentials/domain/driving_credential.dart';
 import '../../features/driving_credentials/presentation/driving_credential_form_screen.dart';
+import '../../features/driving_credentials/data/driving_credential_repository.dart';
 import 'auth_redirect.dart';
 import 'main_shell.dart';
 
@@ -30,12 +39,37 @@ import 'main_shell.dart';
 class _RouterListenable extends ChangeNotifier {
   final Ref _ref;
   AsyncValue<User?> _authState = const AsyncValue.loading();
+  String? _previousUid;
 
   _RouterListenable(this._ref) {
     _ref.listen<AsyncValue<User?>>(authStateChangesProvider, (previous, next) {
       _authState = next;
+
+      // When the signed-in user changes (logout, or switching accounts),
+      // invalidate every user-scoped provider so the next screen fetches
+      // fresh data for the new user instead of serving stale cached data.
+      final newUid = next.asData?.value?.uid;
+      if (_previousUid != null && _previousUid != newUid) {
+        _invalidateUserProviders();
+      }
+      _previousUid = newUid;
+
       notifyListeners();
     }, fireImmediately: true);
+  }
+
+  void _invalidateUserProviders() {
+    _ref.invalidate(meProvider);
+    _ref.invalidate(vehiclesProvider);
+    _ref.invalidate(dashboardProvider);
+    _ref.invalidate(allExpensesProvider);
+    _ref.invalidate(allActivityProvider);
+    _ref.invalidate(fuelLogsProvider);
+    _ref.invalidate(fuelStatsProvider);
+    _ref.invalidate(maintenanceRecordsProvider);
+    _ref.invalidate(documentsProvider);
+    _ref.invalidate(groupedDocumentsProvider);
+    _ref.invalidate(credentialsProvider);
   }
 
   AsyncValue<User?> get authState => _authState;

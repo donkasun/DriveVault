@@ -35,35 +35,111 @@ class VerifyEmailBanner extends ConsumerWidget {
       return const SizedBox.shrink();
     }
 
-    return MaterialBanner(
-      backgroundColor: AppColors.warningBg,
-      content: const Text('Verify your email to secure your account.'),
-      leading: const Icon(Icons.mark_email_unread_outlined),
-      actions: [
-        TextButton(
-          onPressed: () async {
-            await repo.sendEmailVerification();
-            if (context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Verification email sent')),
-              );
-            }
-          },
-          child: const Text('Resend'),
+    final email = user.email ?? '';
+
+    return _BannerCard(
+      email: email,
+      onResend: () async {
+        await repo.sendEmailVerification();
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Verification link sent — check your inbox.'),
+            ),
+          );
+        }
+      },
+      onDismiss: () =>
+          ref.read(verifyBannerDismissedProvider.notifier).dismiss(),
+    );
+  }
+}
+
+class _BannerCard extends StatelessWidget {
+  const _BannerCard({
+    required this.email,
+    required this.onResend,
+    required this.onDismiss,
+  });
+
+  final String email;
+  final VoidCallback onResend;
+  final VoidCallback onDismiss;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onResend,
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppColors.photoUploadTint,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: AppColors.warning.withValues(alpha: 0.30),
+            width: 1,
+          ),
         ),
-        TextButton(
-          onPressed: () async {
-            await repo.reloadUser();
-            ref.invalidate(verifyBannerDismissedProvider);
-          },
-          child: const Text("I've verified"),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            // Envelope icon
+            Icon(
+              Icons.mail_outline_rounded,
+              size: 22,
+              color: AppColors.warning,
+            ),
+            const SizedBox(width: 12),
+
+            // Text content
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'Verify your email',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary,
+                      height: 1.3,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Tap to resend the link to $email',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w400,
+                      color: AppColors.textMuted,
+                      height: 1.35,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(width: 8),
+
+            // Dismiss X
+            GestureDetector(
+              onTap: onDismiss,
+              behavior: HitTestBehavior.opaque,
+              child: Padding(
+                padding: const EdgeInsets.all(4),
+                child: Icon(
+                  Icons.close_rounded,
+                  size: 18,
+                  color: AppColors.textMuted,
+                ),
+              ),
+            ),
+          ],
         ),
-        TextButton(
-          onPressed: () =>
-              ref.read(verifyBannerDismissedProvider.notifier).dismiss(),
-          child: const Text('Dismiss'),
-        ),
-      ],
+      ),
     );
   }
 }

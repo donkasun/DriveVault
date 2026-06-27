@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/theme/app_theme.dart';
 import '../../../../features/driving_credentials/data/driving_credential_repository.dart';
 import '../../../../features/driving_credentials/domain/driving_credential.dart';
 
@@ -35,53 +36,82 @@ class _CredentialExpiryBannerState
         final first = urgent.first;
         final label = DrivingCredential.labelFor(first.docType);
         final days = first.daysUntilExpiry;
-        final timeText = days != null
-            ? 'in $days day${days == 1 ? '' : 's'}'
-            : 'soon';
-        final body = first.status == CredentialStatus.overdue
-            ? '$label has expired.'
-            : '$label expires $timeText.';
-
         final isOverdue = first.status == CredentialStatus.overdue;
+
+        final String subtitle;
+        if (isOverdue) {
+          subtitle = 'Expired — update your credentials';
+        } else if (days != null) {
+          subtitle = 'Expires in $days day${days == 1 ? '' : 's'}';
+        } else {
+          subtitle = 'Expiring soon';
+        }
+
+        final Color bgColor = isOverdue
+            ? const Color(0xFFFFF0F0)
+            : AppColors.photoUploadTint;
+        final Color borderColor = isOverdue
+            ? const Color(0xFFFFCDD2)
+            : AppColors.warning.withValues(alpha: 0.30);
+        final Color iconColor = isOverdue ? AppColors.danger : AppColors.warning;
+        final Color titleColor = isOverdue ? AppColors.danger : AppColors.textPrimary;
 
         return Container(
           margin: const EdgeInsets.only(bottom: 12),
-          padding: const EdgeInsets.fromLTRB(14, 10, 10, 10),
           decoration: BoxDecoration(
-            color: isOverdue
-                ? const Color(0xFFFFF0F0)
-                : const Color(0xFFFFF8E6),
+            color: bgColor,
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: isOverdue
-                  ? const Color(0xFFFFCDD2)
-                  : const Color(0xFFFFE082),
-            ),
+            border: Border.all(color: borderColor, width: 1),
           ),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Icon(
                 Icons.warning_amber_rounded,
-                size: 20,
-                color: isOverdue ? Colors.red : const Color(0xFFF08A00),
+                size: 22,
+                color: iconColor,
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 12),
               Expanded(
-                child: Text(
-                  body,
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: isOverdue
-                        ? Colors.red[800]
-                        : const Color(0xFFC96A00),
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      label,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: titleColor,
+                        height: 1.3,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w400,
+                        color: AppColors.textMuted,
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              IconButton(
-                icon: const Icon(Icons.close, size: 18),
-                color: const Color(0xFF9A9AAF),
-                onPressed: () => setState(() => _dismissed = true),
+              const SizedBox(width: 8),
+              GestureDetector(
+                onTap: () => setState(() => _dismissed = true),
+                behavior: HitTestBehavior.opaque,
+                child: Padding(
+                  padding: const EdgeInsets.all(4),
+                  child: Icon(
+                    Icons.close_rounded,
+                    size: 18,
+                    color: AppColors.textMuted,
+                  ),
+                ),
               ),
             ],
           ),

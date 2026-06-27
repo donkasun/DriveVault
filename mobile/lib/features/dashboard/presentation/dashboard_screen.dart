@@ -31,15 +31,7 @@ class DashboardScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Padding(
-              padding: EdgeInsets.fromLTRB(16, 16, 16, 0),
-              child: VerifyEmailBanner(),
-            ),
-            Expanded(
-              child: dashboardAsync.when(
+        child: dashboardAsync.when(
                 loading: () => const _LoadingState(),
                 error: (error, _) => _ErrorState(
                   message: error.toString(),
@@ -49,9 +41,6 @@ class DashboardScreen extends ConsumerWidget {
                     ? const _EmptyState()
                     : _LoadedContent(data: data, currency: currency),
               ),
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -230,6 +219,8 @@ class _EmptyState extends ConsumerWidget {
       children: [
         const _Header(),
         const SizedBox(height: 16),
+        const VerifyEmailBanner(),
+        const SizedBox(height: 10),
         const CredentialExpiryBanner(),
         _WelcomeCard(),
       ],
@@ -342,6 +333,7 @@ class _LoadedContent extends ConsumerWidget {
         children: [
           const _Header(),
           const SizedBox(height: 16),
+          const VerifyEmailBanner(),
           const CredentialExpiryBanner(),
 
           // 1. Needs attention (only shown when there are items)
