@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../auth/presentation/widgets/verify_email_banner.dart';
+import 'widgets/credential_expiry_banner.dart';
 import '../../../shared/constants/currencies.dart';
 import '../../../shared/utils/formatting.dart';
 import '../../../shared/widgets/activity_entry_card.dart';
@@ -29,13 +30,8 @@ class DashboardScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const VerifyEmailBanner(),
-          Expanded(
-            child: SafeArea(
-              child: dashboardAsync.when(
+      body: SafeArea(
+        child: dashboardAsync.when(
                 loading: () => const _LoadingState(),
                 error: (error, _) => _ErrorState(
                   message: error.toString(),
@@ -45,9 +41,6 @@ class DashboardScreen extends ConsumerWidget {
                     ? const _EmptyState()
                     : _LoadedContent(data: data, currency: currency),
               ),
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -225,7 +218,10 @@ class _EmptyState extends ConsumerWidget {
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
       children: [
         const _Header(),
-        const SizedBox(height: 20),
+        const SizedBox(height: 16),
+        const VerifyEmailBanner(),
+        const SizedBox(height: 10),
+        const CredentialExpiryBanner(),
         _WelcomeCard(),
       ],
     );
@@ -336,7 +332,9 @@ class _LoadedContent extends ConsumerWidget {
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
         children: [
           const _Header(),
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
+          const VerifyEmailBanner(),
+          const CredentialExpiryBanner(),
 
           // 1. Needs attention (only shown when there are items)
           if (attentionRenewals.isNotEmpty) ...[
@@ -439,71 +437,84 @@ class _RenewalAttentionRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Prefer the API-supplied vehicleLabel; fall back to vehicleId prefix.
-    final vehicleLabel = renewal.vehicleLabel?.isNotEmpty == true
-        ? renewal.vehicleLabel!
-        : '${renewal.vehicleId.substring(0, 8)}…';
+    // For vehicle docs: prefer API-supplied vehicleLabel, fall back to vehicleId prefix.
+    // For personal credentials (vehicleId == null): show credential type label.
+    final String subLabel;
+    final IconData tileIcon;
+    if (renewal.isPersonalCredential) {
+      subLabel = renewal.vehicleLabel ?? renewal.title;
+      tileIcon = Icons.badge_outlined;
+    } else {
+      subLabel = renewal.vehicleLabel?.isNotEmpty == true
+          ? renewal.vehicleLabel!
+          : '${renewal.vehicleId!.substring(0, 8)}…';
+      tileIcon = Icons.directions_car_outlined;
+    }
 
     final status = renewal.status ?? RenewalStatus.soon;
 
-    return InkWell(
-      onTap: () => context.go('/garage/vehicle/${renewal.vehicleId}'),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-        child: Row(
-          children: [
-            Container(
-              width: 38,
-              height: 38,
-              decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.16),
-                borderRadius: BorderRadius.circular(13),
-              ),
-              child: const Icon(
-                Icons.directions_car_outlined,
-                size: 20,
-                color: AppColors.primary,
-              ),
+    final rowContent = Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+      child: Row(
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.16),
+              borderRadius: BorderRadius.circular(13),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    renewal.title,
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                    ),
+            child: Icon(
+              tileIcon,
+              size: 20,
+              color: AppColors.primary,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  renewal.title,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
                   ),
-                  Text(
-                    vehicleLabel,
-                    style: const TextStyle(
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w500,
-                      color: AppColors.textOnDarkMuted,
-                    ),
+                ),
+                Text(
+                  subLabel,
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.textOnDarkMuted,
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-            const SizedBox(width: 8),
-            StatusPill.fromRenewalStatus(
-              status,
-              daysRemaining: renewal.daysRemaining,
-              onDark: true,
-            ),
-            const SizedBox(width: 6),
+          ),
+          const SizedBox(width: 8),
+          StatusPill.fromRenewalStatus(
+            status,
+            daysRemaining: renewal.daysRemaining,
+            onDark: true,
+          ),
+          const SizedBox(width: 6),
+          if (!renewal.isPersonalCredential)
             const Icon(
               Icons.chevron_right,
               size: 18,
               color: Color(0x61EBEBF5), // rgba(235,235,245,0.38)
             ),
-          ],
-        ),
+        ],
       ),
+    );
+
+    if (renewal.isPersonalCredential) return rowContent;
+    return InkWell(
+      onTap: () => context.go('/garage/vehicle/${renewal.vehicleId}'),
+      child: rowContent,
     );
   }
 }

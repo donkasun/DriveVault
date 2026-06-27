@@ -67,6 +67,10 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         ? user.displayName!.trim()
         : '';
     final emailVerified = authUser?.emailVerified ?? true;
+    final isGoogleUser = authUser?.providerData.any(
+          (p) => p.providerId == 'google.com',
+        ) ??
+        false;
 
     return Scaffold(
       appBar: FormScreenAppBar(
@@ -100,23 +104,35 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
             const SizedBox(height: 8),
             TextFormField(
               controller: _displayNameCtrl,
-              decoration: const InputDecoration(
+              enabled: !isGoogleUser,
+              decoration: InputDecoration(
                 hintText: 'Your name',
                 filled: true,
-                fillColor: Colors.white,
-                border: OutlineInputBorder(
+                fillColor: isGoogleUser
+                    ? const Color(0xFFF4F4F8)
+                    : Colors.white,
+                helperText: isGoogleUser ? 'Synced from Google' : null,
+                helperStyle: const TextStyle(
+                  fontSize: 12,
+                  color: Color(0xFF9A9AAF),
+                ),
+                border: const OutlineInputBorder(
                   borderRadius: BorderRadius.all(Radius.circular(16)),
                   borderSide: BorderSide(color: Color(0xFFE6E7EF)),
                 ),
-                enabledBorder: OutlineInputBorder(
+                enabledBorder: const OutlineInputBorder(
                   borderRadius: BorderRadius.all(Radius.circular(16)),
                   borderSide: BorderSide(color: Color(0xFFE6E7EF)),
                 ),
-                focusedBorder: OutlineInputBorder(
+                disabledBorder: const OutlineInputBorder(
+                  borderRadius: BorderRadius.all(Radius.circular(16)),
+                  borderSide: BorderSide(color: Color(0xFFE6E7EF)),
+                ),
+                focusedBorder: const OutlineInputBorder(
                   borderRadius: BorderRadius.all(Radius.circular(16)),
                   borderSide: BorderSide(color: AppColors.primary, width: 1.4),
                 ),
-                contentPadding: EdgeInsets.symmetric(
+                contentPadding: const EdgeInsets.symmetric(
                   horizontal: 16,
                   vertical: 16,
                 ),
@@ -124,7 +140,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
               textInputAction: TextInputAction.done,
               onFieldSubmitted: (_) => _save(),
               validator: (v) {
-                if (v == null || v.trim().isEmpty) {
+                if (!isGoogleUser && (v == null || v.trim().isEmpty)) {
                   return 'Display name cannot be empty';
                 }
                 return null;

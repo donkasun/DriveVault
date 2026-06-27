@@ -60,11 +60,11 @@ class CostBreakdown(BaseModel):
 class UpcomingRenewal(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
-    vehicle_id: Annotated[UUID, Field(serialization_alias="vehicleId")]
+    vehicle_id: Annotated[UUID | None, Field(default=None, serialization_alias="vehicleId")]
     title: str
     expiry_date: Annotated[date, Field(serialization_alias="expiryDate")]
     doc_type: Annotated[str, Field(serialization_alias="docType")]
-    vehicle_label: Annotated[str, Field(serialization_alias="vehicleLabel")]
+    vehicle_label: Annotated[str | None, Field(default=None, serialization_alias="vehicleLabel")]
     days_remaining: Annotated[int, Field(serialization_alias="daysRemaining")]
     status: str  # "ok" | "soon" | "overdue"
 

@@ -290,29 +290,41 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
                     const Spacer(),
 
-                    // Dev shortcut — debug builds only
+                    // Dev shortcuts — debug builds only
                     if (kDebugMode) ...[
-                      Center(
-                        child: TextButton(
-                          onPressed: () {
-                            _emailController.text = 'crtest083@gmail.com';
-                            _passwordController.text = '123123';
-                          },
-                          style: TextButton.styleFrom(
-                            foregroundColor: AppColors.textMuted,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 6,
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          OutlinedButton.icon(
+                            onPressed: () {
+                              _emailController.text = 'crtest083@gmail.com';
+                              _passwordController.text = '123123';
+                            },
+                            icon: const Text('🛠', style: TextStyle(fontSize: 13)),
+                            label: const Text('Dev'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: const Color(0xFF6B7280),
+                              side: const BorderSide(color: Color(0xFFD1D5DB)),
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                              textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
                             ),
                           ),
-                          child: const Text(
-                            '🛠 Fill dev account',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
+                          const SizedBox(width: 12),
+                          OutlinedButton.icon(
+                            onPressed: () {
+                              _emailController.text = 'testuser@drivevault.dev';
+                              _passwordController.text = 'Test1234!';
+                            },
+                            icon: const Text('🧪', style: TextStyle(fontSize: 13)),
+                            label: const Text('Empty'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: const Color(0xFF6B7280),
+                              side: const BorderSide(color: Color(0xFFD1D5DB)),
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                              textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
                             ),
                           ),
-                        ),
+                        ],
                       ),
                       const SizedBox(height: 4),
                     ],

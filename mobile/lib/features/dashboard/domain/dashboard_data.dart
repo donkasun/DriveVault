@@ -74,18 +74,18 @@ RenewalStatus _parseRenewalStatus(String? raw) {
 }
 
 class UpcomingRenewal {
-  final String vehicleId;
+  final String? vehicleId;   // null for personal credentials
   final String title;
   final String expiryDate; // "YYYY-MM-DD"
 
   // Fields added in the updated API contract — null-safe defaults for older servers.
   final String? docType;
-  final String? vehicleLabel;
+  final String? vehicleLabel;  // null for personal credentials
   final int? daysRemaining;
   final RenewalStatus? status;
 
   const UpcomingRenewal({
-    required this.vehicleId,
+    this.vehicleId,
     required this.title,
     required this.expiryDate,
     this.docType,
@@ -94,9 +94,11 @@ class UpcomingRenewal {
     this.status,
   });
 
+  bool get isPersonalCredential => vehicleId == null;
+
   factory UpcomingRenewal.fromJson(Map<String, dynamic> json) {
     return UpcomingRenewal(
-      vehicleId: json['vehicleId'] as String,
+      vehicleId: json['vehicleId'] as String?,
       title: json['title'] as String,
       expiryDate: json['expiryDate'] as String,
       docType: json['docType'] as String?,

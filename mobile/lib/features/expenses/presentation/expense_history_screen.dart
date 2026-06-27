@@ -82,6 +82,7 @@ class _ExpenseHistoryScreenState extends ConsumerState<ExpenseHistoryScreen> {
                       ),
                     ),
                   ),
+                  if ((vehiclesAsync.asData?.value.length ?? 0) > 1)
                   GestureDetector(
                     key: const Key('expense-filter-button'),
                     onTap: () => _showFilterSheet(context),
@@ -994,9 +995,11 @@ class _EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 32),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 80),
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 32),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -1053,6 +1056,7 @@ class _EmptyState extends StatelessWidget {
               ),
             ],
           ],
+        ),
         ),
       ),
     );

@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:drivevault/features/auth/data/auth_repository.dart';
 
 import '../../../core/config/app_config.dart';
+import '../../driving_credentials/presentation/driving_credentials_section.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/constants/currencies.dart';
 import '../domain/user.dart';
@@ -225,6 +226,11 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody> {
             padding: EdgeInsets.only(top: 16),
             child: LinearProgressIndicator(),
           ),
+        const SizedBox(height: 20),
+
+        const _SectionLabel('Driving Credentials'),
+        const SizedBox(height: 8),
+        const DrivingCredentialsSection(),
         const SizedBox(height: 20),
 
         const _SectionLabel('About'),

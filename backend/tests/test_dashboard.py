@@ -400,6 +400,44 @@ def test_dashboard_recent_activity_ordering_and_limit(mock_verify, dashboard_cli
     assert "maintenance" in types_seen
 
 
+def test_dashboard_includes_credential_renewals(db_session):
+    """Credentials expiring within 90 days appear in upcomingRenewals."""
+    import uuid
+    from datetime import date, timedelta
+    from fastapi.testclient import TestClient
+    from app.main import app
+    from app.core.db import get_db
+    from app.deps import get_current_user
+    from app.models.users import User
+    from app.models.vehicles import Vehicle
+    from app.models.user_documents import UserDocument
+
+    user = User(firebase_uid=f"uid-{uuid.uuid4()}", email="dash@test.com", renewal_reminders_enabled=True)
+    db_session.add(user)
+    vehicle = Vehicle(user_id=None, make="Toyota", model="Hilux")  # user_id set after flush
+    db_session.flush()
+    vehicle.user_id = user.id
+    db_session.add(vehicle)
+    cred = UserDocument(user_id=user.id, doc_type="license", expiry_date=date.today() + timedelta(days=15))
+    db_session.add(cred)
+    db_session.commit()
+
+    def _db():
+        yield db_session
+
+    app.dependency_overrides = {get_current_user: lambda: user, get_db: _db}
+    tc = TestClient(app)
+    resp = tc.get("/api/v1/dashboard")
+    app.dependency_overrides = {}
+
+    assert resp.status_code == 200
+    renewals = resp.json()["upcomingRenewals"]
+    cred_renewals = [r for r in renewals if r["vehicleId"] is None]
+    assert len(cred_renewals) == 1
+    assert cred_renewals[0]["docType"] == "license"
+    assert cred_renewals[0]["status"] == "soon"
+
+
 @patch("app.deps.auth.verify_id_token")
 def test_dashboard_no_vehicles_empty_activity(mock_verify, dashboard_client, db_session):
     """With no vehicles, recentActivity must be an empty list."""

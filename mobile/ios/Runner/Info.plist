@@ -2,6 +2,25 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>GIDClientID</key>
+	<string>250609806849-2p8sg7g6oagto642ab3v37e68t0um6om.apps.googleusercontent.com</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.250609806849-2p8sg7g6oagto642ab3v37e68t0um6om</string>
+			</array>
+		</dict>
+	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>DriveVault uses your camera to take photos of your vehicle.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>DriveVault uses your photo library to select a photo for your vehicle.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>DriveVault saves photos to your photo library.</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>

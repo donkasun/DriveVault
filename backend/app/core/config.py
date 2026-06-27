@@ -3,6 +3,7 @@
 from functools import lru_cache
 from typing import Literal
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -12,6 +13,7 @@ class Settings(BaseSettings):
     # Core
     environment: Literal["local", "production"] = "local"
     api_v1_prefix: str = "/api/v1"
+    internal_secret: str = Field(default="", alias="INTERNAL_SECRET")
 
     # Database (Neon in prod, Docker Postgres locally)
     database_url: str = "postgresql+psycopg://drivevault:drivevault@localhost:5432/drivevault"

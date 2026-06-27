@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../features/dashboard/domain/dashboard_data.dart';
+import '../../features/driving_credentials/domain/driving_credential.dart';
 import '../../features/vehicles/domain/vehicle.dart';
 
 /// The semantic tone of a [StatusPill].
@@ -132,6 +133,60 @@ class StatusPill extends StatelessWidget {
       onTap: onTap,
       onDark: onDark,
     );
+  }
+
+  /// Creates a [StatusPill] from a [CredentialStatus] enum value.
+  ///
+  /// - [ok]      → "✓ Valid"
+  /// - [soon]    → "⊙ Nd left"  (supply [daysLeft] for the count)
+  /// - [overdue] → "⚠ Overdue Nd"
+  factory StatusPill.fromCredentialStatus(
+    CredentialStatus? status, {
+    int? daysLeft,
+    Key? key,
+    VoidCallback? onTap,
+    bool onDark = false,
+  }) {
+    switch (status) {
+      case CredentialStatus.ok:
+        return StatusPill(
+          key: key,
+          label: 'Valid',
+          tone: PillTone.ok,
+          glyph: '✓',
+          onTap: onTap,
+          onDark: onDark,
+        );
+      case CredentialStatus.soon:
+        final d = daysLeft ?? 0;
+        return StatusPill(
+          key: key,
+          label: '${d}d left',
+          tone: PillTone.soon,
+          glyph: '⊙',
+          onTap: onTap,
+          onDark: onDark,
+        );
+      case CredentialStatus.overdue:
+        final d = (daysLeft ?? 0).abs();
+        return StatusPill(
+          key: key,
+          label: 'Overdue ${d}d',
+          tone: PillTone.overdue,
+          glyph: '⚠',
+          onTap: onTap,
+          onDark: onDark,
+        );
+      default:
+        return StatusPill(
+          key: key,
+          label: 'Unknown',
+          tone: PillTone.ok,
+          glyph: '–',
+          onTap: onTap,
+          onDark: onDark,
+        );
+    }
   }
 
   // ── Color resolution ────────────────────────────────────────────────────────

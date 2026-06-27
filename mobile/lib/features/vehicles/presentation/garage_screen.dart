@@ -124,9 +124,11 @@ class _EmptyState extends StatelessWidget {
           ),
         ),
         Expanded(
-          child: Center(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 32),
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 80),
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 32),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -178,6 +180,7 @@ class _EmptyState extends StatelessWidget {
                     icon: const Icon(Icons.add),
                   ),
                 ],
+              ),
               ),
             ),
           ),
