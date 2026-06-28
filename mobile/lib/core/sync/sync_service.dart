@@ -52,7 +52,10 @@ class SyncService {
           success = true;
           break;
         } catch (_) {
-          // linear retry: try again on next iteration
+          // linear backoff: wait before retrying
+          if (attempt < _maxRetries - 1) {
+            await Future.delayed(Duration(seconds: attempt + 1));
+          }
         }
       }
       await _db.fuelLogsDao.updateSyncStatus(
@@ -84,7 +87,10 @@ class SyncService {
           success = true;
           break;
         } catch (_) {
-          // linear retry: try again on next iteration
+          // linear backoff: wait before retrying
+          if (attempt < _maxRetries - 1) {
+            await Future.delayed(Duration(seconds: attempt + 1));
+          }
         }
       }
       await _db.maintenanceDao.updateSyncStatus(
