@@ -9,6 +9,7 @@ import '../domain/dashboard_data.dart';
 class DashboardNotifier extends AsyncNotifier<DashboardData> {
   @override
   Future<DashboardData> build() async {
+    ref.keepAlive();
     PerfLog.start('dashboard');
     final db = ref.read(appDatabaseProvider);
     final cached = await db.dashboardDao.get();
@@ -34,7 +35,7 @@ class DashboardNotifier extends AsyncNotifier<DashboardData> {
       await db.dashboardDao.upsert(jsonEncode(data.toJson()));
       PerfLog.mark('dashboard', 'network');
       if (state.hasValue) state = AsyncData(data);
-    }).catchError((_) {});
+    }).onError<Exception>((_, _) {});
   }
 
   Future<void> refresh() async {
