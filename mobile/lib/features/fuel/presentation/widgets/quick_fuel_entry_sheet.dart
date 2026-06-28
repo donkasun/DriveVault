@@ -184,10 +184,47 @@ class _QuickFuelEntrySheetState extends ConsumerState<QuickFuelEntrySheet> {
     }
     final field = _focusedCalcField;
     if (field == null) return;
-    final raw = _activeCtrl.text;
-    _calc.setField(field, double.tryParse(raw.trim()));
+    _syncCalcFromControllers(activeField: field);
     _reflectDerived(except: field);
     setState(() {});
+  }
+
+  double? _parseValue(TextEditingController controller) {
+    return double.tryParse(controller.text.trim());
+  }
+
+  /// Rebuild the calculator from the visible controller values.
+  ///
+  /// The currently edited field is applied last so it remains authoritative,
+  /// while the other populated fields provide the context needed to derive the
+  /// third value.
+  void _syncCalcFromControllers({required FuelField activeField}) {
+    final liters = _parseValue(_litersCtrl);
+    final total = _parseValue(_totalCtrl);
+    final perLiter = _parseValue(_perLiterCtrl);
+
+    _calc = FuelEntryCalc(
+      initialPerLiter: perLiter != null && perLiter > 0 ? perLiter : null,
+    );
+
+    for (final field in const [
+      FuelField.liters,
+      FuelField.total,
+      FuelField.perLiter,
+    ]) {
+      if (field == activeField) continue;
+      _calc.setField(field, switch (field) {
+        FuelField.liters => liters,
+        FuelField.total => total,
+        FuelField.perLiter => perLiter,
+      });
+    }
+
+    _calc.setField(activeField, switch (activeField) {
+      FuelField.liters => liters,
+      FuelField.total => total,
+      FuelField.perLiter => perLiter,
+    });
   }
 
   /// Push derived values back into the controllers that are NOT currently
@@ -222,7 +259,10 @@ class _QuickFuelEntrySheetState extends ConsumerState<QuickFuelEntrySheet> {
   bool get _canSave {
     if (_saving) return false;
     if (_selectedVehicleId == null) return false;
-    if (int.tryParse(_odometerCtrl.text.trim()) == null) return false;
+    final odoText = _odometerCtrl.text.trim();
+    // Valid if the user typed a parseable integer OR we have a known last reading.
+    if (odoText.isNotEmpty && int.tryParse(odoText) == null) return false;
+    if (odoText.isEmpty && _latestOdometerKm == null) return false;
     return _calc.isComplete;
   }
 
@@ -256,10 +296,16 @@ class _QuickFuelEntrySheetState extends ConsumerState<QuickFuelEntrySheet> {
       _error = null;
     });
     try {
-      final odo = int.parse(_odometerCtrl.text.trim());
+      final odoText = _odometerCtrl.text.trim();
+      final int odometerKm;
+      if (odoText.isNotEmpty) {
+        odometerKm = displayToKm(int.parse(odoText).toDouble(), unit).round();
+      } else {
+        // Fallback to the last-known reading (already stored in km).
+        odometerKm = _latestOdometerKm!;
+      }
       final liters = _calc.liters!;
       final priceCents = (_calc.total! * 100).round();
-      final odometerKm = displayToKm(odo.toDouble(), unit);
 
       final data = <String, dynamic>{
         'date': _dateText,
@@ -269,14 +315,14 @@ class _QuickFuelEntrySheetState extends ConsumerState<QuickFuelEntrySheet> {
         'isFullTank': _isFullTank,
         'notes': widget.existing?.notes,
       };
-      final repo = ref.read(fuelRepositoryProvider);
       if (widget.existing != null) {
-        await repo.updateFuelLog(widget.existing!.id, data);
+        await ref.read(fuelRepositoryProvider).updateFuelLog(widget.existing!.id, data);
+        ref.invalidate(fuelLogsProvider(_selectedVehicleId!));
       } else {
-        await repo.createFuelLog(_selectedVehicleId!, data);
+        await ref
+            .read(fuelLogsProvider(_selectedVehicleId!).notifier)
+            .createOptimistic(_selectedVehicleId!, data);
       }
-
-      ref.invalidate(fuelLogsProvider(_selectedVehicleId!));
       ref.invalidate(fuelStatsProvider(_selectedVehicleId!));
       ref.invalidate(vehicleProvider(_selectedVehicleId!));
       ref.invalidate(vehiclesProvider);
@@ -293,7 +339,7 @@ class _QuickFuelEntrySheetState extends ConsumerState<QuickFuelEntrySheet> {
     }
   }
 
-Future<void> _pickDate() async {
+  Future<void> _pickDate() async {
     final picked = await showDatePicker(
       context: context,
       initialDate: _date,
@@ -384,14 +430,19 @@ Future<void> _pickDate() async {
         ? kmToDisplay(odoHintKm, unit).round().toString()
         : null;
 
+    // Pre-fill odometer with the hint so Save is enabled without requiring
+    // the user to re-enter a value they can already see as the placeholder.
+    if (_odometerCtrl.text.isEmpty && odoHint != null) {
+      _odometerCtrl.text = odoHint;
+    }
+
     return SafeArea(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _buildHeader(vehicles, unit),
-          if (vehicles.isNotEmpty)
-            _buildVehicleSelector(vehicles, selected),
+          if (vehicles.isNotEmpty) _buildVehicleSelector(vehicles, selected),
           _buildFields(unit, odoHint),
           if (_error != null)
             Padding(
@@ -468,9 +519,7 @@ Future<void> _pickDate() async {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
       child: GestureDetector(
-        onTap: vehicles.length > 1
-            ? () => _showVehiclePicker(vehicles)
-            : null,
+        onTap: vehicles.length > 1 ? () => _showVehiclePicker(vehicles) : null,
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
           decoration: BoxDecoration(
@@ -479,7 +528,11 @@ Future<void> _pickDate() async {
           ),
           child: Row(
             children: [
-              _vehicleTypeIcon(selected?.vehicleType, size: 34, photoUrl: selected?.photoUrl),
+              _vehicleTypeIcon(
+                selected?.vehicleType,
+                size: 34,
+                photoUrl: selected?.photoUrl,
+              ),
               const SizedBox(width: 11),
               Expanded(
                 child: Column(
@@ -529,7 +582,8 @@ Future<void> _pickDate() async {
         onSelected: (id) {
           setState(() {
             _selectedVehicleId = id;
-            _calcSeeded = false; // re-seed price/L from new vehicle's latest log
+            _calcSeeded =
+                false; // re-seed price/L from new vehicle's latest log
             _latestOdometerKm = null;
             _perLiterCtrl.clear();
             _litersCtrl.clear();
@@ -542,7 +596,11 @@ Future<void> _pickDate() async {
     );
   }
 
-  static Widget _vehicleTypeIcon(String? type, {double size = 34, String? photoUrl}) {
+  static Widget _vehicleTypeIcon(
+    String? type, {
+    double size = 34,
+    String? photoUrl,
+  }) {
     if (photoUrl != null) {
       return ClipRRect(
         borderRadius: BorderRadius.circular(9),
@@ -551,7 +609,7 @@ Future<void> _pickDate() async {
           width: size,
           height: size,
           fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => _vehicleTypeIcon(type, size: size),
+          errorBuilder: (context, error, stack) => _vehicleTypeIcon(type, size: size),
         ),
       );
     }
@@ -582,6 +640,7 @@ Future<void> _pickDate() async {
         children: [
           // Odometer — flat single-line row
           GestureDetector(
+            key: ValueKey('fuel_field_Odometer (${unit.label})'),
             onTap: () => setState(() {
               _odometerFocused = true;
               _focusedCalcField = null;
@@ -589,14 +648,24 @@ Future<void> _pickDate() async {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
               decoration: BoxDecoration(
-                color: _odometerFocused ? AppColors.surface : const Color(0xFFF2F2F7),
+                color: _odometerFocused
+                    ? AppColors.surface
+                    : const Color(0xFFF2F2F7),
                 borderRadius: BorderRadius.circular(13),
                 border: Border.all(
-                  color: _odometerFocused ? AppColors.textPrimary : Colors.transparent,
+                  color: _odometerFocused
+                      ? AppColors.textPrimary
+                      : Colors.transparent,
                   width: 1.5,
                 ),
                 boxShadow: _odometerFocused
-                    ? [BoxShadow(color: Colors.black.withAlpha(15), blurRadius: 6, spreadRadius: 1)]
+                    ? [
+                        BoxShadow(
+                          color: Colors.black.withAlpha(15),
+                          blurRadius: 6,
+                          spreadRadius: 1,
+                        ),
+                      ]
                     : null,
               ),
               child: Row(
@@ -611,14 +680,25 @@ Future<void> _pickDate() async {
                     ),
                   ),
                   const Spacer(),
-                  Text(
-                    _odometerCtrl.text.isEmpty ? (odoHint ?? '0') : _odometerCtrl.text,
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.4,
-                      color: _odometerCtrl.text.isEmpty ? AppColors.divider : AppColors.textPrimary,
-                    ),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Text(
+                        _odometerCtrl.text.isEmpty
+                            ? (odoHint ?? '0')
+                            : _odometerCtrl.text,
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.4,
+                          color: _odometerCtrl.text.isEmpty
+                              ? AppColors.divider
+                              : AppColors.textPrimary,
+                        ),
+                      ),
+                      if (_odometerFocused) const _BlinkingCursor(),
+                    ],
                   ),
                   const SizedBox(width: 3),
                   Text(
@@ -709,11 +789,12 @@ Future<void> _pickDate() async {
     final text = controller.text;
     final isEmpty = text.isEmpty;
     // Strip trailing .00 for display only; keep fractional cents when non-zero.
-    final displayText = text.endsWith('.00') ? text.substring(0, text.length - 3) : text;
+    final displayText = text.endsWith('.00')
+        ? text.substring(0, text.length - 3)
+        : text;
     // Active: white bg + dark border + shadow. Inactive: very light gray, no border.
     final bgColor = isFocused ? AppColors.surface : const Color(0xFFF2F2F7);
-    final borderColor =
-        isFocused ? AppColors.textPrimary : Colors.transparent;
+    final borderColor = isFocused ? AppColors.textPrimary : Colors.transparent;
 
     return GestureDetector(
       key: ValueKey('fuel_field_$label'),
@@ -730,7 +811,7 @@ Future<void> _pickDate() async {
                     color: Colors.black.withAlpha(15),
                     blurRadius: 6,
                     spreadRadius: 1,
-                  )
+                  ),
                 ]
               : null,
         ),
@@ -790,19 +871,28 @@ Future<void> _pickDate() async {
                     ),
                   ),
                 Flexible(
-                  child: Text(
-                    isEmpty ? (hint ?? '0') : displayText,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.4,
-                      color: isEmpty
-                          ? AppColors.divider
-                          : isAuto
-                              ? AppColors.textMuted
-                              : AppColors.textPrimary,
-                    ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          isEmpty ? (hint ?? '0') : displayText,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.4,
+                            color: isEmpty
+                                ? AppColors.divider
+                                : isAuto
+                                ? AppColors.textMuted
+                                : AppColors.textPrimary,
+                          ),
+                        ),
+                      ),
+                      if (isFocused) const _BlinkingCursor(),
+                    ],
                   ),
                 ),
                 if (unitSuffix != null)
@@ -969,7 +1059,9 @@ class _VehiclePickerSheet extends StatelessWidget {
                       ),
                     ),
                   ),
-                  SheetCloseButton(onPressed: () => Navigator.of(context).pop()),
+                  SheetCloseButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
                 ],
               ),
             ),
@@ -1056,6 +1148,50 @@ class _SheetBox extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
           child: child,
+        ),
+      ),
+    );
+  }
+}
+
+/// Blinking vertical bar cursor for custom-keypad fields.
+class _BlinkingCursor extends StatefulWidget {
+  const _BlinkingCursor();
+
+  @override
+  State<_BlinkingCursor> createState() => _BlinkingCursorState();
+}
+
+class _BlinkingCursorState extends State<_BlinkingCursor>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 530),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: _ctrl,
+      child: Container(
+        width: 2,
+        height: 20,
+        margin: const EdgeInsets.only(left: 2),
+        decoration: BoxDecoration(
+          color: AppColors.textPrimary,
+          borderRadius: BorderRadius.circular(1),
         ),
       ),
     );
