@@ -21,31 +21,28 @@ class ProfileScreen extends ConsumerWidget {
     final authUser = ref.watch(authStateChangesProvider).asData?.value;
 
     return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        surfaceTintColor: Colors.transparent,
+        toolbarHeight: 60,
+        title: const Text(
+          'Settings',
+          style: TextStyle(
+            fontSize: 29,
+            fontWeight: FontWeight.w800,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        titleSpacing: 20,
+      ),
       body: SafeArea(
         bottom: false,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Padding(
-              padding: EdgeInsets.fromLTRB(20, 16, 20, 8),
-              child: Text(
-                'Settings',
-                style: TextStyle(
-                  fontSize: 29,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-            ),
-            Expanded(
-              child: meAsync.when(
-                loading: () => const _ProfileLoadingSkeleton(),
-                error: (e, _) =>
-                    Center(child: Text('Failed to load profile: $e')),
-                data: (user) => _ProfileBody(user: user, authUser: authUser),
-              ),
-            ),
-          ],
+        child: meAsync.when(
+          loading: () => const _ProfileLoadingSkeleton(),
+          error: (e, _) => Center(child: Text('Failed to load profile: $e')),
+          data: (user) => _ProfileBody(user: user, authUser: authUser),
         ),
       ),
     );
