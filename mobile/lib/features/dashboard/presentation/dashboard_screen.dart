@@ -13,6 +13,7 @@ import '../../../shared/widgets/breakdown_bar.dart';
 import '../../../shared/widgets/fuel_pump_icon.dart';
 import '../../../shared/widgets/status_pill.dart';
 import '../../../shared/widgets/app_button.dart';
+import '../../../shared/widgets/shimmer_box.dart';
 import '../../activity/presentation/activity_screen.dart';
 import '../../profile/data/user_repository.dart';
 import '../domain/dashboard_data.dart';
@@ -32,15 +33,15 @@ class DashboardScreen extends ConsumerWidget {
       backgroundColor: AppColors.background,
       body: SafeArea(
         child: dashboardAsync.when(
-                loading: () => const _LoadingState(),
-                error: (error, _) => _ErrorState(
-                  message: error.toString(),
-                  onRetry: () => ref.read(dashboardProvider.notifier).refresh(),
-                ),
-                data: (data) => data.vehicleCount == 0
-                    ? const _EmptyState()
-                    : _LoadedContent(data: data, currency: currency),
-              ),
+          loading: () => const _LoadingState(),
+          error: (error, _) => _ErrorState(
+            message: error.toString(),
+            onRetry: () => ref.read(dashboardProvider.notifier).refresh(),
+          ),
+          data: (data) => data.vehicleCount == 0
+              ? const _EmptyState()
+              : _LoadedContent(data: data, currency: currency),
+        ),
       ),
     );
   }
@@ -134,39 +135,21 @@ class _LoadingState extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
       physics: const NeverScrollableScrollPhysics(),
-      children: [
-        _SkeletonBox(height: 56, borderRadius: 12),
-        const SizedBox(height: 20),
-        _SkeletonBox(height: 100, borderRadius: 16),
-        const SizedBox(height: 16),
-        _SkeletonBox(height: 80, borderRadius: 16),
-        const SizedBox(height: 16),
-        _SkeletonBox(height: 60, borderRadius: 12),
-        const SizedBox(height: 8),
-        _SkeletonBox(height: 60, borderRadius: 12),
-        const SizedBox(height: 24),
-        _SkeletonBox(height: 72, borderRadius: 12),
-        const SizedBox(height: 8),
-        _SkeletonBox(height: 72, borderRadius: 12),
+      children: const [
+        ShimmerBox(height: 56, borderRadius: 12),
+        SizedBox(height: 20),
+        ShimmerBox(height: 100, borderRadius: 16),
+        SizedBox(height: 16),
+        ShimmerBox(height: 80, borderRadius: 16),
+        SizedBox(height: 16),
+        ShimmerBox(height: 60, borderRadius: 12),
+        SizedBox(height: 8),
+        ShimmerBox(height: 60, borderRadius: 12),
+        SizedBox(height: 24),
+        ShimmerBox(height: 72, borderRadius: 12),
+        SizedBox(height: 8),
+        ShimmerBox(height: 72, borderRadius: 12),
       ],
-    );
-  }
-}
-
-class _SkeletonBox extends StatelessWidget {
-  final double height;
-  final double borderRadius;
-
-  const _SkeletonBox({required this.height, this.borderRadius = 8});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: height,
-      decoration: BoxDecoration(
-        color: AppColors.divider,
-        borderRadius: BorderRadius.circular(borderRadius),
-      ),
     );
   }
 }
@@ -429,7 +412,6 @@ class _NeedsAttentionCard extends StatelessWidget {
   }
 }
 
-
 class _RenewalAttentionRow extends StatelessWidget {
   final UpcomingRenewal renewal;
 
@@ -464,11 +446,7 @@ class _RenewalAttentionRow extends StatelessWidget {
               color: AppColors.primary.withValues(alpha: 0.16),
               borderRadius: BorderRadius.circular(13),
             ),
-            child: Icon(
-              tileIcon,
-              size: 20,
-              color: AppColors.primary,
-            ),
+            child: Icon(tileIcon, size: 20, color: AppColors.primary),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -619,7 +597,11 @@ class _SpendCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 16),
-            BreakdownBarWithLegend(segments: segments, formatAmount: fmt, barHeight: 10),
+            BreakdownBarWithLegend(
+              segments: segments,
+              formatAmount: fmt,
+              barHeight: 10,
+            ),
           ],
         ),
       ),
@@ -716,26 +698,30 @@ class _ActivityCard extends StatelessWidget {
         color: _bgForType(item.type),
         borderRadius: BorderRadius.circular(12),
       ),
-      child: Icon(_iconForType(item.type), size: 20, color: _colorForType(item.type)),
+      child: Icon(
+        _iconForType(item.type),
+        size: 20,
+        color: _colorForType(item.type),
+      ),
     );
   }
 
   IconData _iconForType(ActivityType type) => switch (type) {
-    ActivityType.fuel        => Icons.local_gas_station,
+    ActivityType.fuel => Icons.local_gas_station,
     ActivityType.maintenance => Icons.build_outlined,
-    ActivityType.document    => Icons.description_outlined,
+    ActivityType.document => Icons.description_outlined,
   };
 
   Color _bgForType(ActivityType type) => switch (type) {
-    ActivityType.fuel        => AppColors.successBg,
+    ActivityType.fuel => AppColors.successBg,
     ActivityType.maintenance => AppColors.surfaceDark.withValues(alpha: 0.08),
-    ActivityType.document    => AppColors.successBg,
+    ActivityType.document => AppColors.successBg,
   };
 
   Color _colorForType(ActivityType type) => switch (type) {
-    ActivityType.fuel        => AppColors.success,
+    ActivityType.fuel => AppColors.success,
     ActivityType.maintenance => AppColors.surfaceDark,
-    ActivityType.document    => AppColors.success,
+    ActivityType.document => AppColors.success,
   };
 
   String _friendlyDate(String dateStr) {

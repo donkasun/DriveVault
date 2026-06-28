@@ -8,6 +8,7 @@ import '../../../core/config/app_config.dart';
 import '../../driving_credentials/presentation/driving_credentials_section.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/constants/currencies.dart';
+import '../../../shared/widgets/shimmer_box.dart';
 import '../domain/user.dart';
 import '../data/user_repository.dart';
 
@@ -20,26 +21,32 @@ class ProfileScreen extends ConsumerWidget {
     final authUser = ref.watch(authStateChangesProvider).asData?.value;
 
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        surfaceTintColor: Colors.transparent,
-        toolbarHeight: 60,
-        titleSpacing: 16,
-        title: const Text(
-          'Settings',
-          style: TextStyle(
-            fontSize: 29,
-            fontWeight: FontWeight.w800,
-            color: AppColors.textPrimary,
-          ),
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Padding(
+              padding: EdgeInsets.fromLTRB(20, 16, 20, 8),
+              child: Text(
+                'Settings',
+                style: TextStyle(
+                  fontSize: 29,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ),
+            Expanded(
+              child: meAsync.when(
+                loading: () => const _ProfileLoadingSkeleton(),
+                error: (e, _) =>
+                    Center(child: Text('Failed to load profile: $e')),
+                data: (user) => _ProfileBody(user: user, authUser: authUser),
+              ),
+            ),
+          ],
         ),
-      ),
-      body: meAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Failed to load profile: $e')),
-        data: (user) => _ProfileBody(user: user, authUser: authUser),
       ),
     );
   }
@@ -847,6 +854,33 @@ class _LockedCurrencyLabel extends StatelessWidget {
           size: 16,
           color: Color(0xFFC1C1D0),
         ),
+      ],
+    );
+  }
+}
+
+class _ProfileLoadingSkeleton extends StatelessWidget {
+  const _ProfileLoadingSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 40),
+      physics: const NeverScrollableScrollPhysics(),
+      children: const [
+        Row(
+          children: [
+            ShimmerBox(height: 56, borderRadius: 28, width: 56),
+            SizedBox(width: 16),
+            Expanded(child: ShimmerBox(height: 20, borderRadius: 6)),
+          ],
+        ),
+        SizedBox(height: 24),
+        ShimmerBox(height: 52, borderRadius: 12),
+        SizedBox(height: 12),
+        ShimmerBox(height: 52, borderRadius: 12),
+        SizedBox(height: 12),
+        ShimmerBox(height: 52, borderRadius: 12),
       ],
     );
   }
