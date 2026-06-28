@@ -8,6 +8,7 @@ import '../domain/vehicle.dart';
 class VehiclesNotifier extends AsyncNotifier<List<Vehicle>> {
   @override
   Future<List<Vehicle>> build() async {
+    ref.keepAlive();
     PerfLog.start('vehicles');
     final db = ref.read(appDatabaseProvider);
     final cached = await db.vehiclesDao.getAll();
@@ -31,7 +32,7 @@ class VehiclesNotifier extends AsyncNotifier<List<Vehicle>> {
       await db.vehiclesDao.upsertAll(vehicles.map((v) => v.toDrift()).toList());
       PerfLog.mark('vehicles', 'network');
       if (state.hasValue) state = AsyncData(vehicles);
-    }).catchError((_) {
+    }).onError<Exception>((e, _) {
       // Network failure — keep showing cached data silently.
     });
   }
@@ -39,8 +40,7 @@ class VehiclesNotifier extends AsyncNotifier<List<Vehicle>> {
   VehicleRepository get _repo => ref.read(vehicleRepositoryProvider);
 
   Future<void> refresh() async {
-    state = const AsyncValue.loading();
-    state = await AsyncValue.guard(() => _repo.fetchVehicles());
+    _refreshInBackground();
   }
 
   Future<void> create(Map<String, dynamic> data) async {
