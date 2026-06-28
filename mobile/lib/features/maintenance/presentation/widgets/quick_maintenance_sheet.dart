@@ -109,10 +109,9 @@ class _QuickMaintenanceSheetState extends ConsumerState<QuickMaintenanceSheet> {
           'odometer': displayToKm(double.parse(odoText), unit),
       };
       await ref
-          .read(maintenanceRepositoryProvider)
-          .createRecord(_selectedVehicleId!, data);
+          .read(maintenanceRecordsProvider(_selectedVehicleId!).notifier)
+          .createOptimistic(_selectedVehicleId!, data);
 
-      ref.invalidate(maintenanceRecordsProvider(_selectedVehicleId!));
       ref.invalidate(vehicleProvider(_selectedVehicleId!));
       ref.invalidate(vehiclesProvider);
       ref.invalidate(dashboardProvider);
