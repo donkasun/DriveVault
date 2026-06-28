@@ -43,4 +43,16 @@ class AppUser {
       createdAt: DateTime.parse(json['createdAt'] as String),
     );
   }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'firebaseUid': firebaseUid,
+        'email': email,
+        'displayName': displayName,
+        'photoUrl': photoUrl,
+        'currency': currency,
+        'distanceUnit': distanceUnit,
+        'renewalRemindersEnabled': renewalRemindersEnabled,
+        'createdAt': createdAt.toIso8601String(),
+      };
 }

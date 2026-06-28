@@ -56,138 +56,166 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> {
         ref.watch(meProvider).asData?.value.currency ?? kFallbackCurrency;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'Activity',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
-        ),
-        centerTitle: false,
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: GestureDetector(
-              onTap: () => _showFilterSheet(context),
-              child: Stack(
-                clipBehavior: Clip.none,
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 16, 8),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: _isFiltered
-                          ? AppColors.textPrimary
-                          : Colors.white,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      Icons.tune_rounded,
-                      size: 22,
-                      color: _isFiltered ? Colors.white : AppColors.textPrimary,
-                    ),
-                  ),
-                  if (_isFiltered)
-                    Positioned(
-                      top: -2,
-                      right: -2,
-                      child: Container(
-                        width: 10,
-                        height: 10,
-                        decoration: const BoxDecoration(
-                          color: AppColors.primary,
-                          shape: BoxShape.circle,
-                        ),
+                  const Expanded(
+                    child: Text(
+                      'Activity',
+                      style: TextStyle(
+                        fontSize: 29,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textPrimary,
                       ),
                     ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(right: 4),
+                    child: GestureDetector(
+                      onTap: () => _showFilterSheet(context),
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(
+                              color: _isFiltered
+                                  ? AppColors.textPrimary
+                                  : Colors.white,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              Icons.tune_rounded,
+                              size: 22,
+                              color: _isFiltered
+                                  ? Colors.white
+                                  : AppColors.textPrimary,
+                            ),
+                          ),
+                          if (_isFiltered)
+                            Positioned(
+                              top: -2,
+                              right: -2,
+                              child: Container(
+                                width: 10,
+                                height: 10,
+                                decoration: const BoxDecoration(
+                                  color: AppColors.primary,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
-          ),
-        ],
-      ),
-      body: SafeArea(
-        bottom: false,
-        child: activityAsync.when(
-          loading: () => const _LoadingSkeleton(),
-          error: (e, st) => _ErrorState(
-            message: e is ApiException ? e.message : 'Could not load activity.',
-            onRetry: () => ref.invalidate(allActivityProvider),
-          ),
-          data: (entries) {
-            final filtered = filterActivityByVehicle(
-              filterActivityByKind(entries, _kindFilter),
-              _vehicleIdFilter,
-            );
-
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-                  child: _KindFilterBar(
-                    value: _kindFilter,
-                    onChanged: (v) => setState(() => _kindFilter = v),
-                  ),
+            Expanded(
+              child: activityAsync.when(
+                loading: () => const _LoadingSkeleton(),
+                error: (e, st) => _ErrorState(
+                  message: e is ApiException
+                      ? e.message
+                      : 'Could not load activity.',
+                  onRetry: () => ref.invalidate(allActivityProvider),
                 ),
-                Expanded(
-                  child: vehiclesAsync.when(
-                    loading: () =>
-                        const Center(child: CircularProgressIndicator()),
-                    error: (e, st) => Center(
-                      child: Text(
-                        'Could not load vehicles: $e',
-                        style: const TextStyle(color: AppColors.textMuted),
-                      ),
-                    ),
-                    data: (vehicles) {
-                      final vehicleMap = {
-                        for (final v in vehicles) v.id: v,
-                      };
+                data: (entries) {
+                  final filtered = filterActivityByVehicle(
+                    filterActivityByKind(entries, _kindFilter),
+                    _vehicleIdFilter,
+                  );
 
-                      if (filtered.isEmpty) {
-                        return const _EmptyState();
-                      }
-
-                      final groups = groupActivityByMonth(filtered);
-
-                      return ListView.builder(
-                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 120),
-                        itemCount: groups.fold<int>(
-                          0,
-                          (count, g) => count + 1 + g.entries.length,
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                        child: _KindFilterBar(
+                          value: _kindFilter,
+                          onChanged: (v) => setState(() => _kindFilter = v),
                         ),
-                        itemBuilder: (context, index) {
-                          int offset = 0;
-                          for (final group in groups) {
-                            if (index == offset) {
-                              return _MonthHeader(
-                                month: group.month,
-                                subtotalCents: group.subtotalCents,
-                                currency: userCurrency,
-                              );
+                      ),
+                      Expanded(
+                        child: vehiclesAsync.when(
+                          loading: () =>
+                              const Center(child: CircularProgressIndicator()),
+                          error: (e, st) => Center(
+                            child: Text(
+                              'Could not load vehicles: $e',
+                              style: const TextStyle(
+                                color: AppColors.textMuted,
+                              ),
+                            ),
+                          ),
+                          data: (vehicles) {
+                            final vehicleMap = {
+                              for (final v in vehicles) v.id: v,
+                            };
+
+                            if (filtered.isEmpty) {
+                              return const _EmptyState();
                             }
-                            offset++;
-                            final tileIndex = index - offset;
-                            if (tileIndex < group.entries.length) {
-                              final entry = group.entries[tileIndex];
-                              return _ActivityTile(
-                                entry: entry,
-                                vehicleName:
-                                    vehicleMap[entry.vehicleId]?.displayName ??
-                                    'Unknown vehicle',
-                                totalVehicles: vehicles.length,
-                              );
-                            }
-                            offset += group.entries.length;
-                          }
-                          return const SizedBox.shrink();
-                        },
-                      );
-                    },
-                  ),
-                ),
-              ],
-            );
-          },
+
+                            final groups = groupActivityByMonth(filtered);
+
+                            return ListView.builder(
+                              padding: const EdgeInsets.fromLTRB(
+                                16,
+                                0,
+                                16,
+                                120,
+                              ),
+                              itemCount: groups.fold<int>(
+                                0,
+                                (count, g) => count + 1 + g.entries.length,
+                              ),
+                              itemBuilder: (context, index) {
+                                int offset = 0;
+                                for (final group in groups) {
+                                  if (index == offset) {
+                                    return _MonthHeader(
+                                      month: group.month,
+                                      subtotalCents: group.subtotalCents,
+                                      currency: userCurrency,
+                                    );
+                                  }
+                                  offset++;
+                                  final tileIndex = index - offset;
+                                  if (tileIndex < group.entries.length) {
+                                    final entry = group.entries[tileIndex];
+                                    return _ActivityTile(
+                                      entry: entry,
+                                      vehicleName:
+                                          vehicleMap[entry.vehicleId]
+                                              ?.displayName ??
+                                          'Unknown vehicle',
+                                      totalVehicles: vehicles.length,
+                                    );
+                                  }
+                                  offset += group.entries.length;
+                                }
+                                return const SizedBox.shrink();
+                              },
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -296,7 +324,11 @@ class _Segment extends StatelessWidget {
   final bool selected;
   final VoidCallback onTap;
 
-  const _Segment({required this.label, required this.selected, required this.onTap});
+  const _Segment({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -374,7 +406,9 @@ class _ActivityFilterSheet extends StatelessWidget {
                       ),
                     ),
                   ),
-                  SheetCloseButton(onPressed: () => Navigator.of(context).pop()),
+                  SheetCloseButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
                 ],
               ),
             ),
@@ -468,7 +502,11 @@ class _VehicleFilterRow extends StatelessWidget {
               ),
             ),
             if (selected)
-              const Icon(Icons.check_rounded, size: 20, color: AppColors.success),
+              const Icon(
+                Icons.check_rounded,
+                size: 20,
+                color: AppColors.success,
+              ),
           ],
         ),
       ),
@@ -621,7 +659,11 @@ class _ActivityTile extends ConsumerWidget {
             borderRadius: BorderRadius.circular(12),
           ),
           child: const Center(
-            child: Icon(Icons.build_outlined, color: AppColors.surfaceDark, size: 20),
+            child: Icon(
+              Icons.build_outlined,
+              color: AppColors.surfaceDark,
+              size: 20,
+            ),
           ),
         );
       case ActivityKind.document:
@@ -629,8 +671,8 @@ class _ActivityTile extends ConsumerWidget {
         final iconData = doc.isImage
             ? Icons.image_outlined
             : doc.mimeType == 'application/pdf'
-                ? Icons.picture_as_pdf_outlined
-                : Icons.description_outlined;
+            ? Icons.picture_as_pdf_outlined
+            : Icons.description_outlined;
         return Container(
           width: 40,
           height: 40,
@@ -648,7 +690,10 @@ class _ActivityTile extends ConsumerWidget {
   Future<void> _handleTap(BuildContext context, WidgetRef ref) async {
     switch (entry.kind) {
       case ActivityKind.fuel:
-        await showQuickFuelEntrySheet(context, existing: entry.expense!.fuelLog);
+        await showQuickFuelEntrySheet(
+          context,
+          existing: entry.expense!.fuelLog,
+        );
         ref.invalidate(fuelLogsProvider(entry.vehicleId));
         ref.invalidate(allActivityProvider);
       case ActivityKind.maintenance:
@@ -688,14 +733,16 @@ class _ActivityTile extends ConsumerWidget {
       }
       ref.invalidate(allActivityProvider);
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Record deleted')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Record deleted')));
       }
     } catch (e) {
       if (context.mounted) {
         final msg = e is ApiException ? e.message : 'Delete failed';
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(msg)));
       }
     }
   }
@@ -717,8 +764,10 @@ class _ActivityTile extends ConsumerWidget {
             ),
             TextButton(
               onPressed: () => Navigator.of(ctx).pop(true),
-              child: const Text('Delete',
-                  style: TextStyle(color: AppColors.danger)),
+              child: const Text(
+                'Delete',
+                style: TextStyle(color: AppColors.danger),
+              ),
             ),
           ],
         ),
