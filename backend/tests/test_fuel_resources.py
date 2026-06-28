@@ -616,3 +616,26 @@ def test_create_fuel_log_forces_lkr_even_if_client_sends_usd(
     )
     assert response.status_code == 201
     assert response.json()["currency"] == "LKR"
+
+
+@patch("app.deps.auth.verify_id_token")
+def test_fuel_log_post_uses_client_supplied_id(mock_verify, fuel_client, db_session, users):
+    """A POST with a client-supplied UUID uses that exact UUID as the created record's id."""
+    owner, _ = users
+    vehicle = _create_vehicle(db_session, owner)
+    _mock_owner(mock_verify)
+    client_id = "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+
+    response = fuel_client.post(
+        f"/api/v1/vehicles/{vehicle.id}/fuel-logs",
+        headers=_auth_headers(),
+        json={
+            "id": client_id,
+            "date": "2026-07-01",
+            "liters": 42.0,
+            "priceCents": 6300,
+            "odometer": 52000,
+        },
+    )
+    assert response.status_code == 201
+    assert response.json()["id"] == client_id

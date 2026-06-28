@@ -53,9 +53,11 @@ def create_fuel_log(db: Session, user: User, vehicle_id: UUID, payload: FuelLogC
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Odometer must be greater than the latest reading ({existing_max} km)",
         )
-    data = payload.model_dump()
+    data = payload.model_dump(exclude={"id"})
     data["currency"] = LOCKED_CURRENCY
     fuel_log = FuelLog(vehicle_id=vehicle_id, **data)
+    if payload.id is not None:
+        fuel_log.id = payload.id
     db.add(fuel_log)
     db.flush()
     _sync_current_mileage(db, vehicle)

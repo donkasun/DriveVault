@@ -22,6 +22,7 @@ class FuelLogBase(BaseModel):
 
 
 class FuelLogCreate(FuelLogBase):
+    id: UUID | None = Field(default=None, description="Client-supplied UUID; generated server-side if omitted")
     date: date_type
     liters: Decimal = Field(gt=0)
     price_cents: int = Field(alias="priceCents")

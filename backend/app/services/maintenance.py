@@ -51,9 +51,11 @@ def create_maintenance_record(
     payload: MaintenanceCreate,
 ) -> MaintenanceRecord:
     get_vehicle_for_user(db, user, vehicle_id)
-    data = payload.model_dump()
+    data = payload.model_dump(exclude={"id"})
     data["currency"] = LOCKED_CURRENCY
     record = MaintenanceRecord(vehicle_id=vehicle_id, source="manual", **data)
+    if payload.id is not None:
+        record.id = payload.id
     db.add(record)
     db.commit()
     db.refresh(record)
