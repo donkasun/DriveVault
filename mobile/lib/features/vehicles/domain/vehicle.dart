@@ -1,3 +1,8 @@
+import 'dart:convert';
+
+import 'package:drift/drift.dart' show Value;
+
+import '../../../core/database/app_database.dart';
 import '../../../shared/constants/currencies.dart';
 
 /// Derived docs-status for a vehicle — computed server-side from its documents.
@@ -120,6 +125,28 @@ class Vehicle {
   String get displayName =>
       '${year != null ? '$year ' : ''}$make $model'.trim();
 
+  VehiclesCompanion toDrift() => VehiclesCompanion.insert(
+        id: id,
+        make: make,
+        model: model,
+        year: Value(year),
+        registrationNumber: Value(registrationNumber),
+        vin: Value(vin),
+        purchaseDate: Value(purchaseDate),
+        purchasePriceCents: Value(purchasePriceCents),
+        currency: Value(currency),
+        currentMileage: Value(currentMileage),
+        vehicleType: Value(vehicleType),
+        fuelType: Value(fuelType),
+        distanceUnit: Value(distanceUnit),
+        photoUrl: Value(photoUrl),
+        photoPublicId: Value(photoPublicId),
+        docsStatusJson: Value(jsonEncode(docsStatus.toJson())),
+        createdAt: createdAt.toIso8601String(),
+        updatedAt: updatedAt.toIso8601String(),
+        cachedAt: DateTime.now().millisecondsSinceEpoch,
+      );
+
   Vehicle copyWith({
     String? id,
     String? make,
@@ -162,3 +189,27 @@ class Vehicle {
     );
   }
 }
+
+/// Maps a Drift [VehicleRow] back to the domain [Vehicle].
+Vehicle vehicleFromDriftRow(VehicleRow row) => Vehicle(
+      id: row.id,
+      make: row.make,
+      model: row.model,
+      year: row.year,
+      registrationNumber: row.registrationNumber,
+      vin: row.vin,
+      purchaseDate: row.purchaseDate,
+      purchasePriceCents: row.purchasePriceCents,
+      currency: row.currency,
+      currentMileage: row.currentMileage,
+      vehicleType: row.vehicleType,
+      fuelType: row.fuelType,
+      distanceUnit: row.distanceUnit,
+      photoUrl: row.photoUrl,
+      photoPublicId: row.photoPublicId,
+      createdAt: DateTime.parse(row.createdAt),
+      updatedAt: DateTime.parse(row.updatedAt),
+      docsStatus: DocsStatus.fromJson(
+        jsonDecode(row.docsStatusJson) as Map<String, dynamic>,
+      ),
+    );

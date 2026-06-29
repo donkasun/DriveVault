@@ -22,6 +22,7 @@ class MaintenanceBase(BaseModel):
 
 
 class MaintenanceCreate(MaintenanceBase):
+    id: UUID | None = Field(default=None, description="Client-supplied UUID; generated server-side if omitted")
     date: date_type
     service_type: str = Field(alias="serviceType")
 

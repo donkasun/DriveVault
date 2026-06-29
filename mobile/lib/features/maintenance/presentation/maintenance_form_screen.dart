@@ -207,14 +207,16 @@ class _MaintenanceFormScreenState extends ConsumerState<MaintenanceFormScreen> {
         if (_notesCtrl.text.trim().isNotEmpty) 'notes': _notesCtrl.text.trim(),
       };
 
-      final repo = ref.read(maintenanceRepositoryProvider);
       if (_isEdit) {
+        final repo = ref.read(maintenanceRepositoryProvider);
         await repo.updateRecord(widget.existing!.id, data);
+        ref.invalidate(maintenanceRecordsProvider(widget.vehicleId));
       } else {
-        await repo.createRecord(widget.vehicleId, data);
+        await ref
+            .read(maintenanceRecordsProvider(widget.vehicleId).notifier)
+            .createOptimistic(widget.vehicleId, data);
       }
 
-      ref.invalidate(maintenanceRecordsProvider(widget.vehicleId));
       ref.invalidate(vehicleProvider(widget.vehicleId));
       ref.invalidate(vehiclesProvider);
       ref.invalidate(dashboardProvider);

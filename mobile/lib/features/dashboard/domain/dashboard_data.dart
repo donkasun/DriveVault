@@ -36,6 +36,15 @@ class DashboardData {
       recentActivity: activityList,
     );
   }
+
+  Map<String, dynamic> toJson() => {
+    'vehicleCount': vehicleCount,
+    'monthlyFuelSpendCents': monthlyFuelSpendCents,
+    'totalOwnershipCostCents': totalOwnershipCostCents,
+    'costBreakdown': costBreakdown.toJson(),
+    'upcomingRenewals': upcomingRenewals.map((r) => r.toJson()).toList(),
+    'recentActivity': recentActivity.map((a) => a.toJson()).toList(),
+  };
 }
 
 class CostBreakdown {
@@ -56,6 +65,12 @@ class CostBreakdown {
       purchaseCents: (json['purchaseCents'] as int?) ?? 0,
     );
   }
+
+  Map<String, dynamic> toJson() => {
+    'fuelCents': fuelCents,
+    'maintenanceCents': maintenanceCents,
+    'purchaseCents': purchaseCents,
+  };
 }
 
 /// Renewal status per the shared status scale:
@@ -109,6 +124,16 @@ class UpcomingRenewal {
           : null,
     );
   }
+
+  Map<String, dynamic> toJson() => {
+    'title': title,
+    'expiryDate': expiryDate,
+    if (vehicleId != null) 'vehicleId': vehicleId,
+    if (docType != null) 'docType': docType,
+    if (vehicleLabel != null) 'vehicleLabel': vehicleLabel,
+    if (daysRemaining != null) 'daysRemaining': daysRemaining,
+    if (status != null) 'status': status!.name,
+  };
 }
 
 /// Activity type for [ActivityItem].
@@ -162,4 +187,15 @@ class ActivityItem {
       isFull: json['isFullTank'] as bool?,
     );
   }
+
+  Map<String, dynamic> toJson() => {
+    'type': type.name,
+    'vehicleId': vehicleId,
+    'vehicleLabel': vehicleLabel,
+    'date': date,
+    'amountCents': amountCents,
+    'label': label,
+    if (liters != null) 'liters': liters,
+    if (isFull != null) 'isFullTank': isFull,
+  };
 }

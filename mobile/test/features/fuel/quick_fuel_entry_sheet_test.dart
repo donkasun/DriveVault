@@ -60,11 +60,16 @@ class _FakeFuelRepo extends FuelRepository {
 
   factory _FakeFuelRepo() {
     late _FakeFuelRepo instance;
-    final container = ProviderContainer(overrides: [
-      apiClientProvider.overrideWith(
-        (ref) => ApiClient(ref, dio: Dio(BaseOptions(baseUrl: 'http://localhost'))),
-      ),
-    ]);
+    final container = ProviderContainer(
+      overrides: [
+        apiClientProvider.overrideWith(
+          (ref) => ApiClient(
+            ref,
+            dio: Dio(BaseOptions(baseUrl: 'http://localhost')),
+          ),
+        ),
+      ],
+    );
     final client = container.read(apiClientProvider);
     instance = _FakeFuelRepo._internal(client);
     return instance;
@@ -75,16 +80,18 @@ class _FakeFuelRepo extends FuelRepository {
 
   @override
   Future<FuelStats> fetchFuelStats(String vehicleId) async => FuelStats(
-        avgConsumptionLPer100Km: null,
-        avgCostPerKmCents: null,
-        totalLiters: 40.0,
-        totalSpentCents: 8000,
-        monthlySpend: [],
-      );
+    avgConsumptionLPer100Km: null,
+    avgCostPerKmCents: null,
+    totalLiters: 40.0,
+    totalSpentCents: 8000,
+    monthlySpend: [],
+  );
 
   @override
   Future<FuelLog> createFuelLog(
-      String vehicleId, Map<String, dynamic> data) async {
+    String vehicleId,
+    Map<String, dynamic> data,
+  ) async {
     if (shouldThrow) throw Exception('network error');
     calls.add({...data, '_vehicleId': vehicleId});
     return _latestLog;
@@ -118,18 +125,18 @@ Widget _buildSheet(_FakeFuelRepo fakeRepo) {
       meProvider.overrideWith((_) async => _fakeUser),
       vehiclesProvider.overrideWith(() => _FakeVehiclesNotifier()),
       fuelLogsProvider.overrideWith((ref, id) async => [_latestLog]),
-      fuelStatsProvider.overrideWith((ref, id) async => FuelStats(
-            avgConsumptionLPer100Km: null,
-            avgCostPerKmCents: null,
-            totalLiters: 40.0,
-            totalSpentCents: 8000,
-            monthlySpend: [],
-          )),
+      fuelStatsProvider.overrideWith(
+        (ref, id) async => FuelStats(
+          avgConsumptionLPer100Km: null,
+          avgCostPerKmCents: null,
+          totalLiters: 40.0,
+          totalSpentCents: 8000,
+          monthlySpend: [],
+        ),
+      ),
     ],
     child: MaterialApp(
-      home: Scaffold(
-        body: QuickFuelEntrySheet(vehicleId: 'v-1'),
-      ),
+      home: Scaffold(body: QuickFuelEntrySheet(vehicleId: 'v-1')),
     ),
   );
 }
@@ -177,9 +184,15 @@ void main() {
       await tester.pumpAndSettle();
 
       // Each field has a ValueKey set in _buildTappableField.
-      expect(find.byKey(const ValueKey('fuel_field_Odometer (km)')), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('fuel_field_Odometer (km)')),
+        findsOneWidget,
+      );
       expect(find.byKey(const ValueKey('fuel_field_Liters')), findsOneWidget);
-      expect(find.byKey(const ValueKey('fuel_field_Total paid')), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('fuel_field_Total paid')),
+        findsOneWidget,
+      );
       expect(find.byKey(const ValueKey('fuel_field_Price/L')), findsOneWidget);
     });
 
@@ -191,14 +204,18 @@ void main() {
       expect(find.text('Partial'), findsOneWidget);
     });
 
-    testWidgets('renders numeric keypad with all expected keys', (tester) async {
+    testWidgets('renders numeric keypad with all expected keys', (
+      tester,
+    ) async {
       await tester.pumpWidget(_buildSheet(_FakeFuelRepo()));
       await tester.pumpAndSettle();
 
       for (final key in ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']) {
         expect(
           find.descendant(
-              of: find.byType(FuelNumericKeypad), matching: find.text(key)),
+            of: find.byType(FuelNumericKeypad),
+            matching: find.text(key),
+          ),
           findsOneWidget,
           reason: 'Keypad should have digit $key',
         );
@@ -212,8 +229,11 @@ void main() {
       await tester.pumpAndSettle();
 
       final saveBtn = tester.widget<FilledButton>(find.byType(FilledButton));
-      expect(saveBtn.onPressed, isNull,
-          reason: 'Save must be disabled when calc is incomplete');
+      expect(
+        saveBtn.onPressed,
+        isNull,
+        reason: 'Save must be disabled when calc is incomplete',
+      );
     });
 
     testWidgets('Save is disabled with only odometer entered', (tester) async {
@@ -226,14 +246,18 @@ void main() {
       await tester.pump();
 
       final saveBtn = tester.widget<FilledButton>(find.byType(FilledButton));
-      expect(saveBtn.onPressed, isNull,
-          reason: 'Save must be disabled without calc fields');
+      expect(
+        saveBtn.onPressed,
+        isNull,
+        reason: 'Save must be disabled without calc fields',
+      );
     });
 
     // ── AUTO tagging ─────────────────────────────────────────────────────────
 
-    testWidgets('Price/L shows AUTO when liters + total are both entered',
-        (tester) async {
+    testWidgets('Price/L shows AUTO when liters + total are both entered', (
+      tester,
+    ) async {
       await tester.pumpWidget(_buildSheet(_FakeFuelRepo()));
       await tester.pumpAndSettle();
 
@@ -252,11 +276,16 @@ void main() {
       await tester.pump();
 
       // Price/L should now show AUTO badge
-      expect(find.text('AUTO'), findsOneWidget,
-          reason: 'Price/L should be tagged AUTO when derived from liters+total');
+      expect(
+        find.text('AUTO'),
+        findsOneWidget,
+        reason: 'Price/L should be tagged AUTO when derived from liters+total',
+      );
     });
 
-    testWidgets('Liters shows AUTO when total + per-liter entered', (tester) async {
+    testWidgets('Liters shows AUTO when total + per-liter entered', (
+      tester,
+    ) async {
       await tester.pumpWidget(_buildSheet(_FakeFuelRepo()));
       await tester.pumpAndSettle();
 
@@ -278,48 +307,86 @@ void main() {
 
       await tester.pump();
 
-      expect(find.text('AUTO'), findsOneWidget,
-          reason: 'Liters should be tagged AUTO when derived from total+perLiter');
+      expect(
+        find.text('AUTO'),
+        findsOneWidget,
+        reason: 'Liters should be tagged AUTO when derived from total+perLiter',
+      );
+    });
+
+    testWidgets('Save is enabled when liters + price/L are entered', (
+      tester,
+    ) async {
+      await tester.pumpWidget(_buildSheet(_FakeFuelRepo()));
+      await tester.pumpAndSettle();
+
+      await _tapField(tester, 'Odometer (km)');
+      await _typeKeys(tester, '1000');
+
+      await _tapField(tester, 'Liters');
+      await _typeKeys(tester, '40');
+
+      await _tapField(tester, 'Price/L');
+      for (var i = 0; i < 5; i++) {
+        await _tapKey(tester, '⌫');
+      }
+      await _typeKeys(tester, '2');
+      await tester.pump();
+
+      expect(find.text('AUTO'), findsOneWidget);
+
+      final saveBtn = tester.widget<FilledButton>(find.byType(FilledButton));
+      expect(
+        saveBtn.onPressed,
+        isNotNull,
+        reason: 'Save must be enabled once the calc triple is complete',
+      );
     });
 
     // ── Save payload ─────────────────────────────────────────────────────────
 
-    testWidgets('saves with isFullTank=true, correct priceCents, derived liters',
-        (tester) async {
-      final fakeRepo = _FakeFuelRepo();
+    testWidgets(
+      'saves with isFullTank=true, correct priceCents, derived liters',
+      (tester) async {
+        final fakeRepo = _FakeFuelRepo();
 
-      await tester.pumpWidget(_buildSheet(fakeRepo));
-      await tester.pumpAndSettle();
+        await tester.pumpWidget(_buildSheet(fakeRepo));
+        await tester.pumpAndSettle();
 
-      // Enter odometer: 51000
-      await _tapField(tester, 'Odometer (km)');
-      await _typeKeys(tester, '51000');
+        // Enter odometer: 51000
+        await _tapField(tester, 'Odometer (km)');
+        await _typeKeys(tester, '51000');
 
-      // Enter Total: 100.00 → per-liter seeded at 2.00 → liters = 50
-      await _tapField(tester, 'Total paid');
-      await _typeKeys(tester, '100');
+        // Enter Total: 100.00 → per-liter seeded at 2.00 → liters = 50
+        await _tapField(tester, 'Total paid');
+        await _typeKeys(tester, '100');
 
-      await tester.pump();
+        await tester.pump();
 
-      // Save should now be enabled
-      final saveBtn = tester.widget<FilledButton>(find.byType(FilledButton));
-      expect(saveBtn.onPressed, isNotNull, reason: 'Save must be enabled');
+        // Save should now be enabled
+        final saveBtn = tester.widget<FilledButton>(find.byType(FilledButton));
+        expect(saveBtn.onPressed, isNotNull, reason: 'Save must be enabled');
 
-      await tester.tap(find.byType(FilledButton));
-      await tester.pumpAndSettle();
+        await tester.tap(find.byType(FilledButton));
+        await tester.pumpAndSettle();
 
-      expect(fakeRepo.calls, hasLength(1),
-          reason: 'createFuelLog should be called exactly once');
-      final call = fakeRepo.calls.first;
-      expect(call['isFullTank'], isTrue);
-      expect((call['liters'] as double), closeTo(50.0, 0.01));
-      expect(call['priceCents'], equals(10000));
-    });
+        expect(
+          fakeRepo.calls,
+          hasLength(1),
+          reason: 'createFuelLog should be called exactly once',
+        );
+        final call = fakeRepo.calls.first;
+        expect(call['isFullTank'], isTrue);
+        expect((call['liters'] as double), closeTo(50.0, 0.01));
+        expect(call['priceCents'], equals(10000));
+      },
+    );
 
     // ── Double-submit guard ──────────────────────────────────────────────────
 
-    testWidgets('tapping Save twice does not send duplicate requests',
-        (tester) async {
+    testWidgets('tapping Save twice does not send duplicate requests', (
+      tester,
+    ) async {
       final fakeRepo = _FakeFuelRepo();
 
       await tester.pumpWidget(_buildSheet(fakeRepo));
@@ -338,14 +405,18 @@ void main() {
       await tester.tap(find.byType(FilledButton)); // should be no-op
       await tester.pumpAndSettle();
 
-      expect(fakeRepo.calls, hasLength(1),
-          reason: 'Double-tap must send only one createFuelLog call');
+      expect(
+        fakeRepo.calls,
+        hasLength(1),
+        reason: 'Double-tap must send only one createFuelLog call',
+      );
     });
 
     // ── Partial tank ─────────────────────────────────────────────────────────
 
-    testWidgets('switching to Partial sets isFullTank=false in payload',
-        (tester) async {
+    testWidgets('switching to Partial sets isFullTank=false in payload', (
+      tester,
+    ) async {
       final fakeRepo = _FakeFuelRepo();
 
       await tester.pumpWidget(_buildSheet(fakeRepo));
@@ -371,8 +442,9 @@ void main() {
 
     // ── Running total on Save button ─────────────────────────────────────────
 
-    testWidgets('Save button shows running total when calc is complete',
-        (tester) async {
+    testWidgets('Save button shows running total when calc is complete', (
+      tester,
+    ) async {
       await tester.pumpWidget(_buildSheet(_FakeFuelRepo()));
       await tester.pumpAndSettle();
 
@@ -438,20 +510,22 @@ void main() {
       expect(calc.isComplete, isFalse);
     });
 
-    test('re-derive: editing previously-derived field switches derived target',
-        () {
-      // Start: total + perLiter → AUTO liters
-      final calc = FuelEntryCalc();
-      calc.setField(FuelField.total, 100.0);
-      calc.setField(FuelField.perLiter, 2.0);
-      expect(calc.derivedField, FuelField.liters);
-      expect(calc.liters, closeTo(50.0, 1e-9));
+    test(
+      're-derive: editing previously-derived field switches derived target',
+      () {
+        // Start: total + perLiter → AUTO liters
+        final calc = FuelEntryCalc();
+        calc.setField(FuelField.total, 100.0);
+        calc.setField(FuelField.perLiter, 2.0);
+        expect(calc.derivedField, FuelField.liters);
+        expect(calc.liters, closeTo(50.0, 1e-9));
 
-      // Now user edits the derived liters field → total becomes AUTO
-      calc.setField(FuelField.liters, 40.0);
-      expect(calc.derivedField, FuelField.total);
-      expect(calc.total, closeTo(80.0, 1e-9));
-    });
+        // Now user edits the derived liters field → total becomes AUTO
+        calc.setField(FuelField.liters, 40.0);
+        expect(calc.derivedField, FuelField.total);
+        expect(calc.total, closeTo(80.0, 1e-9));
+      },
+    );
 
     test('null (cleared) input removes field from locked pair', () {
       final calc = FuelEntryCalc(initialPerLiter: 2.0);

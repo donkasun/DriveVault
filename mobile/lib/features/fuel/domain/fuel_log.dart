@@ -1,3 +1,6 @@
+import 'package:drift/drift.dart';
+
+import '../../../core/database/app_database.dart';
 import '../../../shared/constants/currencies.dart';
 
 class FuelLog {
@@ -53,3 +56,33 @@ class FuelLog {
     'createdAt': createdAt.toIso8601String(),
   };
 }
+
+extension FuelLogDriftX on FuelLog {
+  FuelLogsCompanion toDrift({String syncStatus = 'synced'}) =>
+      FuelLogsCompanion.insert(
+        id: id,
+        vehicleId: vehicleId,
+        date: date,
+        liters: liters,
+        priceCents: priceCents,
+        currency: Value(currency),
+        odometer: odometer,
+        isFullTank: Value(isFullTank),
+        notes: Value(notes),
+        syncStatus: Value(syncStatus),
+        cachedAt: DateTime.now().millisecondsSinceEpoch,
+      );
+}
+
+FuelLog fuelLogFromDriftRow(FuelLogRow row) => FuelLog(
+      id: row.id,
+      vehicleId: row.vehicleId,
+      date: row.date,
+      liters: row.liters,
+      priceCents: row.priceCents,
+      currency: row.currency,
+      odometer: row.odometer,
+      isFullTank: row.isFullTank,
+      notes: row.notes,
+      createdAt: DateTime.fromMillisecondsSinceEpoch(row.cachedAt),
+    );

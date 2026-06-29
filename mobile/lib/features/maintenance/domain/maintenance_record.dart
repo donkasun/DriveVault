@@ -1,3 +1,7 @@
+import 'package:drift/drift.dart';
+
+import '../../../core/database/app_database.dart';
+
 class MaintenanceRecord {
   final String id;
   final String vehicleId;
@@ -58,3 +62,38 @@ class MaintenanceRecord {
         'createdAt': createdAt.toIso8601String(),
       };
 }
+
+extension MaintenanceDriftX on MaintenanceRecord {
+  MaintenanceRecordsCompanion toDrift({String syncStatus = 'synced'}) =>
+      MaintenanceRecordsCompanion.insert(
+        id: id,
+        vehicleId: vehicleId,
+        date: date,
+        serviceType: serviceType,
+        category: Value(category),
+        costCents: Value(costCents),
+        currency: Value(currency),
+        odometer: Value(odometer),
+        workshop: Value(workshop),
+        notes: Value(notes),
+        source: Value(source),
+        syncStatus: Value(syncStatus),
+        cachedAt: DateTime.now().millisecondsSinceEpoch,
+      );
+}
+
+MaintenanceRecord maintenanceFromDriftRow(MaintenanceRow row) =>
+    MaintenanceRecord(
+      id: row.id,
+      vehicleId: row.vehicleId,
+      date: row.date,
+      serviceType: row.serviceType,
+      category: row.category,
+      costCents: row.costCents,
+      currency: row.currency,
+      odometer: row.odometer,
+      workshop: row.workshop,
+      notes: row.notes,
+      source: row.source,
+      createdAt: DateTime.fromMillisecondsSinceEpoch(row.cachedAt),
+    );
