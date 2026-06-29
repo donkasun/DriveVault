@@ -18,11 +18,13 @@ void main() async {
       options: DefaultFirebaseOptions.currentPlatform,
     );
   }
-  SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
-    statusBarColor: Colors.transparent,
-    statusBarBrightness: Brightness.light,       // iOS: dark icons
-    statusBarIconBrightness: Brightness.dark,    // Android: dark icons
-  ));
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarBrightness: Brightness.light, // iOS: dark icons
+      statusBarIconBrightness: Brightness.dark, // Android: dark icons
+    ),
+  );
   runApp(const ProviderScope(child: DriveVaultApp()));
 }
 
@@ -39,7 +41,10 @@ class _DriveVaultAppState extends ConsumerState<DriveVaultApp> {
   @override
   void initState() {
     super.initState();
-    _observer = AppLifecycleObserver(ref);
+    _observer = AppLifecycleObserver(
+      refreshDashboard: () => ref.read(dashboardProvider.notifier).refresh(),
+      refreshVehicles: () => ref.read(vehiclesProvider.notifier).refresh(),
+    );
     WidgetsBinding.instance.addObserver(_observer);
   }
 

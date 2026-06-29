@@ -8,13 +8,19 @@ Read this before writing any code. It keeps every coding session consistent. The
 specs live in `docs/` — **this file is the rules; those docs are the source of truth for
 decisions.**
 
-## Read order (always)
-1. `docs/01-tech-spec.md` — stack, architecture, conventions (authoritative for tech decisions)
-2. `docs/02-database-schema.md` — exact tables/columns/types
-3. `docs/03-api-contract.md` — exact endpoint request/response shapes
-4. `docs/04-phase1-tasks.md` — pick ONE task and do only that task
+## Source-of-truth docs (read the section relevant to your task)
+- `docs/01-tech-spec.md` — stack, architecture, conventions (authoritative for tech decisions)
+- `docs/02-database-schema.md` — exact tables/columns/types
+- `docs/03-api-contract.md` — exact endpoint request/response shapes
+- `docs/04-phase1-tasks.md` — task list; pick ONE task and do only that task
 
+Read what your task touches, not all four every time — a task brief already carries
+its requirements. Consult the schema/contract docs before changing tables or endpoints.
 When the PRD and these docs disagree on a technical detail, **the docs win**.
+
+For situational details, read on demand (not loaded every session):
+- `docs/ops-notes.md` — local backend/Docker, Cloud Run deploy, machine build quirks
+- `docs/ui-conventions.md` — mobile form/screen/picker conventions
 
 ---
 
@@ -100,25 +106,9 @@ When unsure, stop and ask. A small clarifying question is cheaper than a wrong i
   - **Never use Fable** for any task — it is not approved for this project.
   - Use judgement: anything ambiguous, cross-cutting, or contract-affecting stays in the main session; only dispatch once the task is well-defined. Default to the cheapest model that can do the job correctly.
 - **Test scope:** run only the tests relevant to the feature(s) being changed — not the full battery — for isolated changes (e.g. `flutter test test/features/fuel`, or the specific backend test module). Reserve a full-suite run for broad/cross-cutting changes or a final pre-merge check. Subagents fixing one feature should likewise run just that feature's tests + a scoped `analyze`.
-- Mobile form screens use the shared `FormScreenAppBar`: centered title, Cancel text button on the left, primary pill Save on the right (`horizontal: 12`, `vertical: 6`), and a smaller title font size (`16`).
-- Keep delete/destructive resource actions on detail/view screens, not on edit forms; destructive profile actions (e.g. sign out) use red styling with a confirmation bottom sheet.
-- Currency pickers use a bottom-sheet field (`BottomSheetPickerField`): rows show symbol + name, selection stores the ISO code, and the closed field shows the currency name only.
-- On fuel log forms, place the Full tank toggle on the same row as the Liters field.
-- Add vehicle form: odometer section above registration; distance-unit picker offers mile/km only and defaults to the user's preference; vehicle type defaults to Car; photo upload uses a light yellow background.
+- **Mobile UI conventions** (form headers, pickers, specific forms, navigation) live in `docs/ui-conventions.md` — read it when building or editing a mobile screen.
 
 ## Learned Workspace Facts
 
-- Phase 1 Batch 1 development uses branch `batch-1` with parallel worktrees for backend models and mobile auth.
-- Claude Code Neon MCP is configured in `.mcp.json` (OAuth at `https://mcp.neon.tech/mcp`, safe to commit); no Render MCP (Render replaced by Cloud Run).
-- Backend hosting is Google Cloud Run (`--min-instances=0`) — always-free tier, ~1-3s cold starts. Live URL: `https://drivevault-backend-250609806849.us-central1.run.app`. Deploy via `gcloud run deploy` or push to `main` (GitHub Actions auto-deploys on `backend/**` changes).
-- GCP deploy service account: `github-deployer@drivevault-app.iam.gserviceaccount.com` (roles: `run.admin`, `artifactregistry.writer`, `iam.serviceAccountUser`). Key stored as `GCP_SA_KEY` GitHub secret.
-- When building the Docker image locally on Apple Silicon (arm64), always pass `--platform=linux/amd64` — Cloud Run requires amd64 and will reject an arm64 image with a manifest type error.
-- Firebase service-account credentials stored in GCP Secret Manager as `firebase-credentials` (project `drivevault-app`), injected into Cloud Run as `FIREBASE_CREDENTIALS_JSON`.
-- UI design references live in `docs/design-references/` (`mockup-screens.html`, `DESIGN-LANGUAGE.md`, `ref-0N-*.png` screenshots).
-- Local backend Docker Postgres may bind to host port 5433 when macOS Postgres already occupies 5432.
-- **After any backend code change, restart the local Docker backend container** so the new code takes effect: `docker compose restart backend` (or `docker compose up --build backend -d` if dependencies changed). Do not assume the running container picked up file changes automatically.
+- **Operational details** (local backend/Docker, Cloud Run deploy, machine build quirks, MCP) live in `docs/ops-notes.md` — read it when doing the relevant operation.
 - Email verification was originally a hard gate (task C2d, plan `docs/superpowers/plans/2026-06-09-email-verification-gate.md`) but was later replaced by the soft `VerifyEmailBanner` nudge — see `docs/superpowers/specs/2026-06-13-fuel-economy-quick-entry-verify-banner-design.md`.
-- `MainShell` stacks a floating tab bar above tab navigators; bottom sheets/modals that must cover the tab bar need `useRootNavigator: true`.
-- Shared form headers now live in `mobile/lib/shared/widgets/form_screen_app_bar.dart` and are used by fuel, vehicle, maintenance, document upload, and profile forms.
-- **iOS Simulator always runs against the local Docker backend (`localhost:8000`).** No `--dart-define=API_BASE_URL` is set, so the app defaults to `localhost:8000`. The local Docker Postgres (port 5433) is the test DB — it has the 2015 Toyota Hilux and CR Test user data. Neon is production only. Always keep the local backend running (`docker compose up`) when using the simulator.
-- **`dart run build_runner` requires `--force-jit` on this machine** (Homebrew Flutter SDK is missing the `gen_snapshot` binary — only a `.sym` stub is present). Always run: `dart run build_runner build --delete-conflicting-outputs --force-jit`
