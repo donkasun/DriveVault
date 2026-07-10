@@ -1,5 +1,9 @@
+import 'dart:async';
+import 'dart:ui' as ui;
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -156,7 +160,7 @@ class _VehicleDetailBody extends ConsumerWidget {
 // Hero photo area — clean, no overlaid text
 // ---------------------------------------------------------------------------
 
-class _HeroAppBar extends StatelessWidget {
+class _HeroAppBar extends StatefulWidget {
   final Vehicle vehicle;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
@@ -168,11 +172,118 @@ class _HeroAppBar extends StatelessWidget {
   });
 
   @override
+  State<_HeroAppBar> createState() => _HeroAppBarState();
+}
+
+class _HeroAppBarState extends State<_HeroAppBar> {
+  SystemUiOverlayStyle _overlayStyle = SystemUiOverlayStyle.light.copyWith(
+    statusBarColor: Colors.transparent,
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _updateOverlayStyle();
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant _HeroAppBar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.vehicle.photoUrl != widget.vehicle.photoUrl) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _updateOverlayStyle();
+      });
+    }
+  }
+
+  Future<void> _updateOverlayStyle() async {
+    final photoUrl = widget.vehicle.photoUrl;
+    if (photoUrl == null || photoUrl.trim().isEmpty) {
+      if (!mounted) return;
+      setState(() {
+        _overlayStyle = SystemUiOverlayStyle.light.copyWith(
+          statusBarColor: Colors.transparent,
+        );
+      });
+      return;
+    }
+
+    try {
+      final provider = CachedNetworkImageProvider(photoUrl);
+      final stream = provider.resolve(createLocalImageConfiguration(context));
+      final completer = Completer<ui.Image>();
+      late final ImageStreamListener listener;
+      listener = ImageStreamListener(
+        (image, _) {
+          completer.complete(image.image);
+          stream.removeListener(listener);
+        },
+        onError: (error, stackTrace) {
+          stream.removeListener(listener);
+          if (!completer.isCompleted) completer.completeError('image error');
+        },
+      );
+      stream.addListener(listener);
+
+      final image = await completer.future;
+      final byteData = await image.toByteData(
+        format: ui.ImageByteFormat.rawRgba,
+      );
+      if (byteData == null) return;
+
+      final style = _styleForImage(byteData, image.width, image.height);
+      if (!mounted) return;
+      setState(() {
+        _overlayStyle = style.copyWith(statusBarColor: Colors.transparent);
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _overlayStyle = SystemUiOverlayStyle.light.copyWith(
+          statusBarColor: Colors.transparent,
+        );
+      });
+    }
+  }
+
+  SystemUiOverlayStyle _styleForImage(ByteData data, int width, int height) {
+    final bytes = data.buffer.asUint8List();
+    final sampleRows = (height * 0.2).clamp(1, 80).toInt();
+    const step = 12;
+
+    double sum = 0;
+    int count = 0;
+    for (var y = 0; y < sampleRows; y += 1) {
+      for (var x = 0; x < width; x += step) {
+        final index = (y * width + x) * 4;
+        if (index + 3 >= bytes.length) continue;
+        final r = bytes[index];
+        final g = bytes[index + 1];
+        final b = bytes[index + 2];
+        final luminance = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255.0;
+        sum += luminance;
+        count++;
+      }
+    }
+
+    final average = count == 0 ? 0.5 : sum / count;
+    return average > 0.58
+        ? SystemUiOverlayStyle.dark
+        : SystemUiOverlayStyle.light;
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final vehicle = widget.vehicle;
     return SliverAppBar(
       expandedHeight: 160,
       pinned: true,
       backgroundColor: AppColors.surfaceDark,
+      systemOverlayStyle: _overlayStyle,
       automaticallyImplyLeading: false,
       leading: Padding(
         padding: const EdgeInsets.only(left: 12),
@@ -184,9 +295,9 @@ class _HeroAppBar extends StatelessWidget {
         ),
       ),
       actions: [
-        _CircleNavButton(icon: Icons.edit_outlined, onTap: onEdit),
+        _CircleNavButton(icon: Icons.edit_outlined, onTap: widget.onEdit),
         const SizedBox(width: 8),
-        _CircleNavButton(icon: Icons.delete_outline, onTap: onDelete),
+        _CircleNavButton(icon: Icons.delete_outline, onTap: widget.onDelete),
         const SizedBox(width: 12),
       ],
       flexibleSpace: FlexibleSpaceBar(

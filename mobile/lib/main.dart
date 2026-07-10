@@ -6,6 +6,8 @@ import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 
 import 'core/config/app_config.dart';
+import 'features/dashboard/presentation/dashboard_provider.dart';
+import 'features/vehicles/presentation/vehicles_provider.dart';
 import 'core/router/app_router.dart';
 import 'core/sync/app_lifecycle_observer.dart';
 import 'core/theme/app_theme.dart';
