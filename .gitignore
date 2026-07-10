@@ -28,8 +28,18 @@ env/
 .coverage
 htmlcov/
 
+# ---- Next.js / web ----
+web/node_modules/
+web/.next/
+web/out/
+web/.vercel/
+web/*.tsbuildinfo
+!web/.env.example
+
 # ---- Flutter / mobile ----
 mobile/.dart_tool/
+mobile-rn/node_modules/
+mobile-rn/.expo/
 mobile/.flutter-plugins
 mobile/.flutter-plugins-dependencies
 mobile/.packages
