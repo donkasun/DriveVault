@@ -235,12 +235,24 @@ routes in a side-by-side check.
 
 **Port:** dashboard, activity, driving_credentials (+ renewals helpers)
 
-- [ ] `GET /dashboard` — same aggregation rules as Doc 3 (renewals window, activity merge)
-- [ ] `GET /activity?limit=`
-- [ ] Driving credentials under `/me/driving-credentials`
+- [x] `GET /dashboard` — same aggregation rules as Doc 3 (renewals window, activity merge)
+- [x] `GET /activity?limit=`
+- [x] Driving credentials under `/me/driving-credentials`
 - [ ] Snapshot tests or golden JSON from FastAPI responses vs Next for a seeded user
+      **Blocked:** no live FastAPI instance in this session to diff against.
 
 **Done when:** home-screen payload matches FastAPI for the seeded Hilux user.
+
+> **Reviewer note (Phase 5b — upcomingRenewals):** Doc 3 describes
+> `upcomingRenewals` as vehicle documents only. Real Python
+> (`backend/app/services/dashboard.py`) also merges driving credentials
+> (`user_documents`) with `vehicleId` / `vehicleLabel` null and
+> `DOC_TYPE_LABELS` for `title`. Next.js matches Python.
+>
+> **Reviewer note (Phase 5b — /activity):** Doc 3 has no `/activity` section.
+> Python is sole source of truth. The feed shape is richer than dashboard
+> `recentActivity` (includes `id`, `currency`, type-specific fields) and does
+> **not** include credentials. Next.js matches Python.
 
 ---
 
