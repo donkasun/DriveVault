@@ -161,21 +161,21 @@ stub.
 
 ### Tasks
 
-- [ ] **1.1** Add `.env.example` mirroring `backend/.env.example` (Next-friendly names OK;
+- [x] **1.1** Add `.env.example` mirroring `backend/.env.example` (Next-friendly names OK;
       document mapping). Include `INTERNAL_SECRET`.
-- [ ] **1.2** Install foundation deps (list in §3); configure `drizzle.config.ts`.
-- [ ] **1.3** Port Doc 2 tables to `server/db/schema.ts` (snake_case columns, UUID PKs,
+- [x] **1.2** Install foundation deps (list in §3); configure `drizzle.config.ts`.
+- [x] **1.3** Port Doc 2 tables to `server/db/schema.ts` (snake_case columns, UUID PKs,
       timestamptz). Generate initial Drizzle migration **from the live schema** or by
       translating Alembic — do not invent columns.
-- [ ] **1.4** `server/db/client.ts` — Neon serverless in prod, local connection for Docker
+- [x] **1.4** `server/db/client.ts` — Neon serverless in prod, local connection for Docker
       Postgres (`localhost:5433` when applicable).
-- [ ] **1.5** `server/auth/firebase-admin.ts` + `requireUser(req)` porting
+- [x] **1.5** `server/auth/firebase-admin.ts` + `requireUser(req)` porting
       `backend/app/deps.py` (verify token, lazy upsert, email_verified rules).
-- [ ] **1.6** `server/lib/errors.ts` — `toErrorResponse` → `{ detail }` + correct status.
-- [ ] **1.7** `GET /health` → `{ "status": "ok" }`.
-- [ ] **1.8** Smoke route `GET /api/v1/me` (can be Phase 2) or a temporary
+- [x] **1.6** `server/lib/errors.ts` — `toErrorResponse` → `{ detail }` + correct status.
+- [x] **1.7** `GET /health` → `{ "status": "ok" }`.
+- [x] **1.8** Smoke route `GET /api/v1/me` (can be Phase 2) or a temporary
       `GET /api/v1/_auth-check` that returns `{ uid }` — remove before cutover.
-- [ ] **1.9** Vitest: mock Firebase; assert 401 without token; 200 with mocked token.
+- [x] **1.9** Vitest: mock Firebase; assert 401 without token; 200 with mocked token.
 
 **Done when:** health public; auth dependency unit-tested; Drizzle can `select` from
 `users` against local Docker Postgres.
@@ -186,10 +186,12 @@ stub.
 
 **Port:** `backend/app/routers/me.py`, `services/users.py`, `schemas/users.py`
 
-- [ ] Zod schemas for GET response + PATCH body (currency forced `LKR`).
-- [ ] `GET/PATCH /api/v1/me` Route Handlers.
-- [ ] Tests: create-on-first-call; patch displayName / distanceUnit / renewalRemindersEnabled.
+- [x] Zod schemas for GET response + PATCH body (currency forced `LKR`).
+- [x] `GET/PATCH /api/v1/me` Route Handlers.
+- [x] Tests: create-on-first-call; patch displayName / distanceUnit / renewalRemindersEnabled.
 - [ ] Manual smoke with a real Firebase ID token against local Next + Docker DB.
+      **Blocked:** no real Firebase credentials in this session; 401-without-token smoke
+      (Vitest) is enough for now.
 
 **Done when:** mobile (or curl) can hit Next.js `/api/v1/me` with parity to FastAPI.
 
