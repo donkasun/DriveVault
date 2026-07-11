@@ -201,11 +201,11 @@ stub.
 
 **Port:** `routers/vehicles.py`, `services/vehicles.py`, `services/fuel_logs.py`, schemas
 
-- [ ] CRUD `/api/v1/vehicles` + `/api/v1/vehicles/{id}`
-- [ ] Fuel logs nested + top-level patch/delete
-- [ ] `GET .../fuel-stats` — port pure math from Python service **with the same fixtures**
+- [x] CRUD `/api/v1/vehicles` + `/api/v1/vehicles/{id}`
+- [x] Fuel logs nested + top-level patch/delete
+- [x] `GET .../fuel-stats` — port pure math from Python service **with the same fixtures**
       as `backend/tests` so numbers match exactly
-- [ ] Ownership 404 tests (cross-user)
+- [x] Ownership 404 tests (cross-user)
 
 **Done when:** vehicle + fuel test suite parity; Flutter/RN can point at Next for these
 routes in a side-by-side check.
