@@ -216,13 +216,18 @@ routes in a side-by-side check.
 
 **Port:** maintenance, documents, uploads services/routers
 
-- [ ] Maintenance CRUD + category filters
-- [ ] Documents CRUD + `docType` query alias
-- [ ] `POST /uploads/cloudinary-signature` — same signature algorithm as
+- [x] Maintenance CRUD + category filters
+- [x] Documents CRUD + `docType` query alias
+- [x] `POST /uploads/cloudinary-signature` — same signature algorithm as
       `backend/app/services/uploads.py` (no Cloudinary SDK required)
-- [ ] Confirm file bytes never hit the Next server
+- [x] Confirm file bytes never hit the Next server
 
 **Done when:** upload signature works from mobile; document + maintenance CRUD parity.
+
+> **Reviewer note (Phase 4b):** Doc 3 says `DELETE /documents/{id}` also removes the
+> Cloudinary asset via `public_id`. Real Python (`routers/documents.py`) only deletes
+> the DB row. Next.js matches Python (DB-only delete). Fixing Cloudinary cleanup is a
+> separate follow-up if desired — do not treat it as a Next.js regression.
 
 ---
 
