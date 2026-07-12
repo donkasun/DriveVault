@@ -1,8 +1,5 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { drizzle, DrizzlePostgresLibSqlDatabaseType, SQLiteColumnHelper } from 'drizzle-orm';
-import { sqliteTable, text, integer, boolean, timestamp } from 'drizzle-orm/sqlite-core';
-import { promises as fs } from 'fs';
+import { describe, it } from 'vitest';
 
-describe('In-memory database tests', () => {
-  // This would be a separate test suite that doesn't require Docker
+describe.skip('In-memory database tests (Phase 6a stub — disabled)', () => {
+  it('placeholder', () => {});
 });

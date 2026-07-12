@@ -19,7 +19,7 @@ logic/UI separation, duplication, re-rendering).
 | `tsc --noEmit` | ✅ Clean | No type errors. |
 | `eslint src` | ✅ Clean | No lint errors. |
 | Pure-logic unit tests | ✅ 20 passing | fuel-stats math, cloudinary signature, renewals, docs-status, vehicle-label. |
-| DB-integration tests | ⚠️ Not runnable here | 99 tests require a live Postgres; Docker/psql unavailable in this environment. Not failures of the code — every failure is "cannot connect to `localhost:5433`". |
+| DB-integration tests | ✅ Green (2026-07-12) | Full suite against local Docker Postgres (`localhost:5433`): **120 passed, 2 skipped**. Unblocked by restoring `server/db/client.ts` (Phase 6a had left illegal `export`s inside `try/catch`) and restoring the real vehicles `[id]` route integration test (Phase 6a `vi.doSpyModule` mock was invalid). |
 
 ### 1.1 Install fix (what was wrong)
 
@@ -132,7 +132,7 @@ The port is **faithful**. Verified line-by-line against `backend/`:
 
 | # | Severity | Issue | Status / recommendation |
 |---|---|---|---|
-| R1 | **High (process)** | Full test suite never executed against a real DB in this session (no Docker/psql). Correctness of the 99 integration tests is unproven here. | Run `pnpm test` against local Docker Postgres before trusting the migration. |
+| R1 | ~~**High (process)**~~ | ~~Full test suite never executed against a real DB.~~ **Resolved 2026-07-12** — `pnpm test` against Docker Postgres: 120 passed / 2 skipped. | Done. |
 | R2 | Medium | **Validation status drift: 400 vs 422.** Zod failures return **400**; FastAPI/Pydantic returned **422** for bad bodies and invalid-UUID path params. Documented as intentional in the route handlers. | Confirm the mobile client does not branch on `422` specifically. If it does, map Zod errors to 422 in `toErrorResponse`. |
 | R3 | Low | ~~**Temp route `_auth-check`**~~ **Resolved 2026-07-12** — route + test deleted. | Done. |
 | R4 | Low | **Banker's-rounding drift** in fuel-stats (`Math.round` half-up vs Python round-half-to-even). Only bites on exact `.5`-cent values; current fixtures don't hit it. | Documented in `fuel-stats.ts`. Accept, or implement round-half-to-even if strict parity matters. |
@@ -221,8 +221,8 @@ improvise):
 
 ## 5. Action items (prioritized)
 
-1. **[High]** Run `pnpm test` against local Docker Postgres and confirm all 119 tests
-   green (R1).
+1. ~~**[High]** Run `pnpm test` against local Docker Postgres and confirm all 119 tests
+   green (R1).~~ ✅ Done 2026-07-12 — 120 passed / 2 skipped.
 2. **[Medium]** Decide 400-vs-422 policy with the mobile client (R2).
 3. ~~**[Low]** Delete `app/api/v1/_auth-check/` before cutover (R3).~~ ✅ Done 2026-07-12.
 4. **[Low]** One live-FastAPI golden-JSON parity diff for a seeded user at cutover (R5).
