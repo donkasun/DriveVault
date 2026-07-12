@@ -171,3 +171,33 @@ export const userDocuments = pgTable(
     ),
   ],
 );
+
+// Ported from backend/app/models/reminders.py — generated alerts for service
+// due or document expiry.
+export const reminders = pgTable(
+  'reminders',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    vehicleId: uuid('vehicle_id').references(() => vehicles.id, { onDelete: 'cascade' }),
+    userDocumentId: uuid('user_document_id').references(() => userDocuments.id, {
+      onDelete: 'cascade',
+    }),
+    // Nullable UUID WITHOUT a FK — the maintenance_schedules table is not modeled in Drizzle yet.
+    scheduleId: uuid('schedule_id'),
+    // Nullable UUID WITHOUT a FK — the real DB FK exists (documents.id) but Drizzle doesn't need
+    // to model it here.
+    documentId: uuid('document_id'),
+    reminderType: text('reminder_type').notNull(),
+    title: text('title').notNull(),
+    dueDate: date('due_date'),
+    dueOdometer: integer('due_odometer'),
+    status: text('status').notNull().default('pending'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('ix_reminders_vehicle_id').on(table.vehicleId),
+    index('ix_reminders_status').on(table.status),
+    index('ix_reminders_due_date').on(table.dueDate),
+  ],
+);

@@ -260,12 +260,23 @@ routes in a side-by-side check.
 
 **Port:** `internal.py`, `reminder_processing.py`, FCM send path
 
-- [ ] `POST /api/v1/internal/process-reminders` guarded by `X-Internal-Secret`
-- [ ] `vercel.json` cron schedule (match existing Cloud Scheduler cadence)
+- [x] `POST /api/v1/internal/process-reminders` guarded by `X-Internal-Secret`
+      (+ `GET` variant authed by `Authorization: Bearer <CRON_SECRET|INTERNAL_SECRET>`
+      for Vercel Cron, which cannot send POST/custom headers)
+- [x] `vercel.json` cron schedule — daily `0 2 * * *` (no prior Cloud Scheduler cadence
+      was committed; daily fits the 30/7/1-day thresholds — **confirm cadence/time**)
 - [ ] Verify FCM send still works with Firebase Admin on Vercel
 - [ ] Retire Cloud Scheduler → Cloud Run job only after Next cron is proven
 
 **Done when:** one successful scheduled run in preview/prod; secret rejection tested.
+
+> **Reviewer note (Phase 6):** `reminders` table added to Drizzle `schema.ts`
+> (`scheduleId`/`documentId` as nullable UUIDs without Drizzle FKs — the
+> `maintenance_schedules` table isn't modeled yet; matches the `aiExtractionId`
+> precedent). `reminder-processing.ts` preserves Python's `sent`-counter quirk
+> (incremented on every reminder created, regardless of FCM outcome). FCM send is
+> isolated in `services/fcm.ts` so tests can mock it. Route tests 8/8 (service
+> mocked); the reminder-processing integration test needs local Docker Postgres.
 
 ---
 

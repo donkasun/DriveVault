@@ -1,8 +1,22 @@
 # FastAPI → Next.js Migration Audit
 
-> **Scope:** Phases 1–5 of `web/docs/migration-plan.md` (the API port). Phases 6–8
-> (internal reminders/cron, marketing pages, cutover) are not yet implemented.
+> **Scope:** Phases 1–6 of `web/docs/migration-plan.md` (the API port + internal
+> reminders/cron). Phases 7–8 (marketing pages, cutover) are not yet implemented.
 > **Date:** 2026-07-12 · **Branch:** `feat/fastapi-to-nextjs-migration`
+
+> **Phase 6 (added 2026-07-12):** ported `internal.py` + `reminder_processing.py` +
+> FCM send path. New: `reminders` Drizzle table; `server/services/reminder-processing.ts`
+> (faithful port incl. the `sent`-counter quirk); `server/services/fcm.ts` (mockable
+> sender); `firebaseMessaging` export; `POST /api/v1/internal/process-reminders`
+> (`X-Internal-Secret` parity) **plus** a `GET` variant authed by
+> `Authorization: Bearer <CRON_SECRET|INTERNAL_SECRET>` for Vercel Cron; `vercel.json`
+> daily cron `0 2 * * *` (02:00 UTC ≈ 07:30 SLT). `tsc`/`eslint` clean; route tests
+> 8/8 (service mocked); reminder-processing integration tests need Docker Postgres.
+> **Assumptions to confirm:** (a) daily cadence & 02:00 UTC time (no prior Cloud
+> Scheduler config was committed to match); (b) Vercel Cron auth via Bearer — set
+> `CRON_SECRET` in Vercel to the same value as `INTERNAL_SECRET`. Phase 6 plan items
+> still open: verify FCM actually sends on Vercel, and retire Cloud Scheduler after
+> one proven scheduled run.
 
 This document records (a) the toolchain/verification state after fixing the install,
 (b) contract-parity findings vs the FastAPI source, (c) issues & risks, and

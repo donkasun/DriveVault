@@ -2,6 +2,7 @@ import 'server-only';
 
 import { cert, getApps, initializeApp, type App } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
+import { getMessaging } from 'firebase-admin/messaging';
 
 function createFirebaseApp(): App {
   const existing = getApps();
@@ -34,3 +35,4 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 export const firebaseAuth = getAuth(app);
+export const firebaseMessaging = getMessaging(app);
