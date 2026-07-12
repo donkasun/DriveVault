@@ -100,11 +100,11 @@ When unsure, stop and ask. A small clarifying question is cheaper than a wrong i
 - Use isolated git worktrees under `.worktrees/` for parallel Phase 1 task branches (e.g. `task/backend-models`, `task/mobile-auth`).
 - When pointed at a plan in `docs/superpowers/plans/`, implement that plan rather than improvising.
 - Configure project MCP for Claude Code via repo-root `.mcp.json`; Cursor MCP plugins are separate and not shared automatically.
-- **Model delegation (pay special attention to cost):** cost discipline is a first-class concern on every task. Keep the main session (Opus) for planning, contract/schema decisions, and review — and offload the actual work to subagents, choosing the model by task complexity:
-  - **Coding/implementation tasks → Sonnet subagents** (e.g. writing a router/service, building a screen, implementing a well-specified task from `07-fuel-prefs-tasks.md`). Give the subagent the exact task + the relevant doc sections.
-  - **Small mechanical tasks → Haiku subagents** (file moves/renames/deletes, `grep`/search/locate, simple find-and-replace, listing/counting).
-  - **Never use Fable** for any task — it is not approved for this project.
-  - Use judgement: anything ambiguous, cross-cutting, or contract-affecting stays in the main session; only dispatch once the task is well-defined. Default to the cheapest model that can do the job correctly.
+- **Model delegation (pay special attention to cost):** cost discipline is a first-class concern on every task. Keep the main session for planning, contract/schema decisions, and review — and offload well-defined implementation work to subagents. Routing differs by host:
+  - **Claude Code only — pick model by complexity:** coding/implementation → Sonnet subagents (e.g. writing a router/service, building a screen, implementing a well-specified task from `07-fuel-prefs-tasks.md`); small mechanical tasks → Haiku (file moves/renames/deletes, `grep`/search/locate, simple find-and-replace, listing/counting). Give each subagent the exact task + the relevant doc sections. **Never use Fable** — it is not approved for this project.
+  - **Cursor — use Auto for subagents:** do **not** pin Sonnet/Haiku (or any explicit model slug) on Task/subagent calls. Omit the `model` parameter so subagents inherit Auto / the parent session. The Claude Code Sonnet/Haiku split above does **not** apply in Cursor.
+  - **Thinking budget:** do **not** use a high thinking budget for subagents unless the task truly needs it (ambiguous cross-cutting design, hard-to-isolate bugs, subtle parity math). Default to the lowest thinking setting that can do the job correctly.
+  - Use judgement: anything ambiguous, cross-cutting, or contract-affecting stays in the main session; only dispatch once the task is well-defined.
 - **Test scope:** run only the tests relevant to the feature(s) being changed — not the full battery — for isolated changes (e.g. `flutter test test/features/fuel`, or the specific backend test module). Reserve a full-suite run for broad/cross-cutting changes or a final pre-merge check. Subagents fixing one feature should likewise run just that feature's tests + a scoped `analyze`.
 - **Mobile UI conventions** (form headers, pickers, specific forms, navigation) live in `docs/ui-conventions.md` — read it when building or editing a mobile screen.
 

@@ -79,3 +79,7 @@ worktrees/
 .worktrees/
 .mcp.json
 .env.mcp
+
+# Add project configs to repo for sharing
+!.claude/
+!.cursor/hooks/

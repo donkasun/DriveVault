@@ -1,0 +1,69 @@
+# Build artifacts & compiled outputs
+/build
+/dist
+/.next
+/out
+/lib
+/Release
+*.o
+*.exe
+*.dll
+
+# IDE and editor configs (local user settings only)
+.codex/settings.local.json
+.vscode
+.idea
+*.swp
+*.swo
+
+# Local development secrets
+.env
+.env.*
+*.env.local
+.github/secrets/*
+
+# Test coverage and reports
+coverage/
+.nyc_output
+lcov.info
+htmlcov/
+junit.xml
+test-results/**
+
+# Temporary worktrees (parallel feature branches)
+.worktrees/**
+
+# Docker build artifacts
+docker-build*
+.docker/build
+
+# Generated docs & API specs
+docs/generated
+docs/api/generated_docs
+node_modules/docs/**
+
+# Lock files for dependency management
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
+Pipfile.lock
+Gemfile.lock
+mix.lock
+go.sum
+poetry.lock
+
+# Logs and temp files
+*.log
+tmp/**
+temp/**
+/tmp/**/.codex/*
+
+# macOS/iOS build dirs
+DerivedData
+build/Release
+xcuserdata/**
+
+# Database dumps & migrations (keep migration scripts visible, ignore generated data)
+*.db
+*.sqlite
+*.sqlite3
