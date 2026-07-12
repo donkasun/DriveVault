@@ -1,0 +1,38 @@
+name: Process Reminders (daily)
+
+# Replaces the old Cloud Scheduler → Cloud Run trigger. Fires a daily POST to the
+# Next.js internal endpoint, which scans for docs/credentials expiring in 30/7/1
+# days and sends FCM notifications. The endpoint is idempotent.
+on:
+  schedule:
+    # 02:00 UTC daily (~07:30 Asia/Colombo). GitHub cron is UTC and best-effort;
+    # runs may be delayed under load. Adjust the time here if needed.
+    - cron: '0 2 * * *'
+  workflow_dispatch: {} # allow manual runs from the Actions tab
+
+jobs:
+  process-reminders:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger reminder scan
+        env:
+          # Repo variable: base URL of the deployed app, e.g. https://drivevault.vercel.app
+          API_BASE_URL: ${{ vars.API_BASE_URL }}
+          # Repo secret: must equal the app's INTERNAL_SECRET env var.
+          INTERNAL_SECRET: ${{ secrets.INTERNAL_SECRET }}
+        run: |
+          set -euo pipefail
+          if [ -z "${API_BASE_URL:-}" ] || [ -z "${INTERNAL_SECRET:-}" ]; then
+            echo "::error::API_BASE_URL variable and INTERNAL_SECRET secret must be set."
+            exit 1
+          fi
+          response=$(curl -sS -w '\n%{http_code}' -X POST \
+            -H "X-Internal-Secret: ${INTERNAL_SECRET}" \
+            "${API_BASE_URL%/}/api/v1/internal/process-reminders")
+          body=$(echo "$response" | sed '$d')
+          code=$(echo "$response" | tail -n1)
+          echo "HTTP $code — $body"
+          if [ "$code" != "200" ]; then
+            echo "::error::process-reminders returned HTTP $code"
+            exit 1
+          fi

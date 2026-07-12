@@ -261,21 +261,26 @@ routes in a side-by-side check.
 **Port:** `internal.py`, `reminder_processing.py`, FCM send path
 
 - [x] `POST /api/v1/internal/process-reminders` guarded by `X-Internal-Secret`
-      (+ `GET` variant authed by `Authorization: Bearer <CRON_SECRET|INTERNAL_SECRET>`
-      for Vercel Cron, which cannot send POST/custom headers)
-- [x] `vercel.json` cron schedule — daily `0 2 * * *` (no prior Cloud Scheduler cadence
-      was committed; daily fits the 30/7/1-day thresholds — **confirm cadence/time**)
-- [ ] Verify FCM send still works with Firebase Admin on Vercel
-- [ ] Retire Cloud Scheduler → Cloud Run job only after Next cron is proven
+      (exact FastAPI parity — POST + header only)
+- [x] Scheduled trigger — **GitHub Actions** (`.github/workflows/process-reminders.yml`),
+      daily `0 2 * * *`, POSTing with `X-Internal-Secret`. (Chose GitHub Actions over
+      Vercel Cron per user preference; no prior Cloud Scheduler cadence was committed —
+      daily fits the 30/7/1-day thresholds; **confirm cadence/time**.)
+- [ ] Verify FCM send still works with Firebase Admin on the deployed host
+- [ ] Retire Cloud Scheduler → Cloud Run job only after the Action is proven
 
-**Done when:** one successful scheduled run in preview/prod; secret rejection tested.
+**Done when:** one successful scheduled run; secret rejection tested.
+
+**Ops setup for the Action:** set repo **variable** `API_BASE_URL` (e.g.
+`https://drivevault.vercel.app`) and repo **secret** `INTERNAL_SECRET` (same value as the
+app's env). Trigger manually from the Actions tab (`workflow_dispatch`) to smoke-test.
 
 > **Reviewer note (Phase 6):** `reminders` table added to Drizzle `schema.ts`
 > (`scheduleId`/`documentId` as nullable UUIDs without Drizzle FKs — the
 > `maintenance_schedules` table isn't modeled yet; matches the `aiExtractionId`
 > precedent). `reminder-processing.ts` preserves Python's `sent`-counter quirk
 > (incremented on every reminder created, regardless of FCM outcome). FCM send is
-> isolated in `services/fcm.ts` so tests can mock it. Route tests 8/8 (service
+> isolated in `services/fcm.ts` so tests can mock it. Route tests 4/4 (service
 > mocked); the reminder-processing integration test needs local Docker Postgres.
 
 ---

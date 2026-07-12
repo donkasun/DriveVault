@@ -4,19 +4,20 @@
 > reminders/cron). Phases 7–8 (marketing pages, cutover) are not yet implemented.
 > **Date:** 2026-07-12 · **Branch:** `feat/fastapi-to-nextjs-migration`
 
-> **Phase 6 (added 2026-07-12):** ported `internal.py` + `reminder_processing.py` +
-> FCM send path. New: `reminders` Drizzle table; `server/services/reminder-processing.ts`
-> (faithful port incl. the `sent`-counter quirk); `server/services/fcm.ts` (mockable
-> sender); `firebaseMessaging` export; `POST /api/v1/internal/process-reminders`
-> (`X-Internal-Secret` parity) **plus** a `GET` variant authed by
-> `Authorization: Bearer <CRON_SECRET|INTERNAL_SECRET>` for Vercel Cron; `vercel.json`
-> daily cron `0 2 * * *` (02:00 UTC ≈ 07:30 SLT). `tsc`/`eslint` clean; route tests
-> 8/8 (service mocked); reminder-processing integration tests need Docker Postgres.
-> **Assumptions to confirm:** (a) daily cadence & 02:00 UTC time (no prior Cloud
-> Scheduler config was committed to match); (b) Vercel Cron auth via Bearer — set
-> `CRON_SECRET` in Vercel to the same value as `INTERNAL_SECRET`. Phase 6 plan items
-> still open: verify FCM actually sends on Vercel, and retire Cloud Scheduler after
-> one proven scheduled run.
+> **Phase 6 (added 2026-07-12; cron reworked 2026-07-13):** ported `internal.py` +
+> `reminder_processing.py` + FCM send path. New: `reminders` Drizzle table;
+> `server/services/reminder-processing.ts` (faithful port incl. the `sent`-counter
+> quirk); `server/services/fcm.ts` (mockable sender); `firebaseMessaging` export;
+> `POST /api/v1/internal/process-reminders` (`X-Internal-Secret`, exact FastAPI parity).
+> **Scheduling uses GitHub Actions** (`.github/workflows/process-reminders.yml`, daily
+> `0 2 * * *`) rather than Vercel Cron — per user preference; the Action POSTs with the
+> secret header, so the endpoint stays POST-only (the earlier Vercel-Cron `GET`/`CRON_SECRET`
+> variant was removed). `tsc`/`eslint` clean; route tests 4/4 (service mocked);
+> reminder-processing integration tests need Docker Postgres.
+> **Ops:** set repo var `API_BASE_URL` + secret `INTERNAL_SECRET`.
+> **Assumptions to confirm:** daily cadence & 02:00 UTC time (no prior Cloud Scheduler
+> config was committed to match). Still open: verify FCM actually sends on the deployed
+> host, and retire Cloud Scheduler after one proven scheduled run.
 
 This document records (a) the toolchain/verification state after fixing the install,
 (b) contract-parity findings vs the FastAPI source, (c) issues & risks, and
