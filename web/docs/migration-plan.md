@@ -290,14 +290,23 @@ app's env). Trigger manually from the Actions tab (`workflow_dispatch`) to smoke
 **Goal:** Stable public pages for store / legal compliance (can start in parallel after
 Phase 0).
 
-- [ ] `/privacy` — privacy policy
-- [ ] `/terms` — terms of service
-- [ ] `/support` — contact / support instructions
-- [ ] Optional landing at `/`
-- [ ] Footer links; `last updated` dates; accessible markup
-- [ ] Custom domain (e.g. `drivevault.app`) on Vercel
+- [x] `/privacy` — privacy policy (app-accurate; template-review banner)
+- [x] `/terms` — terms of service (governing law = Sri Lanka)
+- [x] `/support` — contact / support instructions (mailto + data-deletion path)
+- [x] Landing at `/` (minimal hero)
+- [x] Footer links; `last updated` dates; accessible markup (skip link, landmarks, AA)
+- [ ] Custom domain (e.g. `drivevault.app`) on Vercel — deferred until deploy
 
 **Done when:** URLs suitable for App Store / Play Console listing; no auth required.
+
+> **Reviewer note (Phase 7):** all pages live under the `(marketing)` route group with a
+> shared header/footer shell. Swappable facts (name, contact email, operator/legal-entity
+> placeholder, jurisdiction, last-updated) are centralized in `web/src/lib/site.ts` — edit
+> there, not in JSX. Brand: yellow `#FFD600` used only as fill behind dark ink (retired
+> green/amber unused). Legal copy is a solid draft with a visible "have reviewed before
+> launch" banner. `tsc`/`eslint` clean; `next build` prerenders `/`, `/privacy`, `/terms`,
+> `/support` as static. **Confirm before launch:** contact email, whether to name a legal
+> entity (currently "DriveVault"), jurisdiction, and a professional review of the copy.
 
 ---
 
