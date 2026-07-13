@@ -50,3 +50,15 @@ export function daysUntilExpiry(expiryDate: string | null, now: Date = new Date(
   const msPerDay = 24 * 60 * 60 * 1000;
   return Math.round((expiryDay.getTime() - today.getTime()) / msPerDay);
 }
+
+/**
+ * Groups documents by `docType`, preserving each group's original relative
+ * order. Parity with Flutter `groupDocumentsByType()` in `document.dart`.
+ */
+export function groupDocumentsByType(documents: readonly Document[]): Record<string, Document[]> {
+  const grouped: Record<string, Document[]> = {};
+  for (const doc of documents) {
+    (grouped[doc.docType] ??= []).push(doc);
+  }
+  return grouped;
+}
