@@ -3,7 +3,7 @@
 > **For agentic workers:** Implement phase-by-phase. Prefer subagent-driven development
 > with review between phases. Checkboxes track progress. Do **not** change API JSON keys
 > or DB columns — `docs/03-api-contract.md` and `docs/02-database-schema.md` (repo root)
-> win. Conventions: `web/docs/best-practices.md`.
+> win. Conventions: `web/docs/best-practices.md`. Status at a glance: `web/docs/migration-status.md`.
 
 **Goal:** Move DriveVault’s HTTP API from FastAPI (Cloud Run) into this Next.js app so one
 Vercel project serves (1) compliance/marketing pages and (2) `/api/v1/*` for mobile clients.
