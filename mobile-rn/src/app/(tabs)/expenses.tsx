@@ -1,6 +1,5 @@
-/** Phase 2 stub — replaced by the real screen in a later phase. */
-import { TabPlaceholder } from '@/components/tab-placeholder';
+import { ExpenseHistoryScreen } from '@/features/expenses/components/expense-history-screen';
 
 export default function ExpensesTab() {
-  return <TabPlaceholder title="Expenses" />;
+  return <ExpenseHistoryScreen />;
 }
