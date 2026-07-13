@@ -82,11 +82,35 @@ bundle builds — and not one screen has been rendered against a real server.
 
 ---
 
-## Remaining
+## Phase 9 — parity audit
 
-### Phase 9 — parity audit + cutover (NOT STARTED)
+### Static audit: DONE (2026-07-13)
+
+Everything that can be checked without a running server has been checked.
+
+| Check | Result |
+|---|---|
+| Every Flutter route has an RN equivalent | ✅ (see the `/verify-email` note below) |
+| Every contract endpoint is called by the client | ✅ all 16 |
+| No leftover stubs / TODOs / placeholder screens | ✅ (dead `TabPlaceholder` deleted) |
+| No secrets tracked in git | ✅ `.env.local` is gitignored; no service-account JSON |
+| tsc / eslint / jest / bundle | ✅ 185 files, 210 tests |
+
+**`/verify-email` is deliberately absent.** Flutter registers the route and ships a
+217-line `VerifyEmailScreen`, but **nothing ever navigates to it** and
+`auth_redirect` actively kicks users *off* it — it is dead code left over from the
+removed C2d hard gate, exactly like `expiryColor()`. RN omitting the screen matches
+Flutter's *effective* behaviour. `resolveAuthRedirect` still handles the path
+defensively (and is tested), so restoring a screen there would be a one-file change
+if the gate ever comes back.
+
+**`/splash` is also absent by design** — `app/index.tsx` renders a spinner while
+auth status resolves, which is the same thing without a dedicated route.
+
+### Runtime audit: NOT STARTED — needs you
 - [ ] **Smoke test against a real backend and Firebase project.** This is the
       single highest-value remaining task. Nothing below matters until this is done.
+      Needs `mobile-rn/.env.local` (see `.env.example`) and a running API.
 - [ ] Android smoke test.
 - [ ] Walk every route against the seeded Hilux user and compare screen-by-screen
       with the Flutter app.
