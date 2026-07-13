@@ -4,30 +4,57 @@
 >
 > **Scope note:** This is the **master migration plan**. Phases 0–1 below are fully bite-sized and executable. Phases 2–9 are locked architecture + file maps + acceptance criteria; before coding each of those phases, expand it into its own detailed execution plan under `docs/superpowers/plans/` (same format as Phase 0–1). Do not invent API fields — `docs/03-api-contract.md` and `docs/02-database-schema.md` win.
 
-**Goal:** Replace the Flutter app in `mobile/` with feature-parity React Native (Expo) in `mobile-rn/`, following `mobile-rn/docs/best-practices.md`, while keeping the existing FastAPI backend unchanged.
+**Goal:** Replace the Flutter app in `mobile/` with feature-parity React Native (Expo) in `mobile-rn/`, following `mobile-rn/docs/best-practices.md`, without changing the API contract.
+
+> **Backend note (updated 2026-07-13):** the HTTP API is itself being migrated FastAPI → Next.js
+> on branch `feat/fastapi-to-nextjs-migration` (code-complete through its Phase 7; awaiting a
+> deploy/cutover decision). **This does not affect the RN port**: that migration froze the
+> contract — same paths, same camelCase JSON, same `{ detail }` errors, same 404-not-403
+> ownership rule. Only the **base URL** changes, and it is already an env var
+> (`EXPO_PUBLIC_API_BASE_URL`). Build against the contract, not against either implementation.
 
 **Architecture:** Feature folders mirror Flutter’s `data/ → domain/ → presentation/` as `api.ts → repository.ts → types.ts → hooks.ts → components/`. Expo Router routes stay dumb. TanStack Query owns server state; Zustand owns auth session + thin UI globals; `expo-sqlite` + Drizzle own local cache (after online parity). One typed `lib/api-client.ts` attaches Firebase Bearer tokens.
 
 **Tech Stack:** Expo 57 · React Native 0.86 · Expo Router · TypeScript strict · pnpm · Firebase JS Auth · TanStack Query · Zustand · expo-image · expo-image-picker · react-native-reanimated · (later) expo-sqlite + drizzle-orm · Jest + RNTL
 
 **Source of truth while migrating:**
-- API shapes: `docs/03-api-contract.md`
+- API shapes: `docs/03-api-contract.md` — **but see the contract-lag list below**
 - Schema: `docs/02-database-schema.md`
 - UI conventions: `docs/ui-conventions.md` + `docs/design-references/`
 - RN conventions: `mobile-rn/docs/best-practices.md`
 - Flutter reference implementation: `mobile/lib/` (behavior to match, not to copy line-by-line)
 
+**Where Doc 3 lags the real API** (both migrations independently confirmed these — trust the
+implementation, not Doc 3, and do not "fix" the RN client to match the doc):
+
+| Gap | Reality |
+|---|---|
+| `GET /activity` | Real, deployed, undocumented in Doc 3. Distinct from dashboard's embedded `recentActivity` (richer: has `id`, `currency`, type-specific fields; excludes credentials). |
+| `/me/driving-credentials` | Full CRUD is real and deployed; Doc 3 hasn't caught up. |
+| `dashboard.upcomingRenewals` | Doc 3 says vehicle documents only. Reality merges driving credentials too, with `vehicleId`/`vehicleLabel` null. |
+| `DELETE /documents/{id}` | Doc 3 says it also deletes the Cloudinary asset. Reality deletes the DB row only. |
+
+For exact field names, read the **Next.js Zod schemas** under `web/src/` (the post-cutover
+implementation) — or `backend/app/schemas/` while FastAPI is still the live host. They agree;
+the Next.js port was built for parity and its reviewer notes in `web/docs/migration-plan.md`
+document every place it deliberately matched Python over Doc 3.
+
 ---
 
 ## 0. Migration principles (non-negotiable)
 
-1. **Backend stays frozen.** No new endpoints, fields, or renames for the RN port. If something is missing, ask.
+1. **Contract stays frozen.** No new endpoints, fields, or renames for the RN port. If something is missing, ask. (The API *implementation* is moving FastAPI → Next.js in parallel; the *contract* does not move. Never let an RN need drive an API change mid-migration.)
 2. **One feature at a time.** Finish a phase’s “Done when” before starting the next.
 3. **Parity over redesign.** Match Flutter UX (floating tab bar, form headers, pickers, soft email-verify banner). Do not invent new screens.
 4. **Repository-only networking.** Hooks/components never call `fetch` — only `repository.ts` calls `api.ts`, which calls `lib/api-client.ts`.
 5. **Online-first, then cache.** Ship each feature talking to the live API first. Add SQLite cache + optimistic sync in Phase 8 (after feature parity).
 6. **pnpm only.** Flag any new dependency before adding it (list in §1 is pre-approved for this migration).
-7. **iOS Simulator → local Docker backend** (`EXPO_PUBLIC_API_BASE_URL=http://localhost:8000/api/v1`), same as Flutter.
+7. **iOS Simulator → whichever API is running locally.** Set `EXPO_PUBLIC_API_BASE_URL` in
+   `mobile-rn/.env.local`; never hard-code it. Two valid local backends, same contract:
+   - FastAPI (Docker): `http://localhost:8000/api/v1` — the Flutter-era default; needs `docker compose up`.
+   - Next.js (`web/`): `http://localhost:3000/api/v1` — `pnpm --dir web dev`; this is the post-cutover host.
+   Prefer Next.js once it is deployed, so the RN client is exercised against its permanent
+   backend rather than one that is being retired.
 8. **Do not delete `mobile/` until Phase 9** explicitly says so.
 
 ---
@@ -102,6 +129,11 @@
 
 Tabs: **Home · Garage · [center +] · Expenses · Settings** — floating pill bar matching Flutter `MainShell`. Center `+` opens Quick Add sheet (Log fuel / Add service / Upload doc / Add vehicle).
 
+> **Resolved 2026-07-13 (verified against source):** the fourth tab's visible label is
+> **"Settings"** (`main_shell.dart` `_labels`) but its route is **`/profile`**
+> (`app_router.dart:230`). That mismatch is intentional Flutter behaviour, not a bug —
+> the RN shell reproduces both. Do not "fix" the label to Profile or the route to /settings.
+
 ---
 
 ## 3. Target folder structure (end state)
@@ -168,15 +200,18 @@ features/<name>/
 - Modify: `mobile-rn/package.json`
 - Create: `mobile-rn/.env.example`
 
-- [ ] **Step 1: Add pre-approved packages**
+- [x] **Step 1: Add pre-approved packages**
 
 ```bash
 cd mobile-rn
-pnpm add firebase @tanstack/react-query zustand expo-image-picker expo-document-picker expo-secure-store react-native-svg
+pnpm add firebase @tanstack/react-query zustand expo-image-picker expo-document-picker expo-secure-store react-native-svg @react-native-async-storage/async-storage
 pnpm add -D jest @types/jest @testing-library/react-native jest-expo
 ```
 
-- [ ] **Step 2: Create `.env.example`**
+> `@react-native-async-storage/async-storage` is required by Task 1.1 (Firebase RN auth
+> persistence). It was previously only mentioned in passing there — install it here.
+
+- [x] **Step 2: Create `.env.example`**
 
 ```bash
 EXPO_PUBLIC_API_BASE_URL=http://localhost:8000/api/v1
@@ -188,7 +223,7 @@ EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=
 EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=
 ```
 
-- [ ] **Step 3: Add test script to `package.json`**
+- [x] **Step 3: Add test script to `package.json`**
 
 ```json
 "scripts": {
@@ -215,7 +250,7 @@ git commit -m "chore(mobile-rn): add foundation deps for Flutter migration"
 - Modify: `mobile-rn/src/constants/theme.ts`
 - Reference: `mobile/lib/core/theme/app_theme.dart`
 
-- [ ] **Step 1: Rewrite `theme.ts` with Flutter `AppColors` parity**
+- [x] **Step 1: Rewrite `theme.ts` with Flutter `AppColors` parity**
 
 ```ts
 export const Colors = {
@@ -275,7 +310,7 @@ git commit -m "feat(mobile-rn): adopt DriveVault design tokens"
 - Modify: `mobile-rn/src/app/_layout.tsx`, `mobile-rn/src/app/index.tsx`
 - Modify: `mobile-rn/src/components/app-tabs.tsx` → temporary single “Home” stub
 
-- [ ] **Step 1: Replace `index.tsx` with a placeholder Home**
+- [x] **Step 1: Replace `index.tsx` with a placeholder Home**
 
 ```tsx
 import { Text, View } from 'react-native';
@@ -295,9 +330,9 @@ export default function HomePlaceholder() {
 }
 ```
 
-- [ ] **Step 2: Simplify root layout** — keep splash overlay if useful; drop Explore tab.
+- [x] **Step 2: Simplify root layout** — keep splash overlay if useful; drop Explore tab.
 
-- [ ] **Step 3: Lint**
+- [x] **Step 3: Lint**
 
 ```bash
 cd mobile-rn && pnpm lint
@@ -321,7 +356,7 @@ git commit -m "chore(mobile-rn): strip Expo tutorial; scaffold DriveVault shell"
 - Create: `mobile-rn/src/lib/distance-unit.ts`
 - Reference: `mobile/lib/shared/utils/formatting.dart`, `currencies.dart`, `distance_unit.dart`
 
-- [ ] **Step 1: Write failing test**
+- [x] **Step 1: Write failing test**
 
 ```ts
 import { formatCents } from './formatting';
@@ -333,15 +368,15 @@ describe('formatCents', () => {
 });
 ```
 
-- [ ] **Step 2: Run test — expect FAIL**
+- [x] **Step 2: Run test — expect FAIL**
 
 ```bash
 cd mobile-rn && pnpm test -- src/lib/formatting.test.ts
 ```
 
-- [ ] **Step 3: Implement `formatCents` / economy helpers** (money always integer cents; never floats for storage).
+- [x] **Step 3: Implement `formatCents` / economy helpers** (money always integer cents; never floats for storage).
 
-- [ ] **Step 4: Run test — expect PASS; commit**
+- [x] **Step 4: Run test — expect PASS; commit**
 
 ```bash
 git add mobile-rn/src/lib
@@ -349,6 +384,16 @@ git commit -m "feat(mobile-rn): add currency and distance formatting utils"
 ```
 
 **Phase 0 done when:** app launches to a DriveVault-branded placeholder; theme tokens match Flutter; foundation deps installed; formatting tests pass.
+
+> **DONE 2026-07-13.** tsc + eslint clean; jest green; `expo export` bundles for iOS.
+> Jest was initially unusable: the local `watchman` install hung jest-haste-map (zero output,
+> never exits) and `jest-expo@57` requires the **Jest 29** ecosystem (Jest 30 blew up with a
+> jest-mock version mismatch). Fixed via `watchman: false` in jest.config.js, Jest pinned to 29,
+> and the missing `@react-native/jest-preset` peer added.
+>
+> **Not ported on purpose:** Flutter's `expiryColor()` in formatting.dart is dead code (zero call
+> sites) and returns raw Material colours that contradict the design tokens. Status colours come
+> from StatusPill instead. Do not restore it.
 
 ---
 
@@ -366,7 +411,7 @@ git commit -m "feat(mobile-rn): add currency and distance formatting utils"
 - Create: `mobile-rn/src/features/auth/hooks.ts`
 - Reference: `mobile/lib/features/auth/data/auth_repository.dart`
 
-- [ ] **Step 1: Firebase bootstrap**
+- [x] **Step 1: Firebase bootstrap**
 
 ```ts
 // src/lib/firebase.ts
@@ -402,7 +447,7 @@ export function getFirebaseAuth() {
 
 Also add `@react-native-async-storage/async-storage` (Expo-compatible; flag as dependency).
 
-- [ ] **Step 2: Auth repository methods** (parity with Flutter):
+- [x] **Step 2: Auth repository methods** (parity with Flutter):
   - `signInWithEmailAndPassword`
   - `createUserWithEmailAndPassword` (+ `sendEmailVerification`)
   - `signInWithGoogle`
@@ -411,7 +456,7 @@ Also add `@react-native-async-storage/async-storage` (Expo-compatible; flag as d
   - `reloadUser`
   - `getIdToken()`
 
-- [ ] **Step 3: Zustand auth store**
+- [x] **Step 3: Zustand auth store**
 
 ```ts
 type AuthStatus = 'loading' | 'signedOut' | 'signedIn';
@@ -425,7 +470,7 @@ type AuthState = {
 
 Subscribe to `onAuthStateChanged` once in root layout.
 
-- [ ] **Step 4: Unit-test repository error mapping** with mocked Firebase (no real network).
+- [x] **Step 4: Unit-test repository error mapping** with mocked Firebase (no real network).
 
 - [ ] **Step 5: Commit**
 
@@ -441,9 +486,9 @@ git commit -m "feat(mobile-rn): Firebase auth repository and session store"
 - Create: `mobile-rn/src/lib/api-client.test.ts`
 - Reference: `mobile/lib/core/network/api_client.dart`
 
-- [ ] **Step 1: Failing test — 401 maps to `ApiAuthError`; body `{ detail }` becomes message**
+- [x] **Step 1: Failing test — 401 maps to `ApiAuthError`; body `{ detail }` becomes message**
 
-- [ ] **Step 2: Implement**
+- [x] **Step 2: Implement**
 
 ```ts
 // Behaviour contract:
@@ -510,7 +555,7 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
 
 Wire token via a small `getAccessToken: () => Promise<string | null>` injected from auth (avoid circular imports).
 
-- [ ] **Step 3: Tests pass; commit**
+- [x] **Step 3: Tests pass; commit**
 
 ```bash
 git commit -m "feat(mobile-rn): typed API client with Bearer token injection"
@@ -542,8 +587,8 @@ export type AppUser = {
 };
 ```
 
-- [ ] **Step 1: Repository tests with mocked `apiRequest`**
-- [ ] **Step 2: `useMe()` via TanStack Query `queryKey: ['me']`**
+- [x] **Step 1: Repository tests with mocked `apiRequest`**
+- [x] **Step 2: `useMe()` via TanStack Query `queryKey: ['me']`**
 - [ ] **Step 3: Commit**
 
 ```bash
@@ -562,7 +607,7 @@ git commit -m "feat(mobile-rn): /me profile repository and query hook"
 - `signedOut` → `/(auth)/login`
 - `signedIn` → `/(tabs)/home` (even if email unverified)
 
-- [ ] **Step 1: Build login/signup UI** matching Flutter fields (email, password, Google button, links).
+- [x] **Step 1: Build login/signup UI** matching Flutter fields (email, password, Google button, links).
 - [ ] **Step 2: Manual smoke** against Firebase + local backend: sign up → `GET /me` succeeds.
 - [ ] **Step 3: Commit**
 
@@ -571,12 +616,12 @@ git commit -m "feat(mobile-rn): auth screens and Expo Router auth gate"
 ```
 
 **Phase 1 done when:**
-- [ ] Sign up / sign in / sign out work
-- [ ] Auth persists across reload
-- [ ] `GET /me` returns user with Bearer token
-- [ ] Unverified email users still reach home
-- [ ] Repository + api-client unit tests pass
-- [ ] `pnpm lint` clean
+- [x] Sign up / sign in / sign out work (code complete; needs a real Firebase project to smoke)
+- [x] Auth persists across reload (AsyncStorage persistence wired)
+- [x] `GET /me` returns user with Bearer token (client + tests; needs live API to smoke)
+- [x] Unverified email users still reach home (pinned by a test in redirect.test.ts)
+- [x] Repository + api-client unit tests pass (52 tests green)
+- [x] `pnpm lint` clean (0 errors, 0 warnings across 37 files)
 
 ---
 
@@ -741,12 +786,15 @@ Per `best-practices.md` §6:
 
 Checklist:
 - [ ] Every route in §2 implemented
-- [ ] Doc 3 endpoints used by Flutter are covered
+- [ ] Doc 3 endpoints used by Flutter are covered (incl. the four contract-lag items above)
 - [ ] UI conventions doc followed
 - [ ] No secrets committed
 - [ ] `pnpm lint` + feature tests green
-- [ ] iOS Simulator smoke against local Docker (seeded Hilux user)
+- [ ] iOS Simulator smoke against the local API (seeded Hilux user)
 - [ ] Android smoke
+- [ ] **Point `EXPO_PUBLIC_API_BASE_URL` at the production host.** If the FastAPI → Next.js
+      cutover has landed, this is the Next.js host, *not* the Cloud Run URL. Coordinate with
+      `web/docs/migration-plan.md` Phase 8 — do not ship an RN build pinned to a retiring backend.
 - [ ] Update root `CLAUDE.md` / `AGENTS.md` stack line to React Native when cutover is accepted
 - [ ] Archive or mark `mobile/` deprecated (only when user explicitly approves)
 
@@ -789,10 +837,33 @@ Run **scoped** tests per phase (`pnpm test -- src/features/vehicles`), not the f
 
 - No AI / OCR / Gemini
 - No Apple Sign-In (deferred like Flutter)
-- No FCM push handlers unless Flutter already ships them (it doesn’t meaningfully)
+- No FCM push handlers — Flutter ships none (see the known defect below)
 - No Firestore
 - No redesign / new product features
 - No replacing NativeTabs with a different IA than Flutter’s four tabs
+
+### Known defect inherited from Flutter — reminders have no receiver
+
+**Do not "fix" this during the migration; port the Flutter behaviour as-is and raise it separately.**
+
+The backend has a `users.fcm_token` column (`backend/app/models/users.py:30`) and the daily
+reminder job gates every push on it:
+
+```python
+wants_fcm = user.renewal_reminders_enabled and bool(user.fcm_token)
+```
+
+**No client has ever written that column.** `grep -r firebase_messaging mobile/lib` returns
+nothing — Flutter never registers a device token. So `fcm_token` is `NULL` for every user,
+`wants_fcm` is always false, and no renewal reminder has ever been delivered. The pipeline
+creates `reminders` rows and sends nothing.
+
+This was faithfully ported into Next.js (its Phase 6, plus a daily GitHub Actions trigger),
+so the dead pipeline now exists in **both** backends. Porting it into RN as a non-goal keeps
+it dead — which is the correct scope call for this migration, but someone must eventually
+decide whether renewal reminders are a real feature. If they are, it needs: a client-side
+FCM token registration, an endpoint to accept it (none exists in the contract's endpoint map),
+and a `PATCH /me` field or dedicated route to carry it.
 
 ---
 
