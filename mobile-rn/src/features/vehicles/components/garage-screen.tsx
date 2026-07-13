@@ -8,7 +8,7 @@
 
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useRouter } from 'expo-router';
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -16,6 +16,7 @@ import { AppButton } from '@/components/app-button';
 import { DashedBorder } from '@/components/dashed-border';
 import { ShimmerBox } from '@/components/shimmer-box';
 import { Colors } from '@/constants/theme';
+import { QuickFuelEntrySheet } from '@/features/fuel-logs/components/quick-fuel-entry-sheet';
 import { useMe } from '@/features/profile/hooks';
 import { useVehicles } from '../hooks';
 import type { Vehicle } from '../types';
@@ -33,10 +34,11 @@ export function GarageScreen() {
   const router = useRouter();
   const { data: vehicles, isLoading, error, refetch } = useVehicles();
   const { data: me } = useMe();
+  const [fuelSheetVehicleId, setFuelSheetVehicleId] = useState<string | null>(null);
 
   const onAdd = useCallback(() => router.push('/garage/add-vehicle'), [router]);
   const onOpen = useCallback((id: string) => router.push(`/garage/vehicle/${id}`), [router]);
-  const onLogFuel = useCallback((id: string) => router.push(`/garage/vehicle/${id}`), [router]);
+  const onLogFuel = useCallback((id: string) => setFuelSheetVehicleId(id), []);
 
   const renderItem = useCallback(
     ({ item }: { item: Vehicle }) => (
@@ -84,6 +86,12 @@ export function GarageScreen() {
         renderItem={renderItem}
         contentContainerStyle={styles.listContent}
         ListFooterComponent={<AddVehicleCard onPress={onAdd} />}
+      />
+
+      <QuickFuelEntrySheet
+        visible={fuelSheetVehicleId != null}
+        vehicleId={fuelSheetVehicleId ?? undefined}
+        onClose={() => setFuelSheetVehicleId(null)}
       />
     </SafeAreaView>
   );

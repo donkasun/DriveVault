@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Colors, Radii } from '@/constants/theme';
 import type { Document } from '@/features/documents/types';
+import { QuickFuelEntrySheet } from '@/features/fuel-logs/components/quick-fuel-entry-sheet';
 import type { MaintenanceRecord } from '@/features/maintenance/types';
 import { useMe } from '@/features/profile/hooks';
 import { effectiveUnit, formatDistance } from '@/lib/distance-unit';
@@ -32,7 +33,6 @@ type Props = {
   onBack: () => void;
   onEditVehicle: (vehicleId: string) => void;
   onDeleted: () => void;
-  onAddFuel: (vehicleId: string) => void;
   onViewMoreFuel: (vehicleId: string) => void;
   onAddService: (vehicleId: string) => void;
   onOpenMaintenanceRecord: (vehicleId: string, record: MaintenanceRecord) => void;
@@ -45,7 +45,6 @@ export function VehicleDetailScreen({
   onBack,
   onEditVehicle,
   onDeleted,
-  onAddFuel,
   onViewMoreFuel,
   onAddService,
   onOpenMaintenanceRecord,
@@ -58,6 +57,7 @@ export function VehicleDetailScreen({
   const deleteVehicle = useDeleteVehicle();
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [fuelSheetOpen, setFuelSheetOpen] = useState(false);
 
   const handleDelete = useCallback(async () => {
     if (!vehicle) return;
@@ -109,7 +109,7 @@ export function VehicleDetailScreen({
           vehicleId={vehicle.id}
           vehicleDistanceUnit={vehicle.distanceUnit}
           user={me}
-          onAddFuel={() => onAddFuel(vehicle.id)}
+          onAddFuel={() => setFuelSheetOpen(true)}
           onViewMore={() => onViewMoreFuel(vehicle.id)}
         />
 
@@ -138,6 +138,12 @@ export function VehicleDetailScreen({
           setConfirmingDelete(false);
           setDeleteError(null);
         }}
+      />
+
+      <QuickFuelEntrySheet
+        visible={fuelSheetOpen}
+        vehicleId={vehicle.id}
+        onClose={() => setFuelSheetOpen(false)}
       />
     </View>
   );

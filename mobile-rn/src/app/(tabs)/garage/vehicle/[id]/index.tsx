@@ -12,7 +12,6 @@ export default function VehicleDetailRoute() {
       onBack={() => router.back()}
       onEditVehicle={(vehicleId) => router.push(`/garage/edit-vehicle/${vehicleId}`)}
       onDeleted={() => router.replace('/garage')}
-      onAddFuel={(vehicleId) => router.push(`/garage/vehicle/${vehicleId}/fuel-records`)}
       onViewMoreFuel={(vehicleId) => router.push(`/garage/vehicle/${vehicleId}/fuel-records`)}
       onAddService={(vehicleId) => router.push(`/garage/vehicle/${vehicleId}/maintenance/add`)}
       onOpenMaintenanceRecord={(vehicleId, record) =>

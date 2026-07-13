@@ -10,6 +10,8 @@ import { Keyboard, Platform, StyleSheet, View, useWindowDimensions } from 'react
 
 import { FloatingTabBar, type TabKey } from '@/components/floating-tab-bar';
 import { QuickAddSheet, type QuickAddAction } from '@/components/quick-add-sheet';
+import { QuickFuelEntrySheet } from '@/features/fuel-logs/components/quick-fuel-entry-sheet';
+import { QuickMaintenanceSheet } from '@/features/maintenance/components/quick-maintenance-sheet';
 import { useVehicles } from '@/features/vehicles/hooks';
 
 function activeTabFrom(pathname: string): TabKey {
@@ -26,6 +28,10 @@ export default function TabsLayout() {
 
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [keyboardOpen, setKeyboardOpen] = useState(false);
+  const [quickFuelVehicleId, setQuickFuelVehicleId] = useState<string | undefined>(undefined);
+  const [quickFuelOpen, setQuickFuelOpen] = useState(false);
+  const [quickMaintenanceVehicleId, setQuickMaintenanceVehicleId] = useState<string | undefined>(undefined);
+  const [quickMaintenanceOpen, setQuickMaintenanceOpen] = useState(false);
 
   const { data: vehicles, isLoading, error } = useVehicles();
 
@@ -69,9 +75,12 @@ export default function TabsLayout() {
           }
           break;
         case 'fuel':
+          setQuickFuelVehicleId(soleVehicleId ?? undefined);
+          setQuickFuelOpen(true);
+          break;
         case 'service':
-          // Phase 4 wires the quick fuel / maintenance sheets.
-          router.navigate('/garage');
+          setQuickMaintenanceVehicleId(soleVehicleId ?? undefined);
+          setQuickMaintenanceOpen(true);
           break;
       }
     },
@@ -108,6 +117,17 @@ export default function TabsLayout() {
         hasVehicles={(vehicles?.length ?? 0) > 0}
         loading={isLoading}
         error={error ? String(error) : null}
+      />
+
+      <QuickFuelEntrySheet
+        visible={quickFuelOpen}
+        vehicleId={quickFuelVehicleId}
+        onClose={() => setQuickFuelOpen(false)}
+      />
+      <QuickMaintenanceSheet
+        visible={quickMaintenanceOpen}
+        vehicleId={quickMaintenanceVehicleId}
+        onClose={() => setQuickMaintenanceOpen(false)}
       />
     </View>
   );
