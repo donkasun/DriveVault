@@ -12,6 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ShimmerBox } from '@/components/shimmer-box';
 import { Colors } from '@/constants/theme';
+import { clearAllCaches } from '@/db/client';
 import { authRepository } from '@/features/auth/repository';
 import { useAuthStore } from '@/features/auth/store';
 import { DrivingCredentialsSection } from '@/features/driving-credentials/components/driving-credentials-section';
@@ -36,8 +37,11 @@ export function ProfileScreen() {
 
   async function handleSignOut() {
     // Clear all cached server state FIRST so the next user to sign in never
-    // sees the previous user's data (CLAUDE.md — critical requirement).
+    // sees the previous user's data (CLAUDE.md — critical requirement). This
+    // includes both the in-memory TanStack Query cache AND the on-disk
+    // SQLite read-cache — missing either one is a privacy bug.
     queryClient.clear();
+    await clearAllCaches();
     await authRepository.signOut();
   }
 
