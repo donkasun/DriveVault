@@ -3,12 +3,17 @@
  * Port of backend/app/services/renewals.py.
  */
 
+// Both branches must read the same calendar. Reading local components here
+// (getFullYear/getMonth/getDate) while parsing strings as UTC shifted every
+// result by a day whenever the host's local date differed from its UTC date.
 function toUtcDateOnly(value: Date | string): Date {
   if (typeof value === 'string') {
     const [y, m, d] = value.split('-').map(Number);
     return new Date(Date.UTC(y, m - 1, d));
   }
-  return new Date(Date.UTC(value.getFullYear(), value.getMonth(), value.getDate()));
+  return new Date(
+    Date.UTC(value.getUTCFullYear(), value.getUTCMonth(), value.getUTCDate()),
+  );
 }
 
 /** Return days until expiry (negative if already overdue). */
